@@ -62,53 +62,55 @@ export default function ContabilidadPage() {
 
             {/* Transactions table */}
             <div className="glass-card p-5">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                     <h2 className="section-title">Transacciones</h2>
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
                         {(['all', 'income', 'expense'] as const).map((f) => (
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
-                                className={cn('text-xs px-3 py-1.5 rounded-lg border transition-all', filter === f ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border text-muted-foreground hover:text-foreground')}
+                                className={cn('text-[10px] sm:text-xs px-3 py-1.5 rounded-lg border transition-all whitespace-nowrap', filter === f ? 'bg-primary/10 border-primary/30 text-primary font-bold' : 'border-border text-muted-foreground hover:text-foreground')}
                             >
                                 {f === 'all' ? 'Todos' : f === 'income' ? 'Ingresos' : 'Gastos'}
                             </button>
                         ))}
                     </div>
                 </div>
-                <table className="data-table">
-                    <thead>
-                        <tr>
-                            <th>Descripción</th>
-                            <th>Categoría</th>
-                            <th>Fecha</th>
-                            <th>Estado</th>
-                            <th className="text-right">Monto</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filtered.map((t) => (
-                            <tr key={t.id}>
-                                <td>
-                                    <div className="flex items-center gap-2">
-                                        <div className={cn('w-2 h-2 rounded-full', t.type === 'income' ? 'bg-[hsl(var(--success-text))]' : 'bg-[hsl(var(--danger-text))]')} />
-                                        <span className="font-medium text-foreground">{t.description}</span>
-                                    </div>
-                                </td>
-                                <td><span className="badge badge-neutral">{t.category}</span></td>
-                                <td className="text-muted-foreground">{formatDate(t.date)}</td>
-                                <td>
-                                    <span className={cn('badge', t.status === 'confirmed' ? 'badge-success' : t.status === 'pending' ? 'badge-warning' : 'badge-danger')}>
-                                        {t.status === 'confirmed' ? 'Confirmado' : t.status === 'pending' ? 'Pendiente' : 'Cancelado'}
-                                    </span>
-                                </td>
-                                <td className={cn('text-right font-bold', t.type === 'income' ? 'text-[hsl(var(--success-text))]' : 'text-[hsl(var(--danger-text))]')}>
-                                    {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                                </td>
+                <div className="table-container">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Descripción</th>
+                                <th>Categoría</th>
+                                <th>Fecha</th>
+                                <th>Estado</th>
+                                <th className="text-right">Monto</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {filtered.map((t) => (
+                                <tr key={t.id}>
+                                    <td>
+                                        <div className="flex items-center gap-2">
+                                            <div className={cn('w-2 h-2 rounded-full', t.type === 'income' ? 'bg-[hsl(var(--success-text))]' : 'bg-[hsl(var(--danger-text))]')} />
+                                            <span className="font-medium text-foreground whitespace-nowrap">{t.description}</span>
+                                        </div>
+                                    </td>
+                                    <td className="whitespace-nowrap"><span className="badge badge-neutral">{t.category}</span></td>
+                                    <td className="text-muted-foreground whitespace-nowrap">{formatDate(t.date)}</td>
+                                    <td className="whitespace-nowrap">
+                                        <span className={cn('badge', t.status === 'confirmed' ? 'badge-success' : t.status === 'pending' ? 'badge-warning' : 'badge-danger')}>
+                                            {t.status === 'confirmed' ? 'Confirmado' : t.status === 'pending' ? 'Pendiente' : 'Cancelado'}
+                                        </span>
+                                    </td>
+                                    <td className={cn('text-right font-bold whitespace-nowrap', t.type === 'income' ? 'text-[hsl(var(--success-text))]' : 'text-[hsl(var(--danger-text))]')}>
+                                        {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* New Transaction Modal */}

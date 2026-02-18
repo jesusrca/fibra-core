@@ -1,19 +1,21 @@
 'use client'
 
 import { useState } from 'react'
-import { Bell, Search, ChevronDown, LogOut, User, Settings } from 'lucide-react'
+import { Bell, Search, ChevronDown, LogOut, User, Settings, Menu } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { mockNotifications } from '@/lib/mock-data'
 import { roleLabels } from '@/lib/rbac'
 import type { User as UserType } from '@/lib/mock-data'
 import { formatDate } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { useApp } from '@/lib/app-context'
 
 interface HeaderProps {
     user: UserType
 }
 
 export function Header({ user }: HeaderProps) {
+    const { toggleSidebar } = useApp()
     const [notifOpen, setNotifOpen] = useState(false)
     const [userMenuOpen, setUserMenuOpen] = useState(false)
 
@@ -28,15 +30,25 @@ export function Header({ user }: HeaderProps) {
     }
 
     return (
-        <header className="h-14 flex items-center justify-between px-6 border-b border-border/60 bg-card/40 backdrop-blur-sm flex-shrink-0">
-            {/* Search */}
-            <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                    type="text"
-                    placeholder="Buscar..."
-                    className="w-full bg-secondary/50 border border-border/50 rounded-lg pl-9 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all"
-                />
+        <header className="h-16 flex items-center justify-between px-4 sm:px-6 border-b border-border/60 bg-card/40 backdrop-blur-sm flex-shrink-0 z-40">
+            <div className="flex items-center gap-4 flex-1">
+                {/* Mobile Toggle */}
+                <button
+                    onClick={toggleSidebar}
+                    className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground"
+                >
+                    <Menu className="w-6 h-6" />
+                </button>
+
+                {/* Search */}
+                <div className="relative w-full max-w-xs hidden sm:block">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                        type="text"
+                        placeholder="Buscar..."
+                        className="w-full bg-secondary/30 border border-border/50 rounded-lg pl-9 pr-4 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                    />
+                </div>
             </div>
 
             <div className="flex items-center gap-3">

@@ -200,7 +200,7 @@ export default function FinanzasPage() {
                         <h2 className="section-title">Costos Fijos Mensuales</h2>
                         <button className="btn-secondary text-xs">+ Agregar Gasto</button>
                     </div>
-                    <div className="glass-card overflow-hidden">
+                    <div className="glass-card table-container">
                         <table className="data-table">
                             <thead>
                                 <tr>
@@ -214,12 +214,12 @@ export default function FinanzasPage() {
                             <tbody>
                                 {mockFixedCosts.map((cost) => (
                                     <tr key={cost.id}>
-                                        <td className="font-medium">{cost.name}</td>
+                                        <td className="font-medium whitespace-nowrap">{cost.name}</td>
                                         <td>
                                             <span className="badge badge-neutral capitalize">{cost.category}</span>
                                         </td>
-                                        <td className="text-foreground font-semibold">{formatCurrency(cost.amount)}</td>
-                                        <td className="text-muted-foreground">{formatDate(cost.dueDate)}</td>
+                                        <td className="text-foreground font-semibold whitespace-nowrap">{formatCurrency(cost.amount)}</td>
+                                        <td className="text-muted-foreground whitespace-nowrap">{formatDate(cost.dueDate)}</td>
                                         <td className="text-right">
                                             <button className="btn-ghost p-1.5"><Briefcase className="w-4 h-4" /></button>
                                         </td>
@@ -243,7 +243,7 @@ export default function FinanzasPage() {
                         <h2 className="section-title">Nómina / Planilla — Febrero 2026</h2>
                         <button className="btn-secondary text-xs">+ Agregar Miembro</button>
                     </div>
-                    <div className="glass-card overflow-hidden">
+                    <div className="glass-card table-container">
                         <table className="data-table">
                             <thead>
                                 <tr>
@@ -259,16 +259,16 @@ export default function FinanzasPage() {
                             <tbody>
                                 {mockPayroll.map((p) => (
                                     <tr key={p.id}>
-                                        <td className="font-medium">{p.userName}</td>
-                                        <td>{formatCurrency(p.salary)}</td>
-                                        <td className="text-emerald-400">+{formatCurrency(p.bonus)}</td>
-                                        <td className="font-bold">{formatCurrency(p.salary + p.bonus)}</td>
+                                        <td className="font-medium whitespace-nowrap">{p.userName}</td>
+                                        <td className="whitespace-nowrap">{formatCurrency(p.salary)}</td>
+                                        <td className="text-[hsl(var(--success-text))] whitespace-nowrap">+{formatCurrency(p.bonus)}</td>
+                                        <td className="font-bold whitespace-nowrap">{formatCurrency(p.salary + p.bonus)}</td>
                                         <td>
                                             <span className={cn('badge', p.status === 'paid' ? 'badge-success' : 'badge-warning')}>
                                                 {p.status === 'paid' ? 'Pagado' : 'Pendiente'}
                                             </span>
                                         </td>
-                                        <td className="text-muted-foreground text-xs">{formatDate(p.paymentDate)}</td>
+                                        <td className="text-muted-foreground text-xs whitespace-nowrap">{formatDate(p.paymentDate)}</td>
                                         <td className="text-right">
                                             <button className="btn-ghost p-1.5"><CreditCard className="w-4 h-4" /></button>
                                         </td>

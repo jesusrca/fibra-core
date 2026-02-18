@@ -185,11 +185,15 @@
   }
 
   .page-header {
-    @apply flex items-center justify-between mb-6;
+    @apply flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4;
+  }
+
+  .table-container {
+    @apply w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0;
   }
 
   .data-table {
-    @apply w-full text-sm;
+    @apply min-w-[600px] w-full text-sm;
   }
 
   .data-table th {

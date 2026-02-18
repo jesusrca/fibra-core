@@ -110,13 +110,12 @@ export default function ProyectosPage() {
 
             {/* List view */}
             {view === 'list' && (
-                <div className="glass-card p-5">
+                <div className="glass-card p-5 table-container">
                     <table className="data-table">
                         <thead>
                             <tr>
                                 <th>Proyecto</th>
                                 <th>Cliente</th>
-                                <th>Director</th>
                                 <th>Estado</th>
                                 <th>Prioridad</th>
                                 <th>Progreso</th>
@@ -127,35 +126,27 @@ export default function ProyectosPage() {
                         <tbody>
                             {mockProjects.map((p) => (
                                 <tr key={p.id}>
-                                    <td className="font-medium">
+                                    <td className="font-medium whitespace-nowrap">
                                         <p>{p.name}</p>
-                                        <p className="text-[10px] text-muted-foreground">Servicio: Branding / Hitos: 4 hitos</p>
+                                        <p className="text-[10px] text-muted-foreground whitespace-nowrap">Branding</p>
                                     </td>
-                                    <td className="text-muted-foreground">{p.client}</td>
-                                    <td>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-[8px] font-bold text-primary">
-                                                {(p.team[0] || 'U').split(' ').map(n => n[0]).join('')}
-                                            </div>
-                                            <span className="text-xs">{p.team[0] || 'Sin asignar'}</span>
-                                        </div>
-                                    </td>
-                                    <td>
+                                    <td className="text-muted-foreground whitespace-nowrap">{p.client}</td>
+                                    <td className="whitespace-nowrap">
                                         <span className={cn('badge', p.status === 'active' ? 'badge-info' : p.status === 'completed' ? 'badge-success' : p.status === 'review' ? 'badge-warning' : 'badge-neutral')}>
                                             {statusColumns.find((c) => c.key === p.status)?.label}
                                         </span>
                                     </td>
-                                    <td><span className={cn('badge', priorityBadge[p.priority])}>{priorityLabel[p.priority]}</span></td>
+                                    <td className="whitespace-nowrap"><span className={cn('badge', priorityBadge[p.priority])}>{priorityLabel[p.priority]}</span></td>
                                     <td>
                                         <div className="flex items-center gap-2">
-                                            <div className="w-20 bg-secondary rounded-full h-1.5">
+                                            <div className="w-16 sm:w-20 bg-secondary rounded-full h-1.5">
                                                 <div className="h-1.5 rounded-full bg-electric-500" style={{ width: `${p.progress}%` }} />
                                             </div>
                                             <span className="text-xs text-muted-foreground">{p.progress}%</span>
                                         </div>
                                     </td>
-                                    <td className="text-foreground">{formatCurrency(p.budget)}</td>
-                                    <td className="text-muted-foreground">{formatDate(p.deadline)}</td>
+                                    <td className="text-foreground whitespace-nowrap">{formatCurrency(p.budget)}</td>
+                                    <td className="text-muted-foreground whitespace-nowrap">{formatDate(p.deadline)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -166,32 +157,34 @@ export default function ProyectosPage() {
             {/* Tasks section */}
             <div className="glass-card p-5">
                 <h2 className="section-title mb-4">Tareas Recientes</h2>
-                <table className="data-table">
-                    <thead>
-                        <tr>
-                            <th>Tarea</th>
-                            <th>Asignado a</th>
-                            <th>Estado</th>
-                            <th>Prioridad</th>
-                            <th>Vencimiento</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {mockTasks.map((t) => (
-                            <tr key={t.id}>
-                                <td className="font-medium">{t.title}</td>
-                                <td className="text-muted-foreground">{t.assignee}</td>
-                                <td>
-                                    <span className={cn('badge', t.status === 'done' ? 'badge-success' : t.status === 'in_progress' ? 'badge-info' : t.status === 'review' ? 'badge-warning' : 'badge-neutral')}>
-                                        {t.status === 'done' ? 'Hecho' : t.status === 'in_progress' ? 'En Progreso' : t.status === 'review' ? 'Revisión' : 'Por Hacer'}
-                                    </span>
-                                </td>
-                                <td><span className={cn('badge', priorityBadge[t.priority])}>{priorityLabel[t.priority]}</span></td>
-                                <td className="text-muted-foreground">{formatDate(t.dueDate)}</td>
+                <div className="table-container">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Tarea</th>
+                                <th>Asignado a</th>
+                                <th>Estado</th>
+                                <th>Prioridad</th>
+                                <th>Vencimiento</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {mockTasks.map((t) => (
+                                <tr key={t.id}>
+                                    <td className="font-medium whitespace-nowrap">{t.title}</td>
+                                    <td className="text-muted-foreground whitespace-nowrap">{t.assignee}</td>
+                                    <td className="whitespace-nowrap">
+                                        <span className={cn('badge', t.status === 'done' ? 'badge-success' : t.status === 'in_progress' ? 'badge-info' : t.status === 'review' ? 'badge-warning' : 'badge-neutral')}>
+                                            {t.status === 'done' ? 'Hecho' : t.status === 'in_progress' ? 'En Progreso' : t.status === 'review' ? 'Revisión' : 'Por Hacer'}
+                                        </span>
+                                    </td>
+                                    <td className="whitespace-nowrap"><span className={cn('badge', priorityBadge[t.priority])}>{priorityLabel[t.priority]}</span></td>
+                                    <td className="text-muted-foreground whitespace-nowrap">{formatDate(t.dueDate)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     )

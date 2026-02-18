@@ -194,33 +194,35 @@ export default function DashboardPage() {
                             Ver todas <ArrowUpRight className="w-3 h-3" />
                         </a>
                     </div>
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>Descripción</th>
-                                <th>Categoría</th>
-                                <th>Fecha</th>
-                                <th className="text-right">Monto</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {recentTransactions.map((t) => (
-                                <tr key={t.id}>
-                                    <td>
-                                        <div className="flex items-center gap-2">
-                                            <div className={cn('w-1.5 h-1.5 rounded-full', t.type === 'income' ? 'bg-[hsl(var(--success-text))]' : 'bg-[hsl(var(--danger-text))]')} />
-                                            <span className="truncate max-w-[180px]">{t.description}</span>
-                                        </div>
-                                    </td>
-                                    <td><span className="badge badge-neutral">{t.category}</span></td>
-                                    <td className="text-muted-foreground">{formatDate(t.date)}</td>
-                                    <td className={cn('text-right font-semibold', t.type === 'income' ? 'text-[hsl(var(--success-text))]' : 'text-[hsl(var(--danger-text))]')}>
-                                        {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                                    </td>
+                    <div className="table-container">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Descripción</th>
+                                    <th>Categoría</th>
+                                    <th>Fecha</th>
+                                    <th className="text-right">Monto</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {recentTransactions.map((t) => (
+                                    <tr key={t.id}>
+                                        <td>
+                                            <div className="flex items-center gap-2">
+                                                <div className={cn('w-1.5 h-1.5 rounded-full', t.type === 'income' ? 'bg-[hsl(var(--success-text))]' : 'bg-[hsl(var(--danger-text))]')} />
+                                                <span className="truncate max-w-[150px] sm:max-w-[220px]">{t.description}</span>
+                                            </div>
+                                        </td>
+                                        <td><span className="badge badge-neutral">{t.category}</span></td>
+                                        <td className="text-muted-foreground whitespace-nowrap">{formatDate(t.date)}</td>
+                                        <td className={cn('text-right font-semibold whitespace-nowrap', t.type === 'income' ? 'text-[hsl(var(--success-text))]' : 'text-[hsl(var(--danger-text))]')}>
+                                            {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 {/* Active projects + notifications */}

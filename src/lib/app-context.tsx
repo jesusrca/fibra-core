@@ -7,20 +7,33 @@ interface AppContextType {
     currentUser: User
     setCurrentUser: (user: User) => void
     switchRole: (role: Role) => void
+    sidebarOpen: boolean
+    setSidebarOpen: (open: boolean) => void
+    toggleSidebar: () => void
 }
 
 const AppContext = createContext<AppContextType | null>(null)
 
 export function AppProvider({ children }: { children: ReactNode }) {
     const [currentUser, setCurrentUser] = useState<User>(mockUsers[0]) // Default: Gerencia
+    const [sidebarOpen, setSidebarOpen] = useState(false)
 
     const switchRole = (role: Role) => {
         const user = mockUsers.find((u) => u.role === role)
         if (user) setCurrentUser(user)
     }
 
+    const toggleSidebar = () => setSidebarOpen(!sidebarOpen)
+
     return (
-        <AppContext.Provider value={{ currentUser, setCurrentUser, switchRole }}>
+        <AppContext.Provider value={{
+            currentUser,
+            setCurrentUser,
+            switchRole,
+            sidebarOpen,
+            setSidebarOpen,
+            toggleSidebar
+        }}>
             {children}
         </AppContext.Provider>
     )

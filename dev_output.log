@@ -12,3 +12,92 @@
  ✓ Compiled /comercial in 2.9s (631 modules)
  ✓ Compiled in 3s (309 modules)
  POST /comercial 200 in 9946ms
+ ✓ Compiled in 124ms (295 modules)
+ ✓ Compiled /comercial in 395ms (322 modules)
+ POST /comercial 200 in 2289ms
+ ✓ Compiled in 354ms (633 modules)
+ ✓ Compiled in 305ms (635 modules)
+ ✓ Compiled in 993ms (635 modules)
+ ✓ Compiled in 2.9s (635 modules)
+ ✓ Compiled in 416ms (311 modules)
+ ⨯ ./src/app/globals.css:192:5
+Syntax error: /Users/jesuscerron/local/fibra-core/src/app/globals.css The `custom-scrollbar` class does not exist. If `custom-scrollbar` is a custom class, make sure it is defined within a `@layer` directive.
+
+  190 | 
+  191 |   .table-container {
+> 192 |     @apply w-full overflow-x-auto custom-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0;
+      |     ^
+  193 |   }
+  194 |
+<w> [webpack.cache.PackFileCacheStrategy] Skipped not serializable cache item 'Compilation/modules|/Users/jesuscerron/local/fibra-core/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[2]!/Users/jesuscerron/local/fibra-core/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[3]!/Users/jesuscerron/local/fibra-core/src/app/globals.css': No serializer registered for PostCSSSyntaxError
+<w> while serializing webpack/lib/cache/PackFileCacheStrategy.PackContentItems -> webpack/lib/NormalModule -> webpack/lib/ModuleBuildError -> PostCSSSyntaxError
+ ✓ Compiled /comercial in 191ms (324 modules)
+ ○ Compiling /_error ...
+ ⨯ ./src/app/globals.css:192:5
+Syntax error: /Users/jesuscerron/local/fibra-core/src/app/globals.css The `custom-scrollbar` class does not exist. If `custom-scrollbar` is a custom class, make sure it is defined within a `@layer` directive.
+
+  190 | 
+  191 |   .table-container {
+> 192 |     @apply w-full overflow-x-auto custom-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0;
+      |     ^
+  193 |   }
+  194 |
+ GET /comercial 500 in 2100ms
+ GET /comercial 500 in 35ms
+ GET /comercial 500 in 26ms
+<w> [webpack.cache.PackFileCacheStrategy] Skipped not serializable cache item 'Compilation/modules|/Users/jesuscerron/local/fibra-core/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[2]!/Users/jesuscerron/local/fibra-core/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[3]!/Users/jesuscerron/local/fibra-core/src/app/globals.css': No serializer registered for PostCSSSyntaxError
+<w> while serializing webpack/lib/cache/PackFileCacheStrategy.PackContentItems -> webpack/lib/NormalModule -> webpack/lib/ModuleBuildError -> PostCSSSyntaxError
+ ✓ Compiled /_not-found in 1378ms (865 modules)
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /_next/static/webpack/9c8c956e3eb1709b.webpack.hot-update.json 404 in 814ms
+ GET /comercial 200 in 27ms
+Error fetching leads: PrismaClientKnownRequestError: 
+Invalid `prisma.lead.findMany()` invocation:
+
+
+Can't reach database server at `db.mlwzhhxunkqrjltbfvaj.supabase.co:5432`
+
+Please make sure your database server is running at `db.mlwzhhxunkqrjltbfvaj.supabase.co:5432`.
+    at $n.handleRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:7315)
+    at $n.handleAndLogRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async getLeads (webpack-internal:///(rsc)/./src/lib/actions/crm.ts:23:23)
+    at async ComercialPage (webpack-internal:///(rsc)/./src/app/(app)/comercial/page.tsx:15:19) {
+  code: 'P1001',
+  clientVersion: '5.22.0',
+  meta: {
+    modelName: 'Lead',
+    database_host: 'db.mlwzhhxunkqrjltbfvaj.supabase.co',
+    database_port: 5432
+  }
+}
+Error fetching leads: PrismaClientKnownRequestError: 
+Invalid `prisma.lead.findMany()` invocation:
+
+
+Can't reach database server at `db.mlwzhhxunkqrjltbfvaj.supabase.co:5432`
+
+Please make sure your database server is running at `db.mlwzhhxunkqrjltbfvaj.supabase.co:5432`.
+    at $n.handleRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:7315)
+    at $n.handleAndLogRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async getLeads (webpack-internal:///(rsc)/./src/lib/actions/crm.ts:23:23)
+    at async ComercialPage (webpack-internal:///(rsc)/./src/app/(app)/comercial/page.tsx:15:19) {
+  code: 'P1001',
+  clientVersion: '5.22.0',
+  meta: {
+    modelName: 'Lead',
+    database_host: 'db.mlwzhhxunkqrjltbfvaj.supabase.co',
+    database_port: 5432
+  }
+}
+ GET /comercial 200 in 5075ms
+ GET /comercial 200 in 5071ms
+ ✓ Compiled in 404ms (865 modules)
+ GET /comercial 200 in 759ms
+ GET /apple-touch-icon-precomposed.png 404 in 25ms
+ GET /apple-touch-icon.png 404 in 16ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1776ms (1915 modules)

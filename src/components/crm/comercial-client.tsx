@@ -131,7 +131,7 @@ export function ComercialClient({ initialLeads }: ComercialClientProps) {
 
             {/* List View */}
             {view === 'list' && (
-                <div className="glass-card overflow-hidden">
+                <div className="glass-card table-container">
                     <table className="data-table">
                         <thead>
                             <tr>
@@ -146,9 +146,9 @@ export function ComercialClient({ initialLeads }: ComercialClientProps) {
                         <tbody>
                             {leads.map((lead) => (
                                 <tr key={lead.id}>
-                                    <td className="text-sm font-medium">{lead.companyName}</td>
-                                    <td className="text-sm text-muted-foreground">{lead.serviceRequested}</td>
-                                    <td>
+                                    <td className="text-sm font-medium whitespace-nowrap">{lead.companyName}</td>
+                                    <td className="text-sm text-muted-foreground whitespace-nowrap">{lead.serviceRequested}</td>
+                                    <td className="whitespace-nowrap">
                                         <span className={cn('badge',
                                             lead.status === 'WON' ? 'badge-success' :
                                                 lead.status === 'LOST' ? 'badge-danger' :
@@ -157,8 +157,8 @@ export function ComercialClient({ initialLeads }: ComercialClientProps) {
                                             {pipelineStages.find(s => s.key === lead.status)?.label || lead.status}
                                         </span>
                                     </td>
-                                    <td className="text-sm font-semibold">{formatCurrency(lead.estimatedValue)}</td>
-                                    <td className="text-xs text-muted-foreground">{formatDate(lead.createdAt.toISOString())}</td>
+                                    <td className="text-sm font-semibold whitespace-nowrap">{formatCurrency(lead.estimatedValue)}</td>
+                                    <td className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(lead.createdAt.toISOString())}</td>
                                     <td className="text-right">
                                         <button className="btn-ghost p-1.5"><MoreHorizontal className="w-4 h-4" /></button>
                                     </td>
