@@ -8,10 +8,10 @@ async function main() {
     // 1. Create a Default Admin User if not exists
     const admin = await prisma.user.upsert({
         where: { email: 'admin@fibra.studio' },
-        update: {},
+        update: { name: 'Carlos Mendoza' },
         create: {
             email: 'admin@fibra.studio',
-            name: 'Admin Fibra',
+            name: 'Carlos Mendoza',
             role: Role.ADMIN,
         },
     })
@@ -19,10 +19,10 @@ async function main() {
     // 2. Create a default Client
     const client = await prisma.client.upsert({
         where: { id: 'seed-client-1' },
-        update: {},
+        update: { name: 'Cliente Fibra' },
         create: {
             id: 'seed-client-1',
-            name: 'Nexo Corp',
+            name: 'Cliente Fibra',
             country: 'Perú',
             industry: 'Tecnología',
         },

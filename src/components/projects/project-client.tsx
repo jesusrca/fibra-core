@@ -116,9 +116,6 @@ export function ProjectClient({ initialProjects, clients, users }: ProjectClient
                                             >
                                                 <div className="flex items-start justify-between gap-2 mb-2.5">
                                                     <h3 className="text-sm font-semibold text-foreground leading-tight group-hover:text-primary transition-colors">{p.name}</h3>
-                                                    <span className={cn('badge uppercase text-[9px] font-bold px-1.5 py-0', priorityBadge[p.priority])}>
-                                                        {priorityLabel[p.priority]}
-                                                    </span>
                                                 </div>
 
                                                 <p className="text-[11px] font-medium text-muted-foreground mb-4 flex items-center gap-1.5">
@@ -174,7 +171,6 @@ export function ProjectClient({ initialProjects, clients, users }: ProjectClient
                                     <th>Cliente</th>
                                     <th>Director</th>
                                     <th>Estado</th>
-                                    <th>Prioridad</th>
                                     <th>Progreso</th>
                                     <th>Presupuesto</th>
                                     <th>Deadline</th>
@@ -203,11 +199,6 @@ export function ProjectClient({ initialProjects, clients, users }: ProjectClient
                                                             p.status === 'REVIEW' ? 'badge-warning' : 'badge-neutral'
                                                 )}>
                                                     {statusColumns.find((c) => c.key === p.status)?.label}
-                                                </span>
-                                            </td>
-                                            <td className="whitespace-nowrap font-bold">
-                                                <span className={cn('badge uppercase text-[9px]', priorityBadge[p.priority])}>
-                                                    {priorityLabel[p.priority]}
                                                 </span>
                                             </td>
                                             <td>

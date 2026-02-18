@@ -9,11 +9,7 @@ export async function getProjects() {
             include: {
                 client: true,
                 director: true,
-                milestones: {
-                    orderBy: {
-                        createdAt: 'asc',
-                    },
-                },
+                milestones: true,
             },
             orderBy: {
                 updatedAt: 'desc',
@@ -33,7 +29,6 @@ export async function createProject(data: {
     status: any
     budget: number
     serviceType: string
-    priority: any
     deadline?: Date
     startDate?: Date
 }) {

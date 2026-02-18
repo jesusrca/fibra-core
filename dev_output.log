@@ -7,200 +7,244 @@
   - Environments: .env.local, .env
 
  ✓ Starting...
- ✓ Ready in 3.5s
- ○ Compiling /comercial ...
- ✓ Compiled /comercial in 2.9s (631 modules)
- ✓ Compiled in 3s (309 modules)
- POST /comercial 200 in 9946ms
- ✓ Compiled in 124ms (295 modules)
- ✓ Compiled /comercial in 395ms (322 modules)
- POST /comercial 200 in 2289ms
- ✓ Compiled in 354ms (633 modules)
- ✓ Compiled in 305ms (635 modules)
- ✓ Compiled in 993ms (635 modules)
- ✓ Compiled in 2.9s (635 modules)
- ✓ Compiled in 416ms (311 modules)
- ⨯ ./src/app/globals.css:192:5
-Syntax error: /Users/jesuscerron/local/fibra-core/src/app/globals.css The `custom-scrollbar` class does not exist. If `custom-scrollbar` is a custom class, make sure it is defined within a `@layer` directive.
-
-  190 | 
-  191 |   .table-container {
-> 192 |     @apply w-full overflow-x-auto custom-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0;
-      |     ^
-  193 |   }
-  194 |
-<w> [webpack.cache.PackFileCacheStrategy] Skipped not serializable cache item 'Compilation/modules|/Users/jesuscerron/local/fibra-core/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[2]!/Users/jesuscerron/local/fibra-core/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[3]!/Users/jesuscerron/local/fibra-core/src/app/globals.css': No serializer registered for PostCSSSyntaxError
-<w> while serializing webpack/lib/cache/PackFileCacheStrategy.PackContentItems -> webpack/lib/NormalModule -> webpack/lib/ModuleBuildError -> PostCSSSyntaxError
- ✓ Compiled /comercial in 191ms (324 modules)
- ○ Compiling /_error ...
- ⨯ ./src/app/globals.css:192:5
-Syntax error: /Users/jesuscerron/local/fibra-core/src/app/globals.css The `custom-scrollbar` class does not exist. If `custom-scrollbar` is a custom class, make sure it is defined within a `@layer` directive.
-
-  190 | 
-  191 |   .table-container {
-> 192 |     @apply w-full overflow-x-auto custom-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0;
-      |     ^
-  193 |   }
-  194 |
- GET /comercial 500 in 2100ms
- GET /comercial 500 in 35ms
- GET /comercial 500 in 26ms
-<w> [webpack.cache.PackFileCacheStrategy] Skipped not serializable cache item 'Compilation/modules|/Users/jesuscerron/local/fibra-core/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[2]!/Users/jesuscerron/local/fibra-core/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[3]!/Users/jesuscerron/local/fibra-core/src/app/globals.css': No serializer registered for PostCSSSyntaxError
-<w> while serializing webpack/lib/cache/PackFileCacheStrategy.PackContentItems -> webpack/lib/NormalModule -> webpack/lib/ModuleBuildError -> PostCSSSyntaxError
- ✓ Compiled /_not-found in 1378ms (865 modules)
- ⚠ Fast Refresh had to perform a full reload due to a runtime error.
- GET /_next/static/webpack/9c8c956e3eb1709b.webpack.hot-update.json 404 in 814ms
- GET /comercial 200 in 27ms
-Error fetching leads: PrismaClientKnownRequestError: 
-Invalid `prisma.lead.findMany()` invocation:
-
-
-Can't reach database server at `db.mlwzhhxunkqrjltbfvaj.supabase.co:5432`
-
-Please make sure your database server is running at `db.mlwzhhxunkqrjltbfvaj.supabase.co:5432`.
-    at $n.handleRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:7315)
-    at $n.handleAndLogRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6623)
-    at $n.request (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6307)
-    at async l (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:130:9633)
-    at async getLeads (webpack-internal:///(rsc)/./src/lib/actions/crm.ts:23:23)
-    at async ComercialPage (webpack-internal:///(rsc)/./src/app/(app)/comercial/page.tsx:15:19) {
-  code: 'P1001',
-  clientVersion: '5.22.0',
-  meta: {
-    modelName: 'Lead',
-    database_host: 'db.mlwzhhxunkqrjltbfvaj.supabase.co',
-    database_port: 5432
-  }
-}
-Error fetching leads: PrismaClientKnownRequestError: 
-Invalid `prisma.lead.findMany()` invocation:
-
-
-Can't reach database server at `db.mlwzhhxunkqrjltbfvaj.supabase.co:5432`
-
-Please make sure your database server is running at `db.mlwzhhxunkqrjltbfvaj.supabase.co:5432`.
-    at $n.handleRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:7315)
-    at $n.handleAndLogRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6623)
-    at $n.request (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6307)
-    at async l (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:130:9633)
-    at async getLeads (webpack-internal:///(rsc)/./src/lib/actions/crm.ts:23:23)
-    at async ComercialPage (webpack-internal:///(rsc)/./src/app/(app)/comercial/page.tsx:15:19) {
-  code: 'P1001',
-  clientVersion: '5.22.0',
-  meta: {
-    modelName: 'Lead',
-    database_host: 'db.mlwzhhxunkqrjltbfvaj.supabase.co',
-    database_port: 5432
-  }
-}
- GET /comercial 200 in 5075ms
- GET /comercial 200 in 5071ms
- ✓ Compiled in 404ms (865 modules)
- GET /comercial 200 in 759ms
- GET /apple-touch-icon-precomposed.png 404 in 25ms
- GET /apple-touch-icon.png 404 in 16ms
- ○ Compiling /dashboard ...
- ✓ Compiled /dashboard in 1776ms (1915 modules)
-   Reload env: .env
- ✓ Compiled in 1120ms (1379 modules)
-   Reload env: .env
- ✓ Compiled in 184ms (1379 modules)
-   Reload env: .env
- ✓ Compiled in 173ms (1379 modules)
-   Reload env: .env
- ✓ Compiled in 201ms (1379 modules)
- ✓ Compiled in 592ms (1028 modules)
- ✓ Compiled in 625ms (1028 modules)
- ✓ Compiled in 210ms (1028 modules)
+ ✓ Ready in 1759ms
  ○ Compiling /proyectos ...
- ⚠ ./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
+ ✓ Compiled /proyectos in 3.2s (638 modules)
+ ✓ Compiled in 300ms (311 modules)
+Error fetching projects: PrismaClientValidationError: 
+Invalid `prisma.project.findMany()` invocation:
 
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-Error fetching projects: TypeError: Cannot read properties of undefined (reading 'project')
-    at getProjects (webpack-internal:///(rsc)/./src/lib/actions/projects.ts:22:80)
-    at ProyectosPage (webpack-internal:///(rsc)/./src/app/(app)/proyectos/page.tsx:16:75)
-    at eC (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:265189)
-    at e (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269321)
-    at eL (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269809)
-    at eJ (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:275773)
-    at eR (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:266017)
-    at eC (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:265059)
-    at e (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269321)
-    at eL (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269809)
-    at /Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:267040
-    at Array.toJSON (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:267504)
-    at stringify (<anonymous>)
-    at eJ (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:275872)
-    at eV (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:276390)
-    at Timeout._onTimeout (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:266177)
-    at listOnTimeout (node:internal/timers:588:17)
-    at process.processTimers (node:internal/timers:523:7)
- GET /proyectos 200 in 1053ms
-Error fetching leads: PrismaClientKnownRequestError: 
-Invalid `prisma.lead.findMany()` invocation:
-
-
-Can't reach database server at `db.mlwzhhxunkqrjltbfvaj.supabase.co:5432`
-
-Please make sure your database server is running at `db.mlwzhhxunkqrjltbfvaj.supabase.co:5432`.
-    at $n.handleRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:7315)
-    at $n.handleAndLogRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6623)
-    at $n.request (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6307)
-    at async l (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:130:9633)
-    at async getLeads (webpack-internal:///(rsc)/./src/lib/actions/crm.ts:23:23)
-    at async ComercialPage (webpack-internal:///(rsc)/./src/app/(app)/comercial/page.tsx:15:19) {
-  code: 'P1001',
-  clientVersion: '5.22.0',
-  meta: {
-    modelName: 'Lead',
-    database_host: 'db.mlwzhhxunkqrjltbfvaj.supabase.co',
-    database_port: 5432
+{
+  include: {
+    client: true,
+    director: true,
+    milestones: {
+      orderBy: {
+        createdAt: "asc",
+        ~~~~~~~~~
+?       id?: SortOrder,
+?       name?: SortOrder,
+?       description?: SortOrder | SortOrderInput,
+?       dueDate?: SortOrder | SortOrderInput,
+?       status?: SortOrder,
+?       projectId?: SortOrder,
+?       project?: ProjectOrderByWithRelationInput
+      }
+    }
+  },
+  orderBy: {
+    updatedAt: "desc"
   }
 }
- GET /comercial 200 in 334ms
-Error creating lead: PrismaClientKnownRequestError: 
-Invalid `prisma.lead.create()` invocation:
 
-
-Can't reach database server at `db.mlwzhhxunkqrjltbfvaj.supabase.co:5432`
-
-Please make sure your database server is running at `db.mlwzhhxunkqrjltbfvaj.supabase.co:5432`.
-    at $n.handleRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:7315)
+Unknown argument `createdAt`. Available options are marked with ?.
+    at wn (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:29:1363)
+    at $n.handleRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6958)
     at $n.handleAndLogRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6623)
     at $n.request (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6307)
     at async l (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:130:9633)
-    at async createLead (webpack-internal:///(rsc)/./src/lib/actions/crm.ts:48:9)
+    at async getProjects (webpack-internal:///(rsc)/./src/lib/actions/projects.ts:22:26)
+    at async Promise.all (index 0)
+    at async ProyectosPage (webpack-internal:///(rsc)/./src/app/(app)/proyectos/page.tsx:15:40) {
+  clientVersion: '5.22.0'
+}
+ GET /proyectos 200 in 8025ms
+ ○ Compiling /comercial ...
+ ✓ Compiled /comercial in 811ms (646 modules)
+ GET /comercial 200 in 2732ms
+Error fetching projects: PrismaClientValidationError: 
+Invalid `prisma.project.findMany()` invocation:
+
+{
+  include: {
+    client: true,
+    director: true,
+    milestones: {
+      orderBy: {
+        createdAt: "asc",
+        ~~~~~~~~~
+?       id?: SortOrder,
+?       name?: SortOrder,
+?       description?: SortOrder | SortOrderInput,
+?       dueDate?: SortOrder | SortOrderInput,
+?       status?: SortOrder,
+?       projectId?: SortOrder,
+?       project?: ProjectOrderByWithRelationInput
+      }
+    }
+  },
+  orderBy: {
+    updatedAt: "desc"
+  }
+}
+
+Unknown argument `createdAt`. Available options are marked with ?.
+    at wn (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:29:1363)
+    at $n.handleRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6958)
+    at $n.handleAndLogRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async getProjects (webpack-internal:///(rsc)/./src/lib/actions/projects.ts:22:26)
+    at async Promise.all (index 0)
+    at async ProyectosPage (webpack-internal:///(rsc)/./src/app/(app)/proyectos/page.tsx:15:40) {
+  clientVersion: '5.22.0'
+}
+ GET /proyectos 200 in 2747ms
+ GET /comercial 200 in 1237ms
+Error fetching projects: PrismaClientValidationError: 
+Invalid `prisma.project.findMany()` invocation:
+
+{
+  include: {
+    client: true,
+    director: true,
+    milestones: {
+      orderBy: {
+        createdAt: "asc",
+        ~~~~~~~~~
+?       id?: SortOrder,
+?       name?: SortOrder,
+?       description?: SortOrder | SortOrderInput,
+?       dueDate?: SortOrder | SortOrderInput,
+?       status?: SortOrder,
+?       projectId?: SortOrder,
+?       project?: ProjectOrderByWithRelationInput
+      }
+    }
+  },
+  orderBy: {
+    updatedAt: "desc"
+  }
+}
+
+Unknown argument `createdAt`. Available options are marked with ?.
+    at wn (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:29:1363)
+    at $n.handleRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6958)
+    at $n.handleAndLogRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async getProjects (webpack-internal:///(rsc)/./src/lib/actions/projects.ts:22:26)
+    at async Promise.all (index 0)
+    at async ProyectosPage (webpack-internal:///(rsc)/./src/app/(app)/proyectos/page.tsx:15:40) {
+  clientVersion: '5.22.0'
+}
+ GET /proyectos 200 in 3523ms
+Error fetching projects: PrismaClientValidationError: 
+Invalid `prisma.project.findMany()` invocation:
+
+{
+  include: {
+    client: true,
+    director: true,
+    milestones: {
+      orderBy: {
+        createdAt: "asc",
+        ~~~~~~~~~
+?       id?: SortOrder,
+?       name?: SortOrder,
+?       description?: SortOrder | SortOrderInput,
+?       dueDate?: SortOrder | SortOrderInput,
+?       status?: SortOrder,
+?       projectId?: SortOrder,
+?       project?: ProjectOrderByWithRelationInput
+      }
+    }
+  },
+  orderBy: {
+    updatedAt: "desc"
+  }
+}
+
+Unknown argument `createdAt`. Available options are marked with ?.
+    at wn (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:29:1363)
+    at $n.handleRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6958)
+    at $n.handleAndLogRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async getProjects (webpack-internal:///(rsc)/./src/lib/actions/projects.ts:22:26)
+    at async Promise.all (index 0)
+    at async ProyectosPage (webpack-internal:///(rsc)/./src/app/(app)/proyectos/page.tsx:15:40) {
+  clientVersion: '5.22.0'
+}
+ GET /proyectos 200 in 3059ms
+ GET /comercial 200 in 1562ms
+ GET /comercial 200 in 1942ms
+Error fetching projects: PrismaClientValidationError: 
+Invalid `prisma.project.findMany()` invocation:
+
+{
+  include: {
+    client: true,
+    director: true,
+    milestones: {
+      orderBy: {
+        createdAt: "asc",
+        ~~~~~~~~~
+?       id?: SortOrder,
+?       name?: SortOrder,
+?       description?: SortOrder | SortOrderInput,
+?       dueDate?: SortOrder | SortOrderInput,
+?       status?: SortOrder,
+?       projectId?: SortOrder,
+?       project?: ProjectOrderByWithRelationInput
+      }
+    }
+  },
+  orderBy: {
+    updatedAt: "desc"
+  }
+}
+
+Unknown argument `createdAt`. Available options are marked with ?.
+    at wn (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:29:1363)
+    at $n.handleRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6958)
+    at $n.handleAndLogRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async getProjects (webpack-internal:///(rsc)/./src/lib/actions/projects.ts:22:26)
+    at async Promise.all (index 0)
+    at async ProyectosPage (webpack-internal:///(rsc)/./src/app/(app)/proyectos/page.tsx:15:40) {
+  clientVersion: '5.22.0'
+}
+ GET /proyectos 200 in 2643ms
+Error creating project: PrismaClientValidationError: 
+Invalid `prisma.project.create()` invocation:
+
+{
+  data: {
+    name: "Campania Marketing Q1",
+    clientId: "seed-client-1",
+    directorId: "cmlsekg880000q9x9rcwtukya",
+    status: "PLANNING",
+    priority: "MEDIUM",
+    ~~~~~~~~
+    budget: 2500,
+    serviceType: "Marketing",
+    deadline: new Date("2026-06-01T00:00:00.000Z"),
+    startDate: new Date("2026-02-18T20:06:42.786Z"),
+?   id?: String,
+?   contactId?: String | Null,
+?   endDate?: DateTime | Null,
+?   milestonesCount?: Int,
+?   quoteId?: String | Null,
+?   createdAt?: DateTime,
+?   updatedAt?: DateTime,
+?   team?: UserUncheckedCreateNestedManyWithoutAssignedProjectsInput,
+?   tasks?: TaskUncheckedCreateNestedManyWithoutProjectInput,
+?   invoices?: InvoiceUncheckedCreateNestedManyWithoutProjectInput,
+?   transactions?: TransactionUncheckedCreateNestedManyWithoutProjectInput,
+?   milestones?: MilestoneUncheckedCreateNestedManyWithoutProjectInput,
+?   suppliers?: SupplierWorkUncheckedCreateNestedManyWithoutProjectInput
+  }
+}
+
+Unknown argument `priority`. Available options are marked with ?.
+    at wn (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:29:1363)
+    at $n.handleRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6958)
+    at $n.handleAndLogRequestError (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/Users/jesuscerron/local/fibra-core/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async createProject (webpack-internal:///(rsc)/./src/lib/actions/projects.ts:44:25)
     at async /Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:40:286
     at async rk (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:38:8297)
     at async ne (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:42:1256)
@@ -219,208 +263,13 @@ Please make sure your database server is running at `db.mlwzhhxunkqrjltbfvaj.sup
     at async handleRequest (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/server/lib/router-server.js:359:24)
     at async requestHandlerImpl (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/server/lib/router-server.js:383:13)
     at async Server.requestListener (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/server/lib/start-server.js:141:13) {
-  code: 'P1001',
-  clientVersion: '5.22.0',
-  meta: {
-    modelName: 'Lead',
-    database_host: 'db.mlwzhhxunkqrjltbfvaj.supabase.co',
-    database_port: 5432
-  }
+  clientVersion: '5.22.0'
 }
- POST /comercial 500 in 82ms
- ⨯ src/lib/actions/crm.ts (49:15) @ createLead
- ⨯ Error: Error al crear el lead
-    at createLead (./src/lib/actions/crm.ts:63:15)
-digest: "804073569"
-[0m [90m 47 |[39m     } [36mcatch[39m (error) {[0m
-[0m [90m 48 |[39m         console[33m.[39merror([32m'Error creating lead:'[39m[33m,[39m error)[0m
-[0m[31m[1m>[22m[39m[90m 49 |[39m         [36mthrow[39m [36mnew[39m [33mError[39m([32m'Error al crear el lead'[39m)[0m
-[0m [90m    |[39m               [31m[1m^[22m[39m[0m
-[0m [90m 50 |[39m     }[0m
-[0m [90m 51 |[39m }[0m
-[0m [90m 52 |[39m[0m
- ⚠ ./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
- ⚠ ./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
- GET /dashboard 200 in 1177ms
-Error fetching projects: TypeError: Cannot read properties of undefined (reading 'project')
-    at getProjects (webpack-internal:///(rsc)/./src/lib/actions/projects.ts:22:80)
-    at ProyectosPage (webpack-internal:///(rsc)/./src/app/(app)/proyectos/page.tsx:16:75)
-    at eC (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:265189)
-    at e (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269321)
-    at eL (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269809)
-    at eJ (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:275773)
-    at eR (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:266017)
-    at eC (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:265059)
-    at e (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269321)
-    at eL (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269809)
-    at /Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:267040
-    at Array.toJSON (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:267504)
-    at stringify (<anonymous>)
-    at eJ (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:275872)
-    at eV (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:276390)
-    at Timeout._onTimeout (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:266177)
-    at listOnTimeout (node:internal/timers:588:17)
-    at process.processTimers (node:internal/timers:523:7)
- GET /proyectos 200 in 200ms
- GET /dashboard 200 in 140ms
-Error fetching projects: TypeError: Cannot read properties of undefined (reading 'project')
-    at getProjects (webpack-internal:///(rsc)/./src/lib/actions/projects.ts:22:80)
-    at ProyectosPage (webpack-internal:///(rsc)/./src/app/(app)/proyectos/page.tsx:16:75)
-    at eC (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:265189)
-    at e (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269321)
-    at eL (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269809)
-    at eJ (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:275773)
-    at eR (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:266017)
-    at eC (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:265059)
-    at e (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269321)
-    at eL (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269809)
-    at /Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:267040
-    at Array.toJSON (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:267504)
-    at stringify (<anonymous>)
-    at eJ (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:275872)
-    at eV (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:276390)
-    at AsyncLocalStorage.run (node:internal/async_local_storage/async_hooks:91:14)
-    at Timeout._onTimeout (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:284753)
-    at listOnTimeout (node:internal/timers:588:17)
-    at process.processTimers (node:internal/timers:523:7)
-Error fetching projects: TypeError: Cannot read properties of undefined (reading 'project')
-    at getProjects (webpack-internal:///(rsc)/./src/lib/actions/projects.ts:22:80)
-    at ProyectosPage (webpack-internal:///(rsc)/./src/app/(app)/proyectos/page.tsx:16:75)
-    at eC (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:265189)
-    at e (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269321)
-    at eL (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269809)
-    at eJ (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:275773)
-    at eR (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:266017)
-    at eC (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:265059)
-    at e (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269321)
-    at eL (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269809)
-    at /Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:267040
-    at Array.toJSON (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:267504)
-    at stringify (<anonymous>)
-    at eJ (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:275872)
-    at eV (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:276390)
-    at Timeout._onTimeout (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:266177)
-    at listOnTimeout (node:internal/timers:588:17)
-    at process.processTimers (node:internal/timers:523:7)
- GET /proyectos 200 in 147ms
- GET /dashboard 200 in 149ms
- ⚠ ./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-
-./src/lib/actions/projects.ts
-Attempted import error: 'prisma' is not exported from '@/lib/prisma' (imported as 'prisma').
-
-Import trace for requested module:
-./src/lib/actions/projects.ts
-./src/app/(app)/proyectos/page.tsx
-Error fetching projects: TypeError: Cannot read properties of undefined (reading 'project')
-    at getProjects (webpack-internal:///(rsc)/./src/lib/actions/projects.ts:22:80)
-    at ProyectosPage (webpack-internal:///(rsc)/./src/app/(app)/proyectos/page.tsx:16:75)
-    at eC (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:265189)
-    at e (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269321)
-    at eL (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269809)
-    at eJ (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:275773)
-    at eR (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:266017)
-    at eC (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:265059)
-    at e (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269321)
-    at eL (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:269809)
-    at /Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:267040
-    at Array.toJSON (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:267504)
-    at stringify (<anonymous>)
-    at eJ (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:275872)
-    at eV (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:276390)
-    at Timeout._onTimeout (/Users/jesuscerron/local/fibra-core/node_modules/next/dist/compiled/next-server/app-page.runtime.dev.js:35:266177)
-    at listOnTimeout (node:internal/timers:588:17)
-    at process.processTimers (node:internal/timers:523:7)
- GET /proyectos 200 in 231ms
+ POST /proyectos 200 in 452ms
+ ✓ Compiled in 538ms (646 modules)
+ ✓ Compiled in 439ms (660 modules)
+ ✓ Compiled in 558ms (660 modules)
+ GET /proyectos 200 in 5869ms
+ POST /proyectos 200 in 12690ms
+ GET /proyectos 200 in 7104ms
+ GET /proyectos 200 in 8271ms

@@ -25,7 +25,6 @@ export function ProjectForm({ onClose, clients, users }: ProjectFormProps) {
             clientId: formData.get('clientId') as string,
             directorId: formData.get('directorId') as string,
             status: 'PLANNING' as any,
-            priority: formData.get('priority') as any,
             budget: parseFloat(formData.get('budget') as string) || 0,
             serviceType: formData.get('serviceType') as string,
             deadline: formData.get('deadline') ? new Date(formData.get('deadline') as string) : undefined,
@@ -89,24 +88,14 @@ export function ProjectForm({ onClose, clients, users }: ProjectFormProps) {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="form-label">Tipo de Servicio</label>
-                            <input
-                                name="serviceType"
-                                required
-                                className="form-input"
-                                placeholder="Ej: Branding"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <label className="form-label">Prioridad</label>
-                            <select name="priority" className="form-input">
-                                <option value="MEDIUM">Media</option>
-                                <option value="HIGH">Alta</option>
-                                <option value="LOW">Baja</option>
-                            </select>
-                        </div>
+                    <div className="space-y-1.5">
+                        <label className="form-label">Tipo de Servicio</label>
+                        <input
+                            name="serviceType"
+                            required
+                            className="form-input"
+                            placeholder="Ej: Branding"
+                        />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
