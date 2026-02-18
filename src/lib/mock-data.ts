@@ -174,3 +174,36 @@ export const leadFunnelData = [
     { stage: 'Propuesta', count: 1 },
     { stage: 'Ganados', count: 1 },
 ]
+
+// ─── Fixed Costs & Payroll ───────────────────────────────────────────────────
+export interface FixedCost {
+    id: string
+    name: string
+    amount: number
+    category: 'alquiler' | 'servicios' | 'suscripciones' | 'otros'
+    dueDate: string
+}
+
+export interface Payroll {
+    id: string
+    userId: string
+    userName: string
+    salary: number
+    bonus: number
+    status: 'paid' | 'pending'
+    paymentDate: string
+}
+
+export const mockFixedCosts: FixedCost[] = [
+    { id: 'fc1', name: 'Alquiler Oficina Miraflores', amount: 1500, category: 'alquiler', dueDate: '2026-03-05' },
+    { id: 'fc2', name: 'Internet y Telefonía', amount: 120, category: 'servicios', dueDate: '2026-03-10' },
+    { id: 'fc3', name: 'Adobe Creative Cloud', amount: 85, category: 'suscripciones', dueDate: '2026-03-15' },
+    { id: 'fc4', name: 'AWS Hosting', amount: 45, category: 'suscripciones', dueDate: '2026-03-20' },
+]
+
+export const mockPayroll: Payroll[] = [
+    { id: 'pr1', userId: 'u1', userName: 'Jesús Cerrón', salary: 3500, bonus: 0, status: 'pending', paymentDate: '2026-02-28' },
+    { id: 'pr2', userId: 'u2', userName: 'María López', salary: 2800, bonus: 200, status: 'pending', paymentDate: '2026-02-28' },
+    { id: 'pr3', userId: 'u3', userName: 'Carlos Mendoza', salary: 2500, bonus: 150, status: 'pending', paymentDate: '2026-02-28' },
+    { id: 'pr4', userId: 'u4', userName: 'Ana García', salary: 2200, bonus: 0, status: 'pending', paymentDate: '2026-02-28' },
+]

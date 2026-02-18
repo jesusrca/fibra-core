@@ -46,6 +46,12 @@ Cada Lead debe tener
     Presupuesto enviado
     Número de cotización
     Estado (nuevo, contactado, cotizado, etc)
+    Notas/actividad
+        Tipo (Llamada, mail, reunión, chat)
+        Contacto
+        Descripción
+        Fecha
+
 
 Cada cotización debe tener
     Empresa
