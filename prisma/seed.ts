@@ -59,6 +59,33 @@ async function main() {
         })
     }
 
+    // 4. Create Projects
+    const project1 = await prisma.project.upsert({
+        where: { id: 'seed-project-1' },
+        update: {},
+        create: {
+            id: 'seed-project-1',
+            name: 'Identidad Visual Nexo',
+            clientId: client.id,
+            directorId: admin.id,
+            status: 'ACTIVE',
+            budget: 5000,
+            serviceType: 'Branding',
+            startDate: new Date(),
+        },
+    })
+
+    // 5. Create Milestones
+    const milestones = [
+        { name: 'Investigación y Moodboard', status: 'COMPLETED', projectId: project1.id },
+        { name: 'Concepto Creativo', status: 'ACTIVE', projectId: project1.id },
+        { name: 'Manual de Marca', status: 'PENDING', projectId: project1.id },
+    ]
+
+    for (const m of milestones) {
+        await prisma.milestone.create({ data: m })
+    }
+
     console.log('✅ Seeding finished.')
 }
 
