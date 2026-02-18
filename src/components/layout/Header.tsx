@@ -7,6 +7,7 @@ import { mockNotifications } from '@/lib/mock-data'
 import { roleLabels } from '@/lib/rbac'
 import type { User as UserType } from '@/lib/mock-data'
 import { formatDate } from '@/lib/utils'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 interface HeaderProps {
     user: UserType
@@ -39,6 +40,7 @@ export function Header({ user }: HeaderProps) {
             </div>
 
             <div className="flex items-center gap-3">
+                <ThemeToggle />
                 {/* Notifications */}
                 <div className="relative">
                     <button

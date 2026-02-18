@@ -4,29 +4,11 @@
 
   ▲ Next.js 14.2.35
   - Local:        http://localhost:3000
-  - Environments: .env.local
+  - Environments: .env.local, .env
 
  ✓ Starting...
- ✓ Ready in 1842ms
- ○ Compiling /_not-found ...
- ✓ Compiled /_not-found in 1909ms (463 modules)
- ⚠ Fast Refresh had to perform a full reload due to a runtime error.
- GET /_next/static/webpack/9c8c956e3eb1709b.webpack.hot-update.json 404 in 2228ms
- ✓ Compiled in 284ms (240 modules)
- ✓ Compiled / in 219ms (458 modules)
- ⚠ Fast Refresh had to perform a full reload due to a runtime error.
- GET /_next/static/webpack/9c8c956e3eb1709b.webpack.hot-update.json 404 in 257ms
- GET / 307 in 287ms
- GET / 307 in 27ms
- ○ Compiling /dashboard ...
- ✓ Compiled /dashboard in 2.5s (1629 modules)
- GET /dashboard 200 in 2672ms
- GET /_next/static/webpack/9c8c956e3eb1709b.webpack.hot-update.json 404 in 187ms
- ⚠ Fast Refresh had to perform a full reload due to a runtime error.
- ✓ Compiled /proyectos in 450ms (1641 modules)
+ ✓ Ready in 3.5s
  ○ Compiling /comercial ...
- ✓ Compiled /comercial in 902ms (1642 modules)
- ○ Compiling /chatbot ...
- ✓ Compiled /chatbot in 1063ms (1662 modules)
- ○ Compiling /configuracion ...
- ✓ Compiled /configuracion in 1175ms (1680 modules)
+ ✓ Compiled /comercial in 2.9s (631 modules)
+ ✓ Compiled in 3s (309 modules)
+ POST /comercial 200 in 9946ms

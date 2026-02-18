@@ -48,10 +48,10 @@ export default function MarketingPage() {
             {/* KPIs */}
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
                 {[
-                    { label: 'Alcance Total', value: totalReach.toLocaleString(), icon: Eye, color: 'text-electric-400', bg: 'bg-electric-500/10', border: 'border-electric-500/20' },
-                    { label: 'Clicks', value: totalClicks.toLocaleString(), icon: MousePointerClick, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
-                    { label: 'Conversiones', value: totalConversions.toString(), icon: Target, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-                    { label: 'Inversión Total', value: formatCurrency(totalSpent), icon: TrendingUp, color: 'text-gold-400', bg: 'bg-gold-500/10', border: 'border-gold-500/20' },
+                    { label: 'Alcance Total', value: totalReach.toLocaleString(), icon: Eye, color: 'text-[hsl(var(--info-text))]', bg: 'bg-electric-500/10', border: 'border-electric-500/20' },
+                    { label: 'Clicks', value: totalClicks.toLocaleString(), icon: MousePointerClick, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+                    { label: 'Conversiones', value: totalConversions.toString(), icon: Target, color: 'text-[hsl(var(--success-text))]', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+                    { label: 'Inversión Total', value: formatCurrency(totalSpent), icon: TrendingUp, color: 'text-[hsl(var(--warning-text))]', bg: 'bg-gold-500/10', border: 'border-gold-500/20' },
                 ].map((k) => {
                     const Icon = k.icon
                     return (
@@ -60,7 +60,7 @@ export default function MarketingPage() {
                                 <Icon className={cn('w-4 h-4', k.color)} />
                             </div>
                             <p className={cn('text-2xl font-bold', k.color)}>{k.value}</p>
-                            <p className="text-xs text-muted-foreground mt-1">{k.label}</p>
+                            <p className="text-xs text-muted-foreground mt-1 font-medium">{k.label}</p>
                         </div>
                     )
                 })}
@@ -101,7 +101,7 @@ export default function MarketingPage() {
                                         <span>{pct}%</span>
                                     </div>
                                     <div className="w-full bg-secondary rounded-full h-1.5">
-                                        <div className={cn('h-1.5 rounded-full', pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-gold-500' : 'bg-electric-500')} style={{ width: `${pct}%` }} />
+                                        <div className={cn('h-1.5 rounded-full', pct > 90 ? 'bg-[hsl(var(--danger-text))]' : pct > 70 ? 'bg-[hsl(var(--warning-text))]' : 'bg-[hsl(var(--info-text))]')} style={{ width: `${pct}%` }} />
                                     </div>
                                 </div>
                             </div>
@@ -118,7 +118,16 @@ export default function MarketingPage() {
                                 <Pie data={channelData} cx="50%" cy="50%" outerRadius={70} dataKey="leads" nameKey="channel">
                                     {channelData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                                 </Pie>
-                                <Tooltip contentStyle={{ background: 'hsl(220 25% 9%)', border: '1px solid hsl(220 20% 16%)', borderRadius: '8px', fontSize: '12px' }} />
+                                <Tooltip
+                                    contentStyle={{
+                                        background: 'hsl(var(--chart-tooltip))',
+                                        border: '1px solid hsl(var(--chart-tooltip-border))',
+                                        borderRadius: '8px',
+                                        fontSize: '12px',
+                                        color: 'hsl(var(--foreground))'
+                                    }}
+                                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                                />
                             </PieChart>
                         </ResponsiveContainer>
                         <div className="space-y-2 mt-2">
@@ -128,19 +137,29 @@ export default function MarketingPage() {
                                         <div className="w-2.5 h-2.5 rounded-full" style={{ background: COLORS[i] }} />
                                         <span className="text-muted-foreground">{d.channel}</span>
                                     </div>
-                                    <span className="font-medium">{d.leads} leads</span>
+                                    <span className="font-medium text-foreground">{d.leads} leads</span>
                                 </div>
                             ))}
                         </div>
                     </div>
 
                     <div className="glass-card p-5">
-                        <h2 className="section-title mb-3 text-base">CTR por Canal</h2>
+                        <h2 className="section-title mb-3 text-base">Leads por Canal</h2>
                         <ResponsiveContainer width="100%" height={140}>
                             <BarChart data={channelData}>
-                                <XAxis dataKey="channel" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" vertical={false} />
+                                <XAxis dataKey="channel" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                                 <YAxis hide />
-                                <Tooltip contentStyle={{ background: 'hsl(220 25% 9%)', border: '1px solid hsl(220 20% 16%)', borderRadius: '8px', fontSize: '12px' }} />
+                                <Tooltip
+                                    contentStyle={{
+                                        background: 'hsl(var(--chart-tooltip))',
+                                        border: '1px solid hsl(var(--chart-tooltip-border))',
+                                        borderRadius: '8px',
+                                        fontSize: '12px',
+                                        color: 'hsl(var(--foreground))'
+                                    }}
+                                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                                />
                                 <Bar dataKey="leads" fill="#0EA5E9" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>

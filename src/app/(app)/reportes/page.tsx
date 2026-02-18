@@ -5,10 +5,10 @@ import { FileText, Download, Calendar, Filter, BarChart3, PieChart, ArrowRight, 
 import { formatDate, cn } from '@/lib/utils'
 
 const reportTypes = [
-    { id: 'financial', label: 'Financiero Mensual', description: 'P&L, Flujo de caja e impuestos del período.', icon: BarChart3, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { id: 'projects', label: 'Estatus de Proyectos', description: 'Avance, hitos y carga de trabajo del equipo.', icon: PieChart, color: 'text-electric-400', bg: 'bg-electric-500/10' },
-    { id: 'commercial', label: 'Pipeline Comercial', description: 'Leads, conversiones y proyecciones de venta.', icon: Target, color: 'text-gold-400', bg: 'bg-gold-500/10' },
-    { id: 'marketing', label: 'Efectividad de Campañas', description: 'Métricas de alcance, clics y ROI de marketing.', icon: Megaphone, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { id: 'financial', label: 'Financiero Mensual', description: 'P&L, Flujo de caja e impuestos del período.', icon: BarChart3, color: 'text-[hsl(var(--success-text))]', bg: 'bg-emerald-500/10' },
+    { id: 'projects', label: 'Estatus de Proyectos', description: 'Avance, hitos y carga de trabajo del equipo.', icon: PieChart, color: 'text-[hsl(var(--info-text))]', bg: 'bg-electric-500/10' },
+    { id: 'commercial', label: 'Pipeline Comercial', description: 'Leads, conversiones y proyecciones de venta.', icon: Target, color: 'text-[hsl(var(--warning-text))]', bg: 'bg-gold-500/10' },
+    { id: 'marketing', label: 'Efectividad de Campañas', description: 'Métricas de alcance, clics y ROI de marketing.', icon: Megaphone, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-500/10' },
 ]
 
 import { Target, Megaphone } from 'lucide-react'
@@ -83,15 +83,15 @@ export default function ReportesPage() {
                                     </select>
                                 </div>
                                 <div className="col-span-1 sm:col-span-2">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" className="rounded border-border bg-secondary text-primary focus:ring-primary w-4 h-4" defaultChecked />
-                                        <span className="text-sm text-foreground">Enviar automáticamente por Email a Gerencia</span>
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <input type="checkbox" className="rounded border-border bg-secondary text-primary focus:ring-primary w-4 h-4 transition-all" defaultChecked />
+                                        <span className="text-sm text-foreground font-medium group-hover:text-primary transition-colors">Enviar automáticamente por Email a Gerencia</span>
                                     </label>
                                 </div>
                                 <div className="col-span-1 sm:col-span-2">
-                                    <label className="flex items-center gap-2 cursor-pointer">
-                                        <input type="checkbox" className="rounded border-border bg-secondary text-primary focus:ring-primary w-4 h-4" defaultChecked />
-                                        <span className="text-sm text-foreground">Sincronizar copia en Google Drive</span>
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <input type="checkbox" className="rounded border-border bg-secondary text-primary focus:ring-primary w-4 h-4 transition-all" defaultChecked />
+                                        <span className="text-sm text-foreground font-medium group-hover:text-primary transition-colors">Sincronizar copia en Google Drive</span>
                                     </label>
                                 </div>
                             </div>

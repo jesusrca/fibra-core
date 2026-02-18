@@ -34,29 +34,29 @@ export default function ContabilidadPage() {
                 <div className="kpi-card border border-emerald-500/20">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                            <TrendingUp className="w-4 h-4 text-emerald-400" />
+                            <TrendingUp className="w-4 h-4 text-[hsl(var(--success-text))]" />
                         </div>
-                        <span className="text-xs text-muted-foreground">Total Ingresos</span>
+                        <span className="text-xs text-muted-foreground font-medium">Total Ingresos</span>
                     </div>
-                    <p className="text-2xl font-bold text-emerald-400">{formatCurrency(totalIncome)}</p>
+                    <p className="text-2xl font-bold text-[hsl(var(--success-text))]">{formatCurrency(totalIncome)}</p>
                 </div>
                 <div className="kpi-card border border-red-500/20">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
-                            <TrendingDown className="w-4 h-4 text-red-400" />
+                            <TrendingDown className="w-4 h-4 text-[hsl(var(--danger-text))]" />
                         </div>
-                        <span className="text-xs text-muted-foreground">Total Gastos</span>
+                        <span className="text-xs text-muted-foreground font-medium">Total Gastos</span>
                     </div>
-                    <p className="text-2xl font-bold text-red-400">{formatCurrency(totalExpense)}</p>
+                    <p className="text-2xl font-bold text-[hsl(var(--danger-text))]">{formatCurrency(totalExpense)}</p>
                 </div>
                 <div className="kpi-card border border-electric-500/20">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="w-8 h-8 rounded-lg bg-electric-500/10 flex items-center justify-center">
-                            <DollarSign className="w-4 h-4 text-electric-400" />
+                            <DollarSign className="w-4 h-4 text-[hsl(var(--info-text))]" />
                         </div>
-                        <span className="text-xs text-muted-foreground">Balance Neto</span>
+                        <span className="text-xs text-muted-foreground font-medium">Balance Neto</span>
                     </div>
-                    <p className={cn('text-2xl font-bold', balance >= 0 ? 'text-electric-400' : 'text-red-400')}>{formatCurrency(balance)}</p>
+                    <p className={cn('text-2xl font-bold', balance >= 0 ? 'text-[hsl(var(--info-text))]' : 'text-[hsl(var(--danger-text))]')}>{formatCurrency(balance)}</p>
                 </div>
             </div>
 
@@ -91,8 +91,8 @@ export default function ContabilidadPage() {
                             <tr key={t.id}>
                                 <td>
                                     <div className="flex items-center gap-2">
-                                        <div className={cn('w-2 h-2 rounded-full', t.type === 'income' ? 'bg-emerald-400' : 'bg-red-400')} />
-                                        {t.description}
+                                        <div className={cn('w-2 h-2 rounded-full', t.type === 'income' ? 'bg-[hsl(var(--success-text))]' : 'bg-[hsl(var(--danger-text))]')} />
+                                        <span className="font-medium text-foreground">{t.description}</span>
                                     </div>
                                 </td>
                                 <td><span className="badge badge-neutral">{t.category}</span></td>
@@ -102,7 +102,7 @@ export default function ContabilidadPage() {
                                         {t.status === 'confirmed' ? 'Confirmado' : t.status === 'pending' ? 'Pendiente' : 'Cancelado'}
                                     </span>
                                 </td>
-                                <td className={cn('text-right font-semibold', t.type === 'income' ? 'text-emerald-400' : 'text-red-400')}>
+                                <td className={cn('text-right font-bold', t.type === 'income' ? 'text-[hsl(var(--success-text))]' : 'text-[hsl(var(--danger-text))]')}>
                                     {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
                                 </td>
                             </tr>

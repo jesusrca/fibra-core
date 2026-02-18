@@ -117,7 +117,7 @@ export default function ChatbotPage() {
                         <div
                             className={cn(
                                 'w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center mt-1',
-                                m.role === 'assistant' ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'
+                                m.role === 'assistant' ? 'bg-primary/20 text-primary' : 'bg-secondary text-foreground'
                             )}
                         >
                             {m.role === 'assistant' ? <Bot className="w-4 h-4" /> : <User className="w-4 h-4" />}
@@ -127,14 +127,14 @@ export default function ChatbotPage() {
                                 'p-4 rounded-2xl text-sm leading-relaxed shadow-sm',
                                 m.role === 'assistant'
                                     ? 'bg-card border border-border/60 text-foreground'
-                                    : 'bg-primary text-primary-foreground font-medium'
+                                    : 'bg-primary text-primary-foreground font-semibold'
                             )}
                         >
                             <div className="whitespace-pre-wrap">{m.content}</div>
                             <div
                                 className={cn(
-                                    'text-[10px] mt-2 opacity-50',
-                                    m.role === 'user' ? 'text-right' : ''
+                                    'text-[10px] mt-2 opacity-70',
+                                    m.role === 'user' ? 'text-primary-foreground/90' : 'text-muted-foreground'
                                 )}
                             >
                                 {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

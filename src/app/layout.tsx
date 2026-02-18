@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { AppProvider } from '@/lib/app-context'
+import { ThemeProvider } from '@/components/theme-provider'
 
 export const metadata: Metadata = {
     title: 'Fibra Core — Gestión Empresarial',
@@ -9,9 +10,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
-        <html lang="es" className="dark">
+        <html lang="es" suppressHydrationWarning>
             <body>
-                <AppProvider>{children}</AppProvider>
+                <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+                    <AppProvider>{children}</AppProvider>
+                </ThemeProvider>
             </body>
         </html>
     )

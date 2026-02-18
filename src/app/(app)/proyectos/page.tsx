@@ -6,10 +6,10 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { mockProjects, mockTasks, type Project } from '@/lib/mock-data'
 
 const statusColumns = [
-    { key: 'planning', label: 'Planeación', color: 'border-purple-500/40', dot: 'bg-purple-400' },
-    { key: 'active', label: 'Activo', color: 'border-electric-500/40', dot: 'bg-electric-400' },
-    { key: 'review', label: 'Revisión', color: 'border-gold-500/40', dot: 'bg-gold-400' },
-    { key: 'completed', label: 'Completado', color: 'border-emerald-500/40', dot: 'bg-emerald-400' },
+    { key: 'planning', label: 'Planeación', color: 'border-purple-500/40', dot: 'bg-purple-500' },
+    { key: 'active', label: 'Activo', color: 'border-[hsl(var(--info-text))]/40', dot: 'bg-[hsl(var(--info-text))]' },
+    { key: 'review', label: 'Revisión', color: 'border-[hsl(var(--warning-text))]/40', dot: 'bg-[hsl(var(--warning-text))]' },
+    { key: 'completed', label: 'Completado', color: 'border-[hsl(var(--success-text))]/40', dot: 'bg-[hsl(var(--success-text))]' },
 ] as const
 
 const priorityBadge: Record<string, string> = {
@@ -55,13 +55,13 @@ export default function ProyectosPage() {
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                 {[
                     { label: 'Total Proyectos', value: mockProjects.length, color: 'text-foreground' },
-                    { label: 'Activos', value: mockProjects.filter((p) => p.status === 'active').length, color: 'text-electric-400' },
-                    { label: 'En Revisión', value: mockProjects.filter((p) => p.status === 'review').length, color: 'text-gold-400' },
-                    { label: 'Completados', value: mockProjects.filter((p) => p.status === 'completed').length, color: 'text-emerald-400' },
+                    { label: 'Activos', value: mockProjects.filter((p) => p.status === 'active').length, color: 'text-[hsl(var(--info-text))]' },
+                    { label: 'En Revisión', value: mockProjects.filter((p) => p.status === 'review').length, color: 'text-[hsl(var(--warning-text))]' },
+                    { label: 'Completados', value: mockProjects.filter((p) => p.status === 'completed').length, color: 'text-[hsl(var(--success-text))]' },
                 ].map((s) => (
                     <div key={s.label} className="glass-card p-4">
                         <p className={cn('text-3xl font-bold', s.color)}>{s.value}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+                        <p className="text-xs text-muted-foreground mt-1 font-medium">{s.label}</p>
                     </div>
                 ))}
             </div>

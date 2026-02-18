@@ -62,11 +62,12 @@ const COLORS = ['#0EA5E9', '#F5C842', '#8B5CF6', '#10B981']
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
         return (
-            <div className="glass-card px-3 py-2 text-xs">
-                <p className="text-muted-foreground mb-1">{label}</p>
+            <div className="glass-card px-3 py-2 text-xs shadow-xl border-border/60">
+                <p className="text-muted-foreground mb-1 font-medium">{label}</p>
                 {payload.map((p: any) => (
-                    <p key={p.name} style={{ color: p.color }} className="font-medium">
-                        {p.name}: {formatCurrency(p.value)}
+                    <p key={p.name} style={{ color: p.color }} className="font-semibold flex items-center justify-between gap-4">
+                        <span>{p.name}:</span>
+                        <span>{formatCurrency(p.value)}</span>
                     </p>
                 ))}
             </div>
@@ -104,7 +105,7 @@ export default function DashboardPage() {
                                 <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center', kpi.bg)}>
                                     <Icon className={cn('w-4 h-4', kpi.color)} />
                                 </div>
-                                <span className={cn('text-xs font-medium flex items-center gap-1', kpi.positive ? 'text-emerald-400' : 'text-red-400')}>
+                                <span className={cn('text-xs font-semibold flex items-center gap-1', kpi.positive ? 'text-[hsl(var(--success-text))]' : 'text-[hsl(var(--danger-text))]')}>
                                     {kpi.positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                                     {kpi.change}
                                 </span>
@@ -136,12 +137,12 @@ export default function DashboardPage() {
                                     <stop offset="95%" stopColor="#F5C842" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 20% 16%)" />
-                            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" vertical={false} />
+                            <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                            <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
                             <Tooltip content={<CustomTooltip />} />
-                            <Area type="monotone" dataKey="ingresos" name="Ingresos" stroke="#0EA5E9" strokeWidth={2} fill="url(#colorIngresos)" />
-                            <Area type="monotone" dataKey="gastos" name="Gastos" stroke="#F5C842" strokeWidth={2} fill="url(#colorGastos)" />
+                            <Area type="monotone" dataKey="ingresos" name="Ingresos" stroke="#0284C7" strokeWidth={2.5} fill="url(#colorIngresos)" />
+                            <Area type="monotone" dataKey="gastos" name="Gastos" stroke="#D97706" strokeWidth={2.5} fill="url(#colorGastos)" />
                         </AreaChart>
                     </ResponsiveContainer>
                 </div>
@@ -156,7 +157,17 @@ export default function DashboardPage() {
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>
-                            <Tooltip formatter={(value, name) => [value, name]} contentStyle={{ background: 'hsl(220 25% 9%)', border: '1px solid hsl(220 20% 16%)', borderRadius: '8px', fontSize: '12px' }} />
+                            <Tooltip
+                                formatter={(value, name) => [value, name]}
+                                contentStyle={{
+                                    background: 'hsl(var(--chart-tooltip))',
+                                    border: '1px solid hsl(var(--chart-tooltip-border))',
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                    color: 'hsl(var(--foreground))'
+                                }}
+                                itemStyle={{ color: 'hsl(var(--foreground))' }}
+                            />
                         </PieChart>
                     </ResponsiveContainer>
                     <div className="space-y-2 mt-2">
@@ -197,13 +208,13 @@ export default function DashboardPage() {
                                 <tr key={t.id}>
                                     <td>
                                         <div className="flex items-center gap-2">
-                                            <div className={cn('w-1.5 h-1.5 rounded-full', t.type === 'income' ? 'bg-emerald-400' : 'bg-red-400')} />
+                                            <div className={cn('w-1.5 h-1.5 rounded-full', t.type === 'income' ? 'bg-[hsl(var(--success-text))]' : 'bg-[hsl(var(--danger-text))]')} />
                                             <span className="truncate max-w-[180px]">{t.description}</span>
                                         </div>
                                     </td>
                                     <td><span className="badge badge-neutral">{t.category}</span></td>
                                     <td className="text-muted-foreground">{formatDate(t.date)}</td>
-                                    <td className={cn('text-right font-medium', t.type === 'income' ? 'text-emerald-400' : 'text-red-400')}>
+                                    <td className={cn('text-right font-semibold', t.type === 'income' ? 'text-[hsl(var(--success-text))]' : 'text-[hsl(var(--danger-text))]')}>
                                         {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
                                     </td>
                                 </tr>
@@ -245,7 +256,7 @@ export default function DashboardPage() {
                         <div className="space-y-2">
                             {unreadNotifs.slice(0, 3).map((n) => (
                                 <div key={n.id} className="flex items-start gap-2.5 p-2.5 rounded-lg bg-secondary/30 border border-border/40">
-                                    <AlertCircle className="w-3.5 h-3.5 text-gold-400 flex-shrink-0 mt-0.5" />
+                                    <AlertCircle className="w-3.5 h-3.5 text-[hsl(var(--warning-text))] flex-shrink-0 mt-0.5" />
                                     <p className="text-xs text-foreground leading-snug">{n.message}</p>
                                 </div>
                             ))}

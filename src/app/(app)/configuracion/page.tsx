@@ -84,7 +84,7 @@ export default function ConfiguracionPage() {
                                         <td className="text-right">
                                             <div className="flex justify-end gap-1">
                                                 <button className="btn-ghost p-1.5"><Edit2 className="w-3.5 h-3.5" /></button>
-                                                <button className="btn-ghost p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                <button className="btn-ghost p-1.5 text-[hsl(var(--danger-text))] hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -124,11 +124,11 @@ export default function ConfiguracionPage() {
                         </div>
                     </div>
 
-                    <div className="glass-card p-5 border-l-4 border-emerald-500">
+                    <div className="glass-card p-5 border-l-4 border-emerald-600">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                                    <Cloud className="w-5 h-5 text-emerald-400" />
+                                    <Cloud className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-bold">Google Drive</h3>
@@ -137,26 +137,26 @@ export default function ConfiguracionPage() {
                             </div>
                             <span className="badge badge-success">Sincronizado</span>
                         </div>
-                        <button className="btn-primary w-full text-xs py-2 bg-emerald-600 hover:bg-emerald-500">
+                        <button className="btn-primary w-full text-xs py-2 bg-emerald-600 hover:bg-emerald-700 text-white border-none">
                             Gestionar Carpetas y Permisos
                         </button>
                     </div>
 
-                    <div className="glass-card p-5 border-l-4 border-orange-500">
+                    <div className="glass-card p-5 border-l-4 border-orange-600">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                                    <Zap className="w-5 h-5 text-orange-400" />
+                                    <Zap className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-bold">n8n Automation</h3>
                                     <p className="text-[10px] text-muted-foreground">Flujos de trabajo personalizados</p>
                                 </div>
                             </div>
-                            <button className="btn-secondary py-1 px-2 text-[10px]">Test Webhook</button>
+                            <button className="btn-secondary py-1 px-2 text-[10px] font-semibold">Test Webhook</button>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[10px] text-muted-foreground">Webhook Base URL</label>
+                            <label className="text-[10px] text-muted-foreground font-medium">Webhook Base URL</label>
                             <input type="text" className="form-input text-xs h-8" defaultValue="https://n8n.fibra.studio/webhook/core" />
                         </div>
                     </div>
