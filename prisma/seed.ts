@@ -1,6 +1,13 @@
 import { PrismaClient, Role, LeadStatus } from '@prisma/client'
+import { scryptSync, randomBytes } from 'crypto'
 
 const prisma = new PrismaClient()
+
+function hashPassword(password: string): string {
+    const salt = randomBytes(16).toString('hex')
+    const derivedKey = scryptSync(password, salt, 64).toString('hex')
+    return `${salt}:${derivedKey}`
+}
 
 async function main() {
     console.log('🌱 Start seeding...')
@@ -8,11 +15,12 @@ async function main() {
     // 1. Create a Default Admin User if not exists
     const admin = await prisma.user.upsert({
         where: { email: 'admin@fibra.studio' },
-        update: { name: 'Carlos Mendoza' },
+        update: { name: 'Carlos Mendoza', passwordHash: hashPassword('Admin1234!') },
         create: {
             email: 'admin@fibra.studio',
             name: 'Carlos Mendoza',
             role: Role.ADMIN,
+            passwordHash: hashPassword('Admin1234!'),
         },
     })
 

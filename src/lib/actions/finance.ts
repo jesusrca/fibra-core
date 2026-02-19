@@ -2,13 +2,16 @@
 
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { requireModuleAccess } from '@/lib/server-auth'
+import { withPrismaRetry } from '@/lib/prisma-retry'
 
 // Fixed Costs Actions
 export async function getFixedCosts() {
     try {
-        return await prisma.fixedCost.findMany({
+        await requireModuleAccess('finanzas')
+        return await withPrismaRetry(() => prisma.fixedCost.findMany({
             orderBy: { dueDate: 'asc' }
-        })
+        }))
     } catch (error) {
         console.error('Error fetching fixed costs:', error)
         return []
@@ -22,9 +25,10 @@ export async function createFixedCost(data: {
     dueDate: Date
 }) {
     try {
-        const fixedCost = await prisma.fixedCost.create({
+        await requireModuleAccess('finanzas')
+        const fixedCost = await withPrismaRetry(() => prisma.fixedCost.create({
             data
-        })
+        }))
         revalidatePath('/finanzas')
         return { success: true, fixedCost }
     } catch (error) {
@@ -35,9 +39,10 @@ export async function createFixedCost(data: {
 
 export async function deleteFixedCost(id: string) {
     try {
-        await prisma.fixedCost.delete({
+        await requireModuleAccess('finanzas')
+        await withPrismaRetry(() => prisma.fixedCost.delete({
             where: { id }
-        })
+        }))
         revalidatePath('/finanzas')
         return { success: true }
     } catch (error) {
@@ -49,12 +54,13 @@ export async function deleteFixedCost(id: string) {
 // Payroll Actions
 export async function getPayroll() {
     try {
-        return await prisma.payroll.findMany({
+        await requireModuleAccess('finanzas')
+        return await withPrismaRetry(() => prisma.payroll.findMany({
             include: {
                 user: true
             },
             orderBy: { paymentDate: 'desc' }
-        })
+        }))
     } catch (error) {
         console.error('Error fetching payroll:', error)
         return []
@@ -69,12 +75,13 @@ export async function createPayroll(data: {
     status?: string
 }) {
     try {
-        const payroll = await prisma.payroll.create({
+        await requireModuleAccess('finanzas')
+        const payroll = await withPrismaRetry(() => prisma.payroll.create({
             data: {
                 ...data,
                 status: data.status || 'PENDING'
             }
-        })
+        }))
         revalidatePath('/finanzas')
         return { success: true, payroll }
     } catch (error) {
@@ -85,10 +92,11 @@ export async function createPayroll(data: {
 
 export async function updatePayrollStatus(id: string, status: string) {
     try {
-        await prisma.payroll.update({
+        await requireModuleAccess('finanzas')
+        await withPrismaRetry(() => prisma.payroll.update({
             where: { id },
             data: { status }
-        })
+        }))
         revalidatePath('/finanzas')
         return { success: true }
     } catch (error) {

@@ -11,6 +11,7 @@ export default function LoginPage() {
     const { status } = useSession()
 
     const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState('')
 
@@ -27,6 +28,7 @@ export default function LoginPage() {
 
         const result = await signIn('credentials', {
             email,
+            password,
             redirect: false,
             callbackUrl
         })
@@ -58,6 +60,17 @@ export default function LoginPage() {
                             className="form-input"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label className="form-label">Contraseña</label>
+                        <input
+                            type="password"
+                            className="form-input"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             required
                         />
                     </div>

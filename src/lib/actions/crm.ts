@@ -2,17 +2,21 @@
 
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { LeadStatus } from '@prisma/client'
+import { LeadStatus, Role } from '@prisma/client'
+import { requireModuleAccess } from '@/lib/server-auth'
+import { withPrismaRetry } from '@/lib/prisma-retry'
+import { createNotificationForRoles } from '@/lib/notifications'
 
 export async function getLeads() {
     try {
-        const leads = await prisma.lead.findMany({
+        await requireModuleAccess('comercial')
+        const leads = await withPrismaRetry(() => prisma.lead.findMany({
             orderBy: { createdAt: 'desc' },
             include: {
                 client: true,
                 contact: true,
             },
-        })
+        }))
         return leads
     } catch (error) {
         console.error('Error fetching leads:', error)
@@ -22,10 +26,11 @@ export async function getLeads() {
 
 export async function getContacts() {
     try {
-        return await prisma.contact.findMany({
+        await requireModuleAccess('comercial')
+        return await withPrismaRetry(() => prisma.contact.findMany({
             include: { client: true },
             orderBy: { firstName: 'asc' }
-        })
+        }))
     } catch (error) {
         console.error('Error fetching contacts:', error)
         return []
@@ -47,14 +52,15 @@ export async function createLead(formData: FormData) {
     }
 
     try {
+        await requireModuleAccess('comercial')
         let finalClientId = clientId
 
         // 1. Handle Client logic
         if (!finalClientId) {
             // Find existing by name to avoid duplicates
-            const existingClient = await prisma.client.findFirst({
+            const existingClient = await withPrismaRetry(() => prisma.client.findFirst({
                 where: { name: { equals: companyName, mode: 'insensitive' } }
-            })
+            }))
 
             if (existingClient) {
                 finalClientId = existingClient.id
@@ -62,9 +68,9 @@ export async function createLead(formData: FormData) {
                 // We create the client only if we want all leads to be linked to a Client record immediately
                 // For now, let's keep it optional but linked if found.
                 // The user wants "related to a list of companies", so let's create it.
-                const newClient = await prisma.client.create({
+                const newClient = await withPrismaRetry(() => prisma.client.create({
                     data: { name: companyName }
-                })
+                }))
                 finalClientId = newClient.id
             }
         }
@@ -76,19 +82,19 @@ export async function createLead(formData: FormData) {
             const firstName = names[0]
             const lastName = names.slice(1).join(' ') || '-'
 
-            const contact = await prisma.contact.create({
+            const contact = await withPrismaRetry(() => prisma.contact.create({
                 data: {
                     firstName,
                     lastName,
                     email: contactEmail || `${firstName.toLowerCase()}@${companyName.toLowerCase().replace(/\s/g, '')}.com`,
                     clientId: finalClientId
                 }
-            })
+            }))
             contactId = contact.id
         }
 
         // 3. Create Lead
-        await prisma.lead.create({
+        const lead = await withPrismaRetry(() => prisma.lead.create({
             data: {
                 companyName: companyName,
                 serviceRequested,
@@ -98,6 +104,12 @@ export async function createLead(formData: FormData) {
                 clientId: finalClientId,
                 contactId: contactId
             },
+        }))
+
+        await createNotificationForRoles({
+            roles: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
+            type: 'new_lead',
+            message: `Nuevo lead registrado: ${lead.companyName || 'Sin empresa'}`
         })
 
         revalidatePath('/comercial')
@@ -110,28 +122,29 @@ export async function createLead(formData: FormData) {
 
 export async function convertLeadToProject(leadId: string, directorId: string) {
     try {
-        const lead = await prisma.lead.findUnique({
+        await requireModuleAccess('comercial')
+        const lead = await withPrismaRetry(() => prisma.lead.findUnique({
             where: { id: leadId },
             include: { client: true }
-        })
+        }))
 
         if (!lead) throw new Error('Lead no encontrado')
 
         // 1. Ensure Client exists
         let clientId = lead.clientId
         if (!clientId && lead.companyName) {
-            const client = await prisma.client.create({
+            const client = await withPrismaRetry(() => prisma.client.create({
                 data: {
-                    name: lead.companyName,
+                    name: lead.companyName || 'Cliente sin nombre',
                 }
-            })
+            }))
             clientId = client.id
         }
 
         if (!clientId) throw new Error('No se pudo determinar el cliente')
 
         // 2. Create Project
-        await prisma.project.create({
+        const project = await withPrismaRetry(() => prisma.project.create({
             data: {
                 name: lead.serviceRequested || `Proyecto ${lead.companyName}`,
                 clientId: clientId,
@@ -140,15 +153,21 @@ export async function convertLeadToProject(leadId: string, directorId: string) {
                 serviceType: lead.serviceRequested || 'Servicio General',
                 status: 'PLANNING',
             }
-        })
+        }))
 
         // 3. Mark Lead as WON
-        await prisma.lead.update({
+        await withPrismaRetry(() => prisma.lead.update({
             where: { id: leadId },
             data: {
                 status: LeadStatus.WON,
                 clientId: clientId
             }
+        }))
+
+        await createNotificationForRoles({
+            roles: [Role.ADMIN, Role.GERENCIA, Role.PROYECTOS],
+            type: 'project_update',
+            message: `Lead convertido en proyecto: ${project.name}`
         })
 
         revalidatePath('/comercial')
@@ -162,10 +181,11 @@ export async function convertLeadToProject(leadId: string, directorId: string) {
 
 export async function updateLeadStatus(leadId: string, status: LeadStatus) {
     try {
-        await prisma.lead.update({
+        await requireModuleAccess('comercial')
+        await withPrismaRetry(() => prisma.lead.update({
             where: { id: leadId },
             data: { status }
-        })
+        }))
         revalidatePath('/comercial')
         return { success: true }
     } catch (error) {
@@ -183,7 +203,8 @@ export async function updateLead(leadId: string, formData: FormData) {
     const clientId = formData.get('clientId') as string
 
     try {
-        await prisma.lead.update({
+        await requireModuleAccess('comercial')
+        await withPrismaRetry(() => prisma.lead.update({
             where: { id: leadId },
             data: {
                 companyName,
@@ -193,7 +214,7 @@ export async function updateLead(leadId: string, formData: FormData) {
                 status,
                 clientId: clientId || null,
             }
-        })
+        }))
 
         revalidatePath('/comercial')
         return { success: true }

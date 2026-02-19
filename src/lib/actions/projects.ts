@@ -2,10 +2,15 @@
 
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { requireModuleAccess } from '@/lib/server-auth'
+import { withPrismaRetry } from '@/lib/prisma-retry'
+import { createNotificationForRoles, createNotificationForUser } from '@/lib/notifications'
+import { Role } from '@prisma/client'
 
 export async function getProjects() {
     try {
-        const projects = await prisma.project.findMany({
+        await requireModuleAccess('proyectos')
+        const projects = await withPrismaRetry(() => prisma.project.findMany({
             include: {
                 client: true,
                 director: true,
@@ -14,7 +19,7 @@ export async function getProjects() {
             orderBy: {
                 updatedAt: 'desc',
             },
-        })
+        }))
         return projects
     } catch (error) {
         console.error('Error fetching projects:', error)
@@ -33,7 +38,8 @@ export async function createProject(data: {
     startDate?: Date
 }) {
     try {
-        const project = await prisma.project.create({
+        await requireModuleAccess('proyectos')
+        const project = await withPrismaRetry(() => prisma.project.create({
             data: {
                 name: data.name,
                 clientId: data.clientId,
@@ -44,6 +50,11 @@ export async function createProject(data: {
                 startDate: data.startDate || new Date(),
                 // milestonesCount: 0 
             },
+        }))
+        await createNotificationForRoles({
+            roles: [Role.ADMIN, Role.GERENCIA, Role.PROYECTOS],
+            type: 'project_update',
+            message: `Nuevo proyecto creado: ${project.name}`
         })
         revalidatePath('/proyectos')
         return { success: true, project }
@@ -55,10 +66,11 @@ export async function createProject(data: {
 
 export async function updateProjectStatus(projectId: string, status: any) {
     try {
-        await prisma.project.update({
+        await requireModuleAccess('proyectos')
+        await withPrismaRetry(() => prisma.project.update({
             where: { id: projectId },
             data: { status },
-        })
+        }))
         revalidatePath('/proyectos')
         return { success: true }
     } catch (error) {
@@ -69,9 +81,10 @@ export async function updateProjectStatus(projectId: string, status: any) {
 
 export async function getClients() {
     try {
-        return await prisma.client.findMany({
+        await requireModuleAccess('proyectos')
+        return await withPrismaRetry(() => prisma.client.findMany({
             orderBy: { name: 'asc' },
-        })
+        }))
     } catch (error) {
         return []
     }
@@ -79,9 +92,10 @@ export async function getClients() {
 
 export async function getUsers() {
     try {
-        return await prisma.user.findMany({
+        await requireModuleAccess('proyectos')
+        return await withPrismaRetry(() => prisma.user.findMany({
             orderBy: { name: 'asc' },
-        })
+        }))
     } catch (error) {
         return []
     }
@@ -89,7 +103,8 @@ export async function getUsers() {
 
 export async function getProjectById(id: string) {
     try {
-        const project = await prisma.project.findUnique({
+        await requireModuleAccess('proyectos')
+        const project = await withPrismaRetry(() => prisma.project.findUnique({
             where: { id },
             include: {
                 client: true,
@@ -104,7 +119,7 @@ export async function getProjectById(id: string) {
                 },
                 transactions: true,
             }
-        })
+        }))
         return project
     } catch (error) {
         console.error('Error fetching project:', error)
@@ -119,14 +134,15 @@ export async function createMilestone(data: {
     status: string
 }) {
     try {
-        const milestone = await prisma.milestone.create({
+        await requireModuleAccess('proyectos')
+        const milestone = await withPrismaRetry(() => prisma.milestone.create({
             data: {
                 projectId: data.projectId,
                 name: data.name,
                 dueDate: data.dueDate,
                 status: data.status
             }
-        })
+        }))
         revalidatePath(`/proyectos/${data.projectId}`)
         return { success: true, milestone }
     } catch (error) {
@@ -137,10 +153,11 @@ export async function createMilestone(data: {
 
 export async function updateMilestoneStatus(id: string, status: string, projectId: string) {
     try {
-        await prisma.milestone.update({
+        await requireModuleAccess('proyectos')
+        await withPrismaRetry(() => prisma.milestone.update({
             where: { id },
             data: { status }
-        })
+        }))
         revalidatePath(`/proyectos/${projectId}`)
         return { success: true }
     } catch (error) {
@@ -158,7 +175,8 @@ export async function createTask(data: {
     dueDate?: Date
 }) {
     try {
-        const task = await prisma.task.create({
+        await requireModuleAccess('proyectos')
+        const task = await withPrismaRetry(() => prisma.task.create({
             data: {
                 projectId: data.projectId,
                 title: data.title,
@@ -168,7 +186,14 @@ export async function createTask(data: {
                 dueDate: data.dueDate,
                 status: 'TODO'
             }
-        })
+        }))
+        if (data.assigneeId) {
+            await createNotificationForUser({
+                userId: data.assigneeId,
+                type: 'task_due',
+                message: `Nueva tarea asignada: ${task.title}`
+            })
+        }
         revalidatePath(`/proyectos/${data.projectId}`)
         return { success: true, task }
     } catch (error) {
@@ -179,10 +204,11 @@ export async function createTask(data: {
 
 export async function updateTaskStatus(id: string, status: string, projectId: string) {
     try {
-        await prisma.task.update({
+        await requireModuleAccess('proyectos')
+        await withPrismaRetry(() => prisma.task.update({
             where: { id },
             data: { status }
-        })
+        }))
         revalidatePath(`/proyectos/${projectId}`)
         return { success: true }
     } catch (error) {

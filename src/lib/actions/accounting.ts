@@ -2,13 +2,17 @@
 
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { TransactionCategory } from '@prisma/client'
+import { Role, TransactionCategory } from '@prisma/client'
+import { requireModuleAccess } from '@/lib/server-auth'
+import { withPrismaRetry } from '@/lib/prisma-retry'
+import { createNotificationForRoles } from '@/lib/notifications'
 
 export async function getTransactions() {
     try {
-        return await prisma.transaction.findMany({
+        await requireModuleAccess('contabilidad')
+        return await withPrismaRetry(() => prisma.transaction.findMany({
             orderBy: { date: 'desc' }
-        })
+        }))
     } catch (error) {
         console.error('Error fetching transactions:', error)
         return []
@@ -24,7 +28,8 @@ export async function createTransaction(data: {
     projectId?: string
 }) {
     try {
-        const transaction = await prisma.transaction.create({
+        await requireModuleAccess('contabilidad')
+        const transaction = await withPrismaRetry(() => prisma.transaction.create({
             data: {
                 category: data.category,
                 subcategory: data.subcategory,
@@ -33,6 +38,11 @@ export async function createTransaction(data: {
                 date: data.date,
                 projectId: data.projectId,
             }
+        }))
+        await createNotificationForRoles({
+            roles: [Role.ADMIN, Role.GERENCIA, Role.CONTABILIDAD, Role.FINANZAS],
+            type: 'finance_update',
+            message: `Nueva transacción ${transaction.category}: ${transaction.description || 'Sin descripción'}`
         })
         revalidatePath('/contabilidad')
         revalidatePath('/dashboard')
@@ -49,9 +59,10 @@ export async function createTransaction(data: {
 
 export async function deleteTransaction(id: string) {
     try {
-        await prisma.transaction.delete({
+        await requireModuleAccess('contabilidad')
+        await withPrismaRetry(() => prisma.transaction.delete({
             where: { id }
-        })
+        }))
         revalidatePath('/contabilidad')
         revalidatePath('/dashboard')
         return { success: true }

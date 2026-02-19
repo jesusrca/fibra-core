@@ -2,6 +2,7 @@ import type { NextAuthOptions } from 'next-auth'
 import { getServerSession } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import prisma from '@/lib/prisma'
+import { verifyPassword } from '@/lib/password'
 
 export const authOptions: NextAuthOptions = {
     session: {
@@ -14,11 +15,13 @@ export const authOptions: NextAuthOptions = {
         CredentialsProvider({
             name: 'Email',
             credentials: {
-                email: { label: 'Email', type: 'email' }
+                email: { label: 'Email', type: 'email' },
+                password: { label: 'Password', type: 'password' }
             },
             async authorize(credentials) {
                 const email = credentials?.email?.trim().toLowerCase()
-                if (!email) return null
+                const password = credentials?.password
+                if (!email || !password) return null
 
                 const user = await prisma.user.findUnique({
                     where: { email },
@@ -26,11 +29,14 @@ export const authOptions: NextAuthOptions = {
                         id: true,
                         name: true,
                         email: true,
-                        role: true
+                        role: true,
+                        passwordHash: true
                     }
                 })
 
                 if (!user) return null
+                if (!user.passwordHash) return null
+                if (!verifyPassword(password, user.passwordHash)) return null
 
                 return {
                     id: user.id,
@@ -62,4 +68,3 @@ export const authOptions: NextAuthOptions = {
 export function auth() {
     return getServerSession(authOptions)
 }
-

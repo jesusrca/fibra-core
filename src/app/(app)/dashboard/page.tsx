@@ -1,5 +1,4 @@
 import { DashboardClient } from '@/components/dashboard/dashboard-client'
-import { mockNotifications, mockTransactions } from '@/lib/mock-data'
 import prisma from '@/lib/prisma'
 import { LeadStatus, ProjectStatus } from '@prisma/client'
 import { requireModuleAccess } from '@/lib/server-auth'
@@ -16,6 +15,8 @@ export default async function DashboardPage() {
     let groupedProjects: any[] = []
     let activeProjects: any[] = []
     let recentTransactions: any[] = []
+    let recentLeads: any[] = []
+    let recentTasks: any[] = []
 
     try {
         const data = await withPrismaRetry(() =>
@@ -74,6 +75,29 @@ export default async function DashboardPage() {
                     },
                     orderBy: { date: 'desc' },
                     take: 5
+                }),
+                prisma.lead.findMany({
+                    select: {
+                        id: true,
+                        companyName: true,
+                        serviceRequested: true,
+                        createdAt: true
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    take: 3
+                }),
+                prisma.task.findMany({
+                    select: {
+                        id: true,
+                        title: true,
+                        dueDate: true,
+                        createdAt: true
+                    },
+                    where: {
+                        status: { not: 'DONE' }
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    take: 3
                 })
             ])
         )
@@ -84,10 +108,12 @@ export default async function DashboardPage() {
             wonRevenueAgg,
             groupedProjects,
             activeProjects,
-            recentTransactions
+            recentTransactions,
+            recentLeads,
+            recentTasks
         ] = data as typeof data
     } catch (error) {
-        console.error('Dashboard data fetch failed, using fallback data:', error)
+        console.error('Dashboard data fetch failed:', error)
     }
 
     const statusCount = (status: ProjectStatus) =>
@@ -102,15 +128,45 @@ export default async function DashboardPage() {
         { name: 'Completados', value: statusCount(ProjectStatus.COMPLETED) },
     ]
 
+    const revenueByMonth = new Map<string, { month: string; ingresos: number; gastos: number }>()
+    recentTransactions.forEach((t: any) => {
+        const date = new Date(t.date)
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+        const monthLabel = date.toLocaleString('es-PE', { month: 'short' })
+        if (!revenueByMonth.has(key)) {
+            revenueByMonth.set(key, { month: monthLabel, ingresos: 0, gastos: 0 })
+        }
+        const bucket = revenueByMonth.get(key)!
+        if (t.category === 'INCOME') bucket.ingresos += t.amount
+        if (t.category === 'EXPENSE') bucket.gastos += t.amount
+    })
+    const revenueSeries = Array.from(revenueByMonth.values()).reverse()
+
+    const recentNotifications = [
+        ...recentLeads.map((lead: any) => ({
+            id: `lead-${lead.id}`,
+            message: `Nuevo lead: ${lead.companyName || 'Sin empresa'}`,
+            createdAt: lead.createdAt
+        })),
+        ...recentTasks.map((task: any) => ({
+            id: `task-${task.id}`,
+            message: `Tarea pendiente: ${task.title}`,
+            createdAt: task.createdAt
+        }))
+    ]
+        .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+        .slice(0, 5)
+
     const stats = {
-        totalRevenue: wonRevenueAgg._sum.estimatedValue || 22700, // fallback until full accounting module
+        totalRevenue: wonRevenueAgg._sum.estimatedValue || 0,
         activeProjectsCount,
         pipelineValue: pipelineAgg._sum.estimatedValue || 0,
         opportunitiesCount,
         projectsByStatus,
-        recentTransactions: recentTransactions.length ? recentTransactions : mockTransactions.slice(0, 5),
+        recentTransactions,
         activeProjects,
-        recentNotifications: mockNotifications.filter(n => !n.read),
+        recentNotifications,
+        revenueSeries,
     }
 
     return <DashboardClient stats={stats as any} />

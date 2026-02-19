@@ -9,7 +9,6 @@ import {
     ArrowUpRight,
 } from 'lucide-react'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
-import { monthlyRevenue } from '@/lib/mock-data'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -25,6 +24,7 @@ interface DashboardClientProps {
         recentTransactions: any[]
         activeProjects: any[]
         recentNotifications: any[]
+        revenueSeries: { month: string; ingresos: number; gastos: number }[]
     }
 }
 
@@ -155,7 +155,7 @@ export function DashboardClient({ stats }: DashboardClientProps) {
                         <Badge variant="secondary">Semestral</Badge>
                     </div>
                     <ResponsiveContainer width="100%" height={340}>
-                        <AreaChart data={monthlyRevenue} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <AreaChart data={stats.revenueSeries} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#2563EB" stopOpacity={0.22} />
@@ -290,15 +290,15 @@ export function DashboardClient({ stats }: DashboardClientProps) {
                                     <tr key={t.id} className="group hover:bg-secondary/20 transition-colors">
                                         <td className="py-4 px-4">
                                             <div className="flex items-center gap-3">
-                                                <div className={cn('w-2 h-2 rounded-full', t.type === 'income' ? 'bg-emerald-500' : 'bg-rose-500')} />
+                                                <div className={cn('w-2 h-2 rounded-full', t.category === 'INCOME' ? 'bg-emerald-500' : 'bg-rose-500')} />
                                                 <span className="font-medium text-foreground">{t.description}</span>
                                             </div>
                                         </td>
                                         <td className="py-4 px-4"><Badge variant="secondary">{t.category}</Badge></td>
                                         <td className="py-4 px-4 text-muted-foreground">{formatDate(t.date)}</td>
                                         <td className="py-4 px-4 text-right font-bold">
-                                            <span className={t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}>
-                                                {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                                            <span className={t.category === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}>
+                                                {t.category === 'INCOME' ? '+' : '-'}{formatCurrency(t.amount)}
                                             </span>
                                         </td>
                                     </tr>

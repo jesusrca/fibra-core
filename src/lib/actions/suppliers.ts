@@ -2,12 +2,15 @@
 
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
+import { requireModuleAccess } from '@/lib/server-auth'
+import { withPrismaRetry } from '@/lib/prisma-retry'
 
 export async function getSuppliers() {
     try {
-        return await prisma.supplier.findMany({
+        await requireModuleAccess('proveedores')
+        return await withPrismaRetry(() => prisma.supplier.findMany({
             orderBy: { name: 'asc' }
-        })
+        }))
     } catch (error) {
         console.error('Error fetching suppliers:', error)
         return []
@@ -22,7 +25,8 @@ export async function createSupplier(data: {
     contactName: string
 }) {
     try {
-        const supplier = await prisma.supplier.create({
+        await requireModuleAccess('proveedores')
+        const supplier = await withPrismaRetry(() => prisma.supplier.create({
             data: {
                 name: data.name,
                 category: data.category,
@@ -30,7 +34,7 @@ export async function createSupplier(data: {
                 rating: data.rating,
                 contactName: data.contactName,
             }
-        })
+        }))
         revalidatePath('/proveedores')
         return { success: true, supplier }
     } catch (error) {
@@ -47,7 +51,8 @@ export async function updateSupplier(id: string, data: {
     contactName: string
 }) {
     try {
-        const supplier = await prisma.supplier.update({
+        await requireModuleAccess('proveedores')
+        const supplier = await withPrismaRetry(() => prisma.supplier.update({
             where: { id },
             data: {
                 name: data.name,
@@ -56,7 +61,7 @@ export async function updateSupplier(id: string, data: {
                 rating: data.rating,
                 contactName: data.contactName,
             }
-        })
+        }))
         revalidatePath('/proveedores')
         return { success: true, supplier }
     } catch (error) {
@@ -67,9 +72,10 @@ export async function updateSupplier(id: string, data: {
 
 export async function deleteSupplier(id: string) {
     try {
-        await prisma.supplier.delete({
+        await requireModuleAccess('proveedores')
+        await withPrismaRetry(() => prisma.supplier.delete({
             where: { id }
-        })
+        }))
         revalidatePath('/proveedores')
         return { success: true }
     } catch (error) {

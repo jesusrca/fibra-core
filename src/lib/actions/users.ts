@@ -3,12 +3,16 @@
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { Role } from '@prisma/client'
+import { requireModuleAccess } from '@/lib/server-auth'
+import { hashPassword } from '@/lib/password'
+import { withPrismaRetry } from '@/lib/prisma-retry'
 
 export async function getUsers() {
     try {
-        return await prisma.user.findMany({
+        await requireModuleAccess('equipo')
+        return await withPrismaRetry(() => prisma.user.findMany({
             orderBy: { name: 'asc' }
-        })
+        }))
     } catch (error) {
         console.error('Error fetching users:', error)
         return []
@@ -20,16 +24,20 @@ export async function createUser(data: {
     email: string
     role: Role
     specialty?: string
+    password?: string
 }) {
     try {
-        const user = await prisma.user.create({
+        await requireModuleAccess('equipo')
+        const password = data.password || 'Admin1234!'
+        const user = await withPrismaRetry(() => prisma.user.create({
             data: {
                 name: data.name,
                 email: data.email,
                 role: data.role,
                 specialty: data.specialty,
+                passwordHash: hashPassword(password),
             }
-        })
+        }))
         revalidatePath('/equipo')
         return { success: true, user }
     } catch (error) {
@@ -43,17 +51,20 @@ export async function updateUser(id: string, data: {
     email: string
     role: Role
     specialty?: string
+    password?: string
 }) {
     try {
-        const user = await prisma.user.update({
+        await requireModuleAccess('equipo')
+        const user = await withPrismaRetry(() => prisma.user.update({
             where: { id },
             data: {
                 name: data.name,
                 email: data.email,
                 role: data.role,
                 specialty: data.specialty,
+                ...(data.password ? { passwordHash: hashPassword(data.password) } : {})
             }
-        })
+        }))
         revalidatePath('/equipo')
         revalidatePath('/perfil')
         return { success: true, user }
@@ -65,9 +76,10 @@ export async function updateUser(id: string, data: {
 
 export async function deleteUser(id: string) {
     try {
-        await prisma.user.delete({
+        await requireModuleAccess('equipo')
+        await withPrismaRetry(() => prisma.user.delete({
             where: { id }
-        })
+        }))
         revalidatePath('/equipo')
         return { success: true }
     } catch (error) {

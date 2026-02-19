@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Bell, Search, ChevronDown, LogOut, User, Settings, Menu } from 'lucide-react'
 import Link from 'next/link'
+import { signOut } from 'next-auth/react'
 import { cn, getInitials } from '@/lib/utils'
-import { mockNotifications } from '@/lib/mock-data'
 import { roleLabels } from '@/lib/rbac'
 import type { AppUser } from '@/lib/app-context'
 import { formatDate } from '@/lib/utils'
@@ -30,8 +30,28 @@ interface HeaderProps {
 export function Header({ user }: HeaderProps) {
     const { toggleSidebar } = useApp()
     const [notifOpen, setNotifOpen] = useState(false)
+    const [notifications, setNotifications] = useState<Array<{ id: string; message: string; createdAt: string; read?: boolean; type?: string }>>([])
 
-    const unread = mockNotifications.filter((n) => !n.read).length
+    const unread = notifications.filter((n) => !n.read).length
+
+    useEffect(() => {
+        fetch('/api/notifications')
+            .then((res) => res.ok ? res.json() : { notifications: [] })
+            .then((data) => setNotifications(Array.isArray(data.notifications) ? data.notifications : []))
+            .catch(() => setNotifications([]))
+    }, [])
+
+    const markAllAsRead = async () => {
+        const previous = notifications
+        setNotifications((state) => state.map((n) => ({ ...n, read: true })))
+        const res = await fetch('/api/notifications', { method: 'PATCH' })
+        if (!res.ok) setNotifications(previous)
+    }
+
+    const markOneAsRead = async (id: string) => {
+        setNotifications((state) => state.map((n) => n.id === id ? { ...n, read: true } : n))
+        await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' })
+    }
 
     const notifIcons: Record<string, string> = {
         task_due: '⏰',
@@ -85,16 +105,19 @@ export function Header({ user }: HeaderProps) {
                                 <Badge variant="default">{unread} nuevas</Badge>
                             </div>
                             <div className="max-h-80 overflow-y-auto">
-                                {mockNotifications.map((n) => (
+                                {notifications.map((n) => (
                                     <div
                                         key={n.id}
+                                        onClick={() => {
+                                            if (!n.read) markOneAsRead(n.id)
+                                        }}
                                         className={cn(
                                             'px-4 py-3 border-b border-border/40 hover:bg-secondary/30 transition-colors cursor-pointer',
                                             !n.read && 'bg-primary/5'
                                         )}
                                     >
                                         <div className="flex gap-3">
-                                            <span className="text-lg flex-shrink-0">{notifIcons[n.type] ?? '🔔'}</span>
+                                            <span className="text-lg flex-shrink-0">{notifIcons[n.type || ''] ?? '🔔'}</span>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-xs text-foreground leading-snug">{n.message}</p>
                                                 <p className="text-[10px] text-muted-foreground mt-1">{formatDate(n.createdAt)}</p>
@@ -105,7 +128,11 @@ export function Header({ user }: HeaderProps) {
                                 ))}
                             </div>
                             <div className="px-4 py-2 border-t border-border">
-                                <button className="text-xs text-primary hover:text-primary/80 transition-colors" type="button">
+                                <button
+                                    className="text-xs text-primary hover:text-primary/80 transition-colors"
+                                    type="button"
+                                    onClick={markAllAsRead}
+                                >
                                     Marcar todas como leídas
                                 </button>
                             </div>
@@ -150,7 +177,10 @@ export function Header({ user }: HeaderProps) {
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive focus:text-destructive">
+                        <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => signOut({ callbackUrl: '/login' })}
+                        >
                             <LogOut className="w-3.5 h-3.5 mr-2" />
                             Cerrar Sesión
                         </DropdownMenuItem>
