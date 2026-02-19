@@ -5,45 +5,42 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Legend,
 } from 'recharts'
-import { TrendingUp, TrendingDown, DollarSign, Target, CreditCard, Users, Briefcase, Trash2 } from 'lucide-react'
+import { TrendingUp, TrendingDown, DollarSign, Target, Trash2 } from 'lucide-react'
 import { formatCurrency, cn, formatDate } from '@/lib/utils'
 import { createFixedCost, deleteFixedCost, createPayroll, updatePayrollStatus } from '@/lib/actions/finance'
-import { monthlyRevenue } from '@/lib/mock-data'
-
-const budgetData = [
-    { area: 'Nómina', presupuesto: 14000, real: 12000 },
-    { area: 'Marketing', presupuesto: 4000, real: 3390 },
-    { area: 'Oficina', presupuesto: 2500, real: 2200 },
-    { area: 'Software', presupuesto: 1200, real: 890 },
-    { area: 'Otros', presupuesto: 1000, real: 1110 },
-]
-
-const cashFlowData = [
-    { mes: 'Sep', flujo: 10000 },
-    { mes: 'Oct', flujo: 12500 },
-    { mes: 'Nov', flujo: 11700 },
-    { mes: 'Dic', flujo: 16000 },
-    { mes: 'Ene', flujo: 14500 },
-    { mes: 'Feb', flujo: 6110 },
-]
 
 interface FinanzasClientProps {
     fixedCosts: any[]
     payroll: any[]
     users: any[]
+    bankBalances: Array<{
+        bank: string
+        balance: number
+    }>
+    totalRevenue: number
+    totalExpenses: number
+    netProfit: number
+    margin: number
+    budgetData: Array<{ area: string; presupuesto: number; real: number }>
+    cashFlowData: Array<{ mes: string; flujo: number }>
 }
 
-export function FinanzasClient({ fixedCosts, payroll, users }: FinanzasClientProps) {
+export function FinanzasClient({
+    fixedCosts,
+    payroll,
+    users,
+    bankBalances,
+    totalRevenue,
+    totalExpenses,
+    netProfit,
+    margin,
+    budgetData,
+    cashFlowData
+}: FinanzasClientProps) {
     const [activeSection, setActiveSection] = useState<'resumen' | 'costos' | 'planilla'>('resumen')
     const [showCostForm, setShowCostForm] = useState(false)
     const [showPayrollForm, setShowPayrollForm] = useState(false)
     const [loading, setLoading] = useState(false)
-
-    // These should ideally come from backend aggregation
-    const totalRevenue = 22700
-    const totalExpenses = 16590
-    const netProfit = totalRevenue - totalExpenses
-    const margin = ((netProfit / totalRevenue) * 100).toFixed(1)
 
     const handleCreateCost = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -125,7 +122,7 @@ export function FinanzasClient({ fixedCosts, payroll, users }: FinanzasClientPro
                             { label: 'Ingresos', value: formatCurrency(totalRevenue), icon: TrendingUp, color: 'text-[hsl(var(--success-text))]', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
                             { label: 'Gastos', value: formatCurrency(totalExpenses), icon: TrendingDown, color: 'text-[hsl(var(--danger-text))]', bg: 'bg-red-500/10', border: 'border-red-500/20' },
                             { label: 'Utilidad Neta', value: formatCurrency(netProfit), icon: DollarSign, color: 'text-[hsl(var(--info-text))]', bg: 'bg-electric-500/10', border: 'border-electric-500/20' },
-                            { label: 'Margen', value: `${margin}%`, icon: Target, color: 'text-[hsl(var(--warning-text))]', bg: 'bg-gold-500/10', border: 'border-gold-500/20' },
+                            { label: 'Margen', value: `${margin.toFixed(1)}%`, icon: Target, color: 'text-[hsl(var(--warning-text))]', bg: 'bg-gold-500/10', border: 'border-gold-500/20' },
                         ].map((k) => {
                             const Icon = k.icon
                             return (
@@ -144,58 +141,107 @@ export function FinanzasClient({ fixedCosts, payroll, users }: FinanzasClientPro
                         {/* Budget vs Real */}
                         <div className="glass-card p-5">
                             <h2 className="section-title mb-4">Presupuesto vs Real — Actual</h2>
-                            <ResponsiveContainer width="100%" height={220}>
-                                <BarChart data={budgetData} layout="vertical">
-                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" horizontal={false} />
-                                    <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                                    <YAxis type="category" dataKey="area" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={70} />
-                                    <Tooltip
-                                        contentStyle={{
-                                            background: 'hsl(var(--chart-tooltip))',
-                                            border: '1px solid hsl(var(--chart-tooltip-border))',
-                                            borderRadius: '8px',
-                                            fontSize: '12px',
-                                            color: 'hsl(var(--foreground))'
-                                        }}
-                                        itemStyle={{ color: 'hsl(var(--foreground))' }}
-                                        formatter={(v: any) => formatCurrency(Number(v || 0))}
-                                    />
-                                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-                                    <Bar dataKey="presupuesto" name="Presupuesto" fill="#94A3B8" radius={[0, 4, 4, 0]} />
-                                    <Bar dataKey="real" name="Real" fill="#0EA5E9" radius={[0, 4, 4, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            {budgetData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={220}>
+                                    <BarChart data={budgetData} layout="vertical">
+                                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" horizontal={false} />
+                                        <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                                        <YAxis type="category" dataKey="area" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={100} />
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: 'hsl(var(--chart-tooltip))',
+                                                border: '1px solid hsl(var(--chart-tooltip-border))',
+                                                borderRadius: '8px',
+                                                fontSize: '12px',
+                                                color: 'hsl(var(--foreground))'
+                                            }}
+                                            itemStyle={{ color: 'hsl(var(--foreground))' }}
+                                            formatter={(v: any) => formatCurrency(Number(v || 0))}
+                                        />
+                                        <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                                        <Bar dataKey="presupuesto" name="Presupuesto" fill="#94A3B8" radius={[0, 4, 4, 0]} />
+                                        <Bar dataKey="real" name="Real" fill="#0EA5E9" radius={[0, 4, 4, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">
+                                    Sin datos de gastos del mes actual.
+                                </div>
+                            )}
                         </div>
 
                         {/* Cash flow */}
                         <div className="glass-card p-5">
                             <h2 className="section-title mb-4">Flujo de Caja Neto</h2>
-                            <ResponsiveContainer width="100%" height={220}>
-                                <AreaChart data={cashFlowData}>
-                                    <defs>
-                                        <linearGradient id="colorFlujo" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
-                                            <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" vertical={false} />
-                                    <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                                    <Tooltip
-                                        contentStyle={{
-                                            background: 'hsl(var(--chart-tooltip))',
-                                            border: '1px solid hsl(var(--chart-tooltip-border))',
-                                            borderRadius: '8px',
-                                            fontSize: '12px',
-                                            color: 'hsl(var(--foreground))'
-                                        }}
-                                        itemStyle={{ color: 'hsl(var(--foreground))' }}
-                                        formatter={(v: any) => formatCurrency(Number(v || 0))}
-                                    />
-                                    <Area type="monotone" dataKey="flujo" name="Flujo Neto" stroke="#10B981" strokeWidth={2} fill="url(#colorFlujo)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            {cashFlowData.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={220}>
+                                    <AreaChart data={cashFlowData}>
+                                        <defs>
+                                            <linearGradient id="colorFlujo" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" vertical={false} />
+                                        <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                                        <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: 'hsl(var(--chart-tooltip))',
+                                                border: '1px solid hsl(var(--chart-tooltip-border))',
+                                                borderRadius: '8px',
+                                                fontSize: '12px',
+                                                color: 'hsl(var(--foreground))'
+                                            }}
+                                            itemStyle={{ color: 'hsl(var(--foreground))' }}
+                                            formatter={(v: any) => formatCurrency(Number(v || 0))}
+                                        />
+                                        <Area type="monotone" dataKey="flujo" name="Flujo Neto" stroke="#10B981" strokeWidth={2} fill="url(#colorFlujo)" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground">
+                                    Sin transacciones para construir flujo.
+                                </div>
+                            )}
                         </div>
+                    </div>
+
+                    <div className="glass-card p-5">
+                        <h2 className="section-title mb-2">Saldos por Banco (a la fecha)</h2>
+                        <p className="text-xs text-muted-foreground mb-4">Saldo neto calculado con transacciones registradas hasta hoy.</p>
+                        <ResponsiveContainer width="100%" height={Math.max(220, bankBalances.length * 46)}>
+                            <BarChart data={bankBalances} layout="vertical" margin={{ left: 20, right: 16, top: 8, bottom: 8 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--chart-grid))" horizontal={false} />
+                                <XAxis
+                                    type="number"
+                                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tickFormatter={(v) => formatCurrency(Number(v || 0))}
+                                />
+                                <YAxis
+                                    type="category"
+                                    dataKey="bank"
+                                    tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    width={130}
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        background: 'hsl(var(--chart-tooltip))',
+                                        border: '1px solid hsl(var(--chart-tooltip-border))',
+                                        borderRadius: '8px',
+                                        fontSize: '12px',
+                                        color: 'hsl(var(--foreground))'
+                                    }}
+                                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                                    formatter={(v: any) => formatCurrency(Number(v || 0))}
+                                />
+                                <Bar dataKey="balance" name="Saldo" fill="#2563EB" radius={[0, 6, 6, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </>
             )}
@@ -304,7 +350,7 @@ export function FinanzasClient({ fixedCosts, payroll, users }: FinanzasClientPro
 
             {showCostForm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowCostForm(false)}>
-                    <div className="glass-card p-6 w-full max-w-md mx-4 relative" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4 relative" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-foreground">Nuevo Gasto Fijo</h2>
                             <button onClick={() => setShowCostForm(false)} className="text-muted-foreground hover:text-foreground text-xl">✕</button>
@@ -344,7 +390,7 @@ export function FinanzasClient({ fixedCosts, payroll, users }: FinanzasClientPro
 
             {showPayrollForm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowPayrollForm(false)}>
-                    <div className="glass-card p-6 w-full max-w-md mx-4 relative" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4 relative" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-foreground">Nuevo Registro de Nómina</h2>
                             <button onClick={() => setShowPayrollForm(false)} className="text-muted-foreground hover:text-foreground text-xl">✕</button>

@@ -73,7 +73,7 @@ export function QuoteForm({ onClose, leads, initialData }: QuoteFormProps) {
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] animate-fade-in" onClick={onClose}>
-            <div className="glass-card p-6 w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-form-card p-6 w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-foreground">{isEditing ? 'Editar Cotización' : 'Nueva Cotización'}</h2>
                     <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl">✕</button>

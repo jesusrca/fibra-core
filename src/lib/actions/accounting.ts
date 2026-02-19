@@ -34,12 +34,27 @@ export async function createTransaction(data: {
     try {
         await requireModuleAccess('contabilidad')
         const currency = (data.currency || 'PEN').toUpperCase()
+        const normalizedBank = (data.bank || '').trim()
+
+        if (normalizedBank) {
+            const bank = await withPrismaRetry(() =>
+                prisma.accountingBank.findFirst({
+                    where: {
+                        name: { equals: normalizedBank, mode: 'insensitive' },
+                        isActive: true
+                    },
+                    select: { id: true, name: true }
+                })
+            )
+            if (!bank) return { success: false, error: 'Banco inválido o inactivo. Configúralo en Configuración > Contabilidad.' }
+        }
+
         const transaction = await withPrismaRetry(() => prisma.transaction.create({
             data: {
                 category: data.category,
                 subcategory: data.subcategory,
                 currency,
-                bank: data.bank || null,
+                bank: normalizedBank || null,
                 amount: data.amount,
                 description: data.description,
                 date: data.date,

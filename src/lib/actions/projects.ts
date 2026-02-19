@@ -5,7 +5,102 @@ import { revalidatePath } from 'next/cache'
 import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { createNotificationForRoles, createNotificationForUser } from '@/lib/notifications'
-import { Role } from '@prisma/client'
+import { InvoiceStatus, Role } from '@prisma/client'
+
+function normalizeServiceName(name: string) {
+    return name.trim().replace(/\s+/g, ' ')
+}
+
+async function generateInvoiceNumber() {
+    const year = new Date().getFullYear()
+    for (let i = 0; i < 5; i += 1) {
+        const random = Math.floor(10000 + Math.random() * 90000)
+        const number = `INV-${year}-${random}`
+        const exists = await withPrismaRetry(() => prisma.invoice.findUnique({
+            where: { invoiceNumber: number },
+            select: { id: true }
+        }))
+        if (!exists) return number
+    }
+    return `INV-${year}-${Date.now()}`
+}
+
+async function createMissingInvoicesForCompletedMilestones(projectId: string) {
+    const project = await withPrismaRetry(() => prisma.project.findUnique({
+        where: { id: projectId },
+        select: {
+            id: true,
+            name: true,
+            clientId: true,
+            budget: true,
+            milestones: { select: { id: true, status: true } },
+            invoices: { select: { id: true, status: true } }
+        }
+    }))
+
+    if (!project) return { created: 0, amountPerInvoice: 0 }
+
+    const totalMilestones = Math.max(project.milestones.length, 1)
+    const completedMilestones = project.milestones.filter((m) => m.status === 'COMPLETED').length
+    const issuedInvoices = project.invoices.filter((invoice) => invoice.status !== InvoiceStatus.CANCELLED).length
+    const missing = Math.max(completedMilestones - issuedInvoices, 0)
+
+    if (missing === 0) return { created: 0, amountPerInvoice: 0 }
+
+    const installmentAmount = Math.round((project.budget / totalMilestones) * 100) / 100
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + 7)
+
+    for (let i = 0; i < missing; i += 1) {
+        const invoiceNumber = await generateInvoiceNumber()
+        await withPrismaRetry(() => prisma.invoice.create({
+            data: {
+                invoiceNumber,
+                clientId: project.clientId,
+                projectId: project.id,
+                amount: installmentAmount,
+                issueDate: new Date(),
+                dueDate,
+                status: InvoiceStatus.SENT,
+                paymentMethod: 'Transferencia'
+            }
+        }))
+    }
+
+    return { created: missing, amountPerInvoice: installmentAmount }
+}
+
+export async function upsertServiceCatalogFromName(rawName: string) {
+    const name = normalizeServiceName(rawName || '')
+    if (!name) return null
+
+    const existing = await withPrismaRetry(() =>
+        prisma.serviceCatalog.findFirst({
+            where: { name: { equals: name, mode: 'insensitive' } },
+            select: { id: true, isActive: true }
+        })
+    )
+
+    if (existing) {
+        if (!existing.isActive) {
+            await withPrismaRetry(() =>
+                prisma.serviceCatalog.update({
+                    where: { id: existing.id },
+                    data: { isActive: true }
+                })
+            )
+        }
+        return existing.id
+    }
+
+    const created = await withPrismaRetry(() =>
+        prisma.serviceCatalog.create({
+            data: { name },
+            select: { id: true }
+        })
+    )
+    return created.id
+}
 
 export async function getProjects() {
     try {
@@ -39,6 +134,11 @@ export async function createProject(data: {
 }) {
     try {
         await requireModuleAccess('proyectos')
+        const serviceType = normalizeServiceName(data.serviceType || '')
+        if (!serviceType) return { success: false, error: 'El tipo de servicio es obligatorio' }
+
+        await upsertServiceCatalogFromName(serviceType)
+
         const project = await withPrismaRetry(() => prisma.project.create({
             data: {
                 name: data.name,
@@ -46,7 +146,7 @@ export async function createProject(data: {
                 directorId: data.directorId,
                 status: data.status,
                 budget: data.budget,
-                serviceType: data.serviceType,
+                serviceType,
                 startDate: data.startDate || new Date(),
                 endDate: data.endDate || null,
                 // milestonesCount: 0 
@@ -58,10 +158,46 @@ export async function createProject(data: {
             message: `Nuevo proyecto creado: ${project.name}`
         })
         revalidatePath('/proyectos')
+        revalidatePath('/marketing')
         return { success: true, project }
     } catch (error) {
         console.error('Error creating project:', error)
         return { success: false, error: 'Error al crear el proyecto' }
+    }
+}
+
+export async function createProjectClient(data: {
+    name: string
+    country?: string
+    industry?: string
+    mainEmail?: string
+}) {
+    try {
+        await requireModuleAccess('proyectos')
+        const name = (data.name || '').trim()
+        if (!name) return { success: false, error: 'El nombre del cliente es obligatorio' }
+
+        const existing = await withPrismaRetry(() => prisma.client.findFirst({
+            where: { name: { equals: name, mode: 'insensitive' } },
+            select: { id: true, name: true }
+        }))
+        if (existing) return { success: true, client: existing, created: false as const }
+
+        const client = await withPrismaRetry(() => prisma.client.create({
+            data: {
+                name,
+                country: (data.country || '').trim() || null,
+                industry: (data.industry || '').trim() || null,
+                mainEmail: (data.mainEmail || '').trim() || null
+            },
+            select: { id: true, name: true }
+        }))
+
+        revalidatePath('/proyectos')
+        return { success: true, client, created: true as const }
+    } catch (error) {
+        console.error('Error creating project client:', error)
+        return { success: false, error: 'Error al crear el cliente' }
     }
 }
 
@@ -221,10 +357,11 @@ export async function updateMilestoneStatus(id: string, status: string, projectI
         if (shouldNotifyBilling) {
             const milestonesCount = Math.max(project.milestones.length, 1)
             const suggestedInstallment = Math.round((project.budget / milestonesCount) * 100) / 100
+            const autoInvoices = await createMissingInvoicesForCompletedMilestones(project.id)
             await createNotificationForRoles({
                 roles: [Role.ADMIN, Role.GERENCIA, Role.CONTABILIDAD, Role.FINANZAS],
                 type: 'milestone_billing_due',
-                message: `Hito completado en ${project.name}: "${updatedMilestone.name}". Cuota sugerida a cobrar: $${suggestedInstallment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                message: `Hito completado en ${project.name}: "${updatedMilestone.name}". Cuota sugerida a cobrar: $${suggestedInstallment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Facturas autoemitidas: ${autoInvoices.created}.`
             })
         }
 
@@ -232,6 +369,7 @@ export async function updateMilestoneStatus(id: string, status: string, projectI
         revalidatePath(`/proyectos/${projectId}`)
         revalidatePath('/dashboard')
         revalidatePath('/contabilidad')
+        revalidatePath('/comercial')
         return { success: true }
     } catch (error) {
         console.error('Error updating milestone:', error)

@@ -29,9 +29,10 @@ interface ProjectClientProps {
     initialProjects: any[]
     clients: any[]
     users: any[]
+    services: any[]
 }
 
-export function ProjectClient({ initialProjects, clients, users }: ProjectClientProps) {
+export function ProjectClient({ initialProjects, clients, users, services }: ProjectClientProps) {
     const router = useRouter()
     const [view, setView] = useState<'kanban' | 'list'>('kanban')
     const [showForm, setShowForm] = useState(false)
@@ -232,6 +233,7 @@ export function ProjectClient({ initialProjects, clients, users }: ProjectClient
                     onClose={() => setShowForm(false)}
                     clients={clients}
                     users={users}
+                    services={services}
                 />
             )}
         </div>

@@ -6,6 +6,7 @@ import { InvoiceStatus, LeadStatus, Role } from '@prisma/client'
 import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { createNotificationForRoles } from '@/lib/notifications'
+import { upsertServiceCatalogFromName } from '@/lib/actions/projects'
 
 type QuoteStatus = 'PENDING' | 'SENT' | 'ACCEPTED' | 'REJECTED'
 
@@ -281,6 +282,65 @@ export async function updateContact(id: string, data: {
     }
 }
 
+export async function deleteContact(id: string) {
+    try {
+        await requireModuleAccess('comercial')
+        const related = await withPrismaRetry(() => prisma.contact.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                leads: { select: { id: true }, take: 1 },
+                projects: { select: { id: true }, take: 1 },
+                activities: { select: { id: true }, take: 1 }
+            }
+        }))
+
+        if (!related) return { success: false, error: 'Contacto no encontrado' }
+        if (related.leads.length > 0 || related.projects.length > 0 || related.activities.length > 0) {
+            return { success: false, error: 'No se puede eliminar: el contacto tiene relaciones activas (lead/proyecto/actividad)' }
+        }
+
+        await withPrismaRetry(() => prisma.contact.delete({
+            where: { id }
+        }))
+        revalidatePath('/comercial')
+        return { success: true }
+    } catch (error) {
+        console.error('Error deleting contact:', error)
+        return { success: false, error: 'Error al eliminar el contacto' }
+    }
+}
+
+export async function deleteClient(id: string) {
+    try {
+        await requireModuleAccess('comercial')
+        const related = await withPrismaRetry(() => prisma.client.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                contacts: { select: { id: true }, take: 1 },
+                projects: { select: { id: true }, take: 1 },
+                leads: { select: { id: true }, take: 1 },
+                invoices: { select: { id: true }, take: 1 }
+            }
+        }))
+
+        if (!related) return { success: false, error: 'Empresa no encontrada' }
+        if (related.contacts.length > 0 || related.projects.length > 0 || related.leads.length > 0 || related.invoices.length > 0) {
+            return { success: false, error: 'No se puede eliminar: la empresa tiene relaciones activas (contactos/proyectos/leads/facturas)' }
+        }
+
+        await withPrismaRetry(() => prisma.client.delete({
+            where: { id }
+        }))
+        revalidatePath('/comercial')
+        return { success: true }
+    } catch (error) {
+        console.error('Error deleting client:', error)
+        return { success: false, error: 'Error al eliminar la empresa' }
+    }
+}
+
 export async function createLead(formData: FormData) {
     const companyName = (formData.get('companyName') as string || '').trim()
     const serviceRequested = formData.get('serviceRequested') as string
@@ -424,6 +484,9 @@ export async function convertLeadToProject(leadId: string, directorId: string) {
             }
         }))
 
+        const serviceType = lead.serviceRequested || 'Servicio General'
+        await upsertServiceCatalogFromName(serviceType)
+
         await withPrismaRetry(() => prisma.lead.update({
             where: { id: leadId },
             data: {
@@ -463,15 +526,42 @@ export async function updateLeadStatus(leadId: string, status: LeadStatus) {
 }
 
 export async function updateLead(leadId: string, formData: FormData) {
-    const companyName = formData.get('companyName') as string
+    const companyName = (formData.get('companyName') as string || '').trim()
     const serviceRequested = formData.get('serviceRequested') as string
     const requirementDetail = formData.get('requirementDetail') as string
     const estimatedValue = parseFloat(formData.get('estimatedValue') as string || '0')
     const status = formData.get('status') as LeadStatus
-    const clientId = formData.get('clientId') as string
+    const clientId = (formData.get('clientId') as string || '').trim()
+    const selectedContactId = (formData.get('contactId') as string || '').trim()
 
     try {
         await requireModuleAccess('comercial')
+        let finalClientId = clientId
+        let contactId: string | null = null
+
+        if (!finalClientId && companyName) {
+            finalClientId = await ensureClientByName(companyName)
+        }
+
+        if (selectedContactId) {
+            const selectedContact = await withPrismaRetry(() => prisma.contact.findUnique({
+                where: { id: selectedContactId },
+                select: { id: true, clientId: true }
+            }))
+
+            if (!selectedContact) {
+                throw new Error('El contacto seleccionado no existe')
+            }
+
+            if (!finalClientId) {
+                finalClientId = selectedContact.clientId
+            } else if (selectedContact.clientId !== finalClientId) {
+                throw new Error('El contacto seleccionado no pertenece a la empresa elegida')
+            }
+
+            contactId = selectedContact.id
+        }
+
         await withPrismaRetry(() => prisma.lead.update({
             where: { id: leadId },
             data: {
@@ -480,7 +570,8 @@ export async function updateLead(leadId: string, formData: FormData) {
                 requirementDetail,
                 estimatedValue,
                 status,
-                clientId: clientId || null
+                clientId: finalClientId || null,
+                contactId
             }
         }))
 
@@ -489,6 +580,71 @@ export async function updateLead(leadId: string, formData: FormData) {
     } catch (error) {
         console.error('Error updating lead:', error)
         throw new Error('Error al actualizar el lead')
+    }
+}
+
+const ALLOWED_ACTIVITY_TYPES = new Set(['CALL', 'EMAIL', 'MEETING', 'CHAT', 'NOTE'])
+
+function normalizeActivityType(type: string) {
+    const normalized = type.trim().toUpperCase()
+    return ALLOWED_ACTIVITY_TYPES.has(normalized) ? normalized : 'NOTE'
+}
+
+export async function createLeadActivity(data: {
+    leadId: string
+    type: string
+    description: string
+    contactId?: string
+    date?: Date
+}) {
+    try {
+        await requireModuleAccess('comercial')
+        const description = normalizeText(data.description || '')
+        if (!description) return { success: false, error: 'La descripción es obligatoria' }
+
+        const lead = await withPrismaRetry(() => prisma.lead.findUnique({
+            where: { id: data.leadId },
+            select: { id: true, contactId: true, companyName: true }
+        }))
+        if (!lead) return { success: false, error: 'Lead no encontrado' }
+
+        let contactId = data.contactId || lead.contactId || null
+        if (contactId) {
+            const contact = await withPrismaRetry(() => prisma.contact.findUnique({
+                where: { id: contactId },
+                select: { id: true }
+            }))
+            if (!contact) contactId = null
+        }
+
+        const activity = await withPrismaRetry(() => prisma.activity.create({
+            data: {
+                leadId: data.leadId,
+                contactId,
+                type: normalizeActivityType(data.type),
+                description,
+                date: data.date || new Date()
+            },
+            select: {
+                id: true,
+                type: true,
+                description: true,
+                date: true,
+                contact: { select: { id: true, firstName: true, lastName: true } }
+            }
+        }))
+
+        await createNotificationForRoles({
+            roles: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
+            type: 'lead_activity',
+            message: `Nueva actividad en lead ${lead.companyName || data.leadId.slice(0, 8)}`
+        })
+
+        revalidatePath('/comercial')
+        return { success: true, activity }
+    } catch (error) {
+        console.error('Error creating lead activity:', error)
+        return { success: false, error: 'Error al registrar la actividad' }
     }
 }
 
@@ -707,6 +863,80 @@ export async function createInvoice(data: {
     } catch (error) {
         console.error('Error creating invoice:', error)
         return { success: false, error: 'Error al crear la factura' }
+    }
+}
+
+export async function syncInvoicesFromMilestones() {
+    try {
+        await requireModuleAccess('comercial')
+
+        const projects = await withPrismaRetry(() => prisma.project.findMany({
+            select: {
+                id: true,
+                name: true,
+                clientId: true,
+                budget: true,
+                milestones: { select: { id: true, status: true } },
+                invoices: { select: { id: true, status: true } }
+            },
+            take: 300
+        }))
+
+        let createdCount = 0
+        const details: Array<{ projectId: string; projectName: string; created: number; amountPerInvoice: number }> = []
+
+        for (const project of projects) {
+            const totalMilestones = Math.max(project.milestones.length, 1)
+            const completedMilestones = project.milestones.filter((m) => m.status === 'COMPLETED').length
+            const issuedInvoices = project.invoices.filter((invoice) => invoice.status !== InvoiceStatus.CANCELLED).length
+            const missing = Math.max(completedMilestones - issuedInvoices, 0)
+            if (missing === 0) continue
+
+            const installmentAmount = Math.round((project.budget / totalMilestones) * 100) / 100
+            const dueDate = new Date()
+            dueDate.setDate(dueDate.getDate() + 7)
+
+            for (let i = 0; i < missing; i += 1) {
+                const invoiceNumber = await generateInvoiceNumber()
+                await withPrismaRetry(() => prisma.invoice.create({
+                    data: {
+                        invoiceNumber,
+                        clientId: project.clientId,
+                        projectId: project.id,
+                        amount: installmentAmount,
+                        issueDate: new Date(),
+                        dueDate,
+                        status: InvoiceStatus.SENT,
+                        paymentMethod: 'Transferencia'
+                    }
+                }))
+            }
+
+            createdCount += missing
+            details.push({
+                projectId: project.id,
+                projectName: project.name,
+                created: missing,
+                amountPerInvoice: installmentAmount
+            })
+        }
+
+        if (createdCount > 0) {
+            await createNotificationForRoles({
+                roles: [Role.ADMIN, Role.GERENCIA, Role.CONTABILIDAD, Role.FINANZAS, Role.COMERCIAL],
+                type: 'invoice_update',
+                message: `Sincronización automática por hitos: ${createdCount} factura(s) emitida(s).`
+            })
+        }
+
+        revalidatePath('/comercial')
+        revalidatePath('/contabilidad')
+        revalidatePath('/dashboard')
+        revalidatePath('/proyectos')
+        return { success: true, createdCount, details }
+    } catch (error) {
+        console.error('Error syncing milestone invoices:', error)
+        return { success: false, error: 'Error al sincronizar facturas por hitos' }
     }
 }
 

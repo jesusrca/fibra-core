@@ -32,7 +32,17 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
     const [showSupplierWorkForm, setShowSupplierWorkForm] = useState(false)
     const [showSupplierPaymentForm, setShowSupplierPaymentForm] = useState(false)
     const [selectedSupplierWorkId, setSelectedSupplierWorkId] = useState<string | null>(null)
+    const [supplierInstallments, setSupplierInstallments] = useState(1)
+    const [installmentDates, setInstallmentDates] = useState<string[]>([new Date().toISOString().split('T')[0]])
+    const [supplierWorkError, setSupplierWorkError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
+
+    const closeSupplierWorkForm = () => {
+        setShowSupplierWorkForm(false)
+        setSupplierInstallments(1)
+        setInstallmentDates([new Date().toISOString().split('T')[0]])
+        setSupplierWorkError(null)
+    }
 
     const [optimisticTasks, addOptimisticTask] = useOptimistic(
         project.tasks || [],
@@ -145,23 +155,37 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
 
     const handleCreateSupplierWork = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
+        setSupplierWorkError(null)
         setLoading(true)
         const formData = new FormData(e.currentTarget)
 
         const supplierId = (formData.get('supplierId') as string || '').trim() || undefined
         const supplierName = (formData.get('supplierName') as string || '').trim() || undefined
 
-        await createSupplierWork({
+        const normalizedInstallments = Math.max(1, supplierInstallments)
+        const validDates = installmentDates.slice(0, normalizedInstallments).filter((date) => !!date)
+        if (validDates.length !== normalizedInstallments) {
+            setLoading(false)
+            setSupplierWorkError('Debes indicar una fecha para cada cuota')
+            return
+        }
+
+        const result = await createSupplierWork({
             projectId: project.id,
             supplierId,
             supplierName,
             serviceProvided: formData.get('serviceProvided') as string,
             totalBudget: parseFloat(formData.get('totalBudget') as string || '0'),
-            installmentsCount: parseInt(formData.get('installmentsCount') as string || '1', 10)
+            installmentsCount: normalizedInstallments,
+            installmentDates: validDates.map((date) => new Date(`${date}T00:00:00`))
         })
 
         setLoading(false)
-        setShowSupplierWorkForm(false)
+        if (!result.success) {
+            setSupplierWorkError(result.error || 'No se pudo registrar el presupuesto')
+            return
+        }
+        closeSupplierWorkForm()
     }
 
     const handleCreateSupplierPayment = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -624,10 +648,15 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
 
             {/* Modals */}
             {showSupplierWorkForm && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowSupplierWorkForm(false)}>
-                    <div className="glass-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={closeSupplierWorkForm}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
                         <h3 className="section-title mb-4">Nuevo Presupuesto de Proveedor</h3>
                         <form onSubmit={handleCreateSupplierWork} className="space-y-4">
+                            {supplierWorkError && (
+                                <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm p-3 rounded-lg">
+                                    {supplierWorkError}
+                                </div>
+                            )}
                             <div>
                                 <label className="form-label">Proveedor existente (opcional)</label>
                                 <select name="supplierId" className="form-input" defaultValue="">
@@ -654,11 +683,48 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
                                 </div>
                                 <div>
                                     <label className="form-label">Cantidad de cuotas</label>
-                                    <input name="installmentsCount" type="number" min={1} className="form-input" defaultValue={1} />
+                                    <input
+                                        name="installmentsCount"
+                                        type="number"
+                                        min={1}
+                                        className="form-input"
+                                        value={supplierInstallments}
+                                        onChange={(e) => {
+                                            const nextValue = Math.max(1, parseInt(e.target.value || '1', 10))
+                                            setSupplierInstallments(nextValue)
+                                            setInstallmentDates((prev) => {
+                                                const next = [...prev]
+                                                while (next.length < nextValue) next.push('')
+                                                return next.slice(0, nextValue)
+                                            })
+                                        }}
+                                    />
                                 </div>
                             </div>
+                            <div className="space-y-2">
+                                <label className="form-label">Fechas por cuota</label>
+                                {Array.from({ length: supplierInstallments }, (_, index) => (
+                                    <div key={`installment-date-${index}`} className="grid grid-cols-[88px_1fr] gap-2 items-center">
+                                        <span className="text-xs text-muted-foreground">Cuota {index + 1}</span>
+                                        <input
+                                            type="date"
+                                            className="form-input"
+                                            value={installmentDates[index] || ''}
+                                            onChange={(e) => {
+                                                const value = e.target.value
+                                                setInstallmentDates((prev) => {
+                                                    const next = [...prev]
+                                                    next[index] = value
+                                                    return next
+                                                })
+                                            }}
+                                            required
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                             <div className="pt-2 flex gap-3">
-                                <button type="button" className="btn-secondary flex-1" onClick={() => setShowSupplierWorkForm(false)}>Cancelar</button>
+                                <button type="button" className="btn-secondary flex-1" onClick={closeSupplierWorkForm}>Cancelar</button>
                                 <button type="submit" className="btn-primary flex-1 justify-center" disabled={loading}>Guardar</button>
                             </div>
                         </form>
@@ -668,7 +734,7 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
 
             {showSupplierPaymentForm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => { setShowSupplierPaymentForm(false); setSelectedSupplierWorkId(null) }}>
-                    <div className="glass-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
                         <h3 className="section-title mb-4">Registrar Pago a Proveedor</h3>
                         <form onSubmit={handleCreateSupplierPayment} className="space-y-4">
                             <div>
@@ -712,7 +778,7 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
 
             {showMilestoneForm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowMilestoneForm(false)}>
-                    <div className="glass-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
                         <h3 className="section-title mb-4">Nuevo Hito</h3>
                         <form onSubmit={handleCreateMilestone} className="space-y-4">
                             <div>
@@ -734,7 +800,7 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
 
             {showTaskForm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowTaskForm(false)}>
-                    <div className="glass-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
                         <h3 className="section-title mb-4">Nueva Tarea</h3>
                         <form onSubmit={handleCreateTask} className="space-y-4">
                             <div>
@@ -779,7 +845,7 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
 
             {showExpenseForm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowExpenseForm(false)}>
-                    <div className="glass-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
                         <h3 className="section-title mb-4">Nuevo Gasto del Proyecto</h3>
                         <form onSubmit={handleCreateExpense} className="space-y-4">
                             <div>

@@ -87,7 +87,7 @@
 ### Backend pendiente
 
 1. [~] CRUD formal para `Client` y `Contact` (hoy creación es parcial/indirecta en lead/chatbot).
-   Estado: Implementado create/update para cliente y contacto + deduplicación. Falta cerrar CRUD completo (delete/listado/API formal).
+   Estado: Implementado create/update/delete para cliente y contacto + deduplicación y validaciones de relaciones. Falta API REST formal si se requiere integración externa.
    Archivos relacionados:
    - `src/lib/actions/crm.ts`
    - `src/lib/ai/tools.ts`
@@ -99,7 +99,8 @@
 4. [ ] Definir contacto principal de empresa de forma explícita (`mainContactId` o `isPrimary`) y su flujo.
 5. [~] Validaciones anti-duplicidad consistentes (cliente/contacto/lead) para evitar registros repetidos.
    Estado: Cubierto en create/update de cliente/contacto y en creación de leads. Falta estandarizar en todos los módulos y casos borde.
-6. [ ] Completar flujo UI+backend de actividades/notas del lead (`Activity`: llamada, mail, reunión, chat).
+6. [x] Completar flujo UI+backend de actividades/notas del lead (`Activity`: llamada, mail, reunión, chat).
+   Estado: Implementado historial por lead + registro de actividad desde modal de lead en CRM.
 
 ### No necesario / evitar duplicación
 
@@ -121,14 +122,16 @@
 - [ ] En marketing mostrar cantidad de seguidores e interacción por red social.
 - [ ] Vincular Gmail/correo por usuario y ver mails recibidos por contacto.
 - [ ] Ver mails por proyecto (buzón por proyecto con reenvío y almacenamiento).
-- [ ] Equipo: horario de trabajo, zona horaria actual, cumpleaños y próximo cumpleaños en dashboard.
-- [~] Espacio para deudas por pagar y por cobrar.
-  Estado: Implementado “por cobrar” con alertas de vencimiento. Falta “por pagar”.
+- [x] Equipo: horario de trabajo, zona horaria actual, cumpleaños y próximo cumpleaños en dashboard.
+  Estado: Implementado en Dashboard (tabla de equipo con hora local por zona, horario y próximo cumpleaños) y edición en Equipo con selector de zona horaria basado en lista IANA.
+- [x] Espacio para deudas por pagar y por cobrar.
+  Estado: Implementado en Contabilidad con vistas consolidadas y detalle relacionado (facturas por cobrar + proveedores/planilla/costos fijos por pagar).
 - [~] Espacio para facturas emitidas/pendientes/por emitir por proyecto y por hito.
   Estado: Implementado emitidas/pendientes con estados y alertas. Falta “por emitir” automático por hito/cuota y proyección de siguiente factura.
-- [~] El bot debe ingresar contactos, empresas, leads y proyectos con datos básicos.
-  Estado: Implementado para contactos/empresas/leads. Falta creación de proyectos vía bot.
-- [ ] Notificaciones por contactos/proyectos con datos faltantes.
+- [x] El bot debe ingresar contactos, empresas, leads y proyectos con datos básicos.
+  Estado: Implementado para contactos/empresas/leads/proyectos con permisos por rol y auditoría.
+- [x] Notificaciones por contactos/proyectos con datos faltantes.
+  Estado: Implementado con detección automática en carga de módulos CRM/Proyectos y creación de notificaciones deduplicadas (`contact_data_missing`, `project_data_missing`) visibles en Header/Sidebar.
 
 ## Integraciones externas pendientes
 

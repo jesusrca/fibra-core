@@ -91,6 +91,7 @@ export async function createSupplierWork(data: {
     serviceProvided: string
     totalBudget: number
     installmentsCount?: number
+    installmentDates?: Date[]
 }) {
     try {
         await requireModuleAccess('proyectos')
@@ -111,20 +112,62 @@ export async function createSupplierWork(data: {
             return { success: false, error: 'Debes seleccionar o ingresar un proveedor' }
         }
 
-        const work = await withPrismaRetry(() => prisma.supplierWork.create({
-            data: {
-                projectId: data.projectId,
-                supplierId: supplierId || null,
-                supplierName,
-                serviceProvided: data.serviceProvided,
-                totalBudget: data.totalBudget,
-                installmentsCount: Math.max(1, data.installmentsCount || 1)
-            }
-        }))
+        const installmentsCount = Math.max(1, data.installmentsCount || 1)
+        const totalBudget = Number(data.totalBudget || 0)
+        if (totalBudget <= 0) {
+            return { success: false, error: 'El presupuesto total debe ser mayor a 0' }
+        }
+
+        const datesFromClient = (data.installmentDates || []).filter((d) => !Number.isNaN(new Date(d).getTime()))
+        const scheduleDates =
+            datesFromClient.length === installmentsCount
+                ? datesFromClient.map((d) => new Date(d))
+                : Array.from({ length: installmentsCount }, (_, index) => {
+                    const date = new Date()
+                    date.setDate(1)
+                    date.setMonth(date.getMonth() + index)
+                    return date
+                })
+
+        const baseAmount = Math.floor((totalBudget / installmentsCount) * 100) / 100
+        const amounts = Array.from({ length: installmentsCount }, () => baseAmount)
+        const distributed = baseAmount * installmentsCount
+        const remainder = Math.round((totalBudget - distributed) * 100) / 100
+        amounts[amounts.length - 1] = Math.round((amounts[amounts.length - 1] + remainder) * 100) / 100
+
+        const work = await withPrismaRetry(() =>
+            prisma.$transaction(async (tx) => {
+                const createdWork = await tx.supplierWork.create({
+                    data: {
+                        projectId: data.projectId,
+                        supplierId: supplierId || null,
+                        supplierName,
+                        serviceProvided: data.serviceProvided,
+                        totalBudget,
+                        installmentsCount
+                    }
+                })
+
+                await tx.supplierPayment.createMany({
+                    data: scheduleDates.map((date, index) => ({
+                        supplierWorkId: createdWork.id,
+                        amount: amounts[index],
+                        status: 'PENDING',
+                        issueDate: date,
+                        paymentDate: null,
+                        description: `Cuota ${index + 1}/${installmentsCount} - ${data.serviceProvided}`
+                    }))
+                })
+
+                return createdWork
+            })
+        )
 
         revalidatePath('/proyectos')
         revalidatePath(`/proyectos/${data.projectId}`)
         revalidatePath('/proveedores')
+        if (supplierId) revalidatePath(`/proveedores/${supplierId}`)
+        revalidatePath('/contabilidad')
         return { success: true, work }
     } catch (error) {
         console.error('Error creating supplier work:', error)

@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { unstable_cache } from 'next/cache'
+import { ensureComercialDataQualityNotifications } from '@/lib/data-quality-notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +14,18 @@ const getComercialData = unstable_cache(
                 orderBy: { createdAt: 'desc' },
                 include: {
                     client: { select: { id: true, name: true } },
-                    contact: { select: { id: true, firstName: true, lastName: true, email: true } }
+                    contact: { select: { id: true, firstName: true, lastName: true, email: true } },
+                    activities: {
+                        orderBy: { date: 'desc' },
+                        take: 20,
+                        select: {
+                            id: true,
+                            type: true,
+                            description: true,
+                            date: true,
+                            contact: { select: { id: true, firstName: true, lastName: true } }
+                        }
+                    }
                 },
                 take: 80
             }),
@@ -59,19 +71,43 @@ const getComercialData = unstable_cache(
                 take: 120
             }),
             prisma.project.findMany({
-                select: { id: true, name: true },
+                select: {
+                    id: true,
+                    name: true,
+                    budget: true,
+                    milestones: { select: { id: true, status: true } },
+                    invoices: { select: { id: true, status: true } }
+                },
                 orderBy: { updatedAt: 'desc' },
                 take: 120
             })
         ])),
-    ['comercial-data-v2'],
+    ['comercial-data-v3'],
     { revalidate: 15 }
 )
 
 export default async function ComercialPage() {
-    await requireModuleAccess('comercial')
+    const user = await requireModuleAccess('comercial')
+    await ensureComercialDataQualityNotifications(user.id)
 
     const [leads, users, clients, contacts, quotes, invoices, projects] = await getComercialData()
+    const invoicesToIssueProjection = projects
+        .map((project) => {
+            const totalMilestones = Math.max(project.milestones.length, 1)
+            const completedMilestones = project.milestones.filter((m) => m.status === 'COMPLETED').length
+            const issuedInvoices = project.invoices.filter((inv) => inv.status !== 'CANCELLED').length
+            const pendingToIssue = Math.max(completedMilestones - issuedInvoices, 0)
+            const installmentAmount = Math.round(((project.budget || 0) / totalMilestones) * 100) / 100
+            return {
+                projectId: project.id,
+                projectName: project.name,
+                pendingToIssue,
+                installmentAmount,
+                totalAmount: Math.round(pendingToIssue * installmentAmount * 100) / 100
+            }
+        })
+        .filter((row) => row.pendingToIssue > 0)
+        .sort((a, b) => b.totalAmount - a.totalAmount)
 
     return (
         <ComercialClient
@@ -81,7 +117,8 @@ export default async function ComercialPage() {
             contacts={contacts}
             quotes={quotes as any}
             invoices={invoices as any}
-            projects={projects as any}
+            projects={projects.map((project) => ({ id: project.id, name: project.name })) as any}
+            invoicesToIssueProjection={invoicesToIssueProjection}
         />
     )
 }

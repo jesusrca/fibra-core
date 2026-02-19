@@ -1,7 +1,7 @@
 'use client'
 
 import { Plus, Search, Mail, Edit2, Phone, MapPin, CalendarDays, Clock3 } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { formatDate } from '@/lib/utils'
 import { createUser, updateUser } from '@/lib/actions/users'
 import { Role } from '@prisma/client'
@@ -33,6 +33,51 @@ export function EquipoClient({ initialUsers }: EquipoClientProps) {
     const [showForm, setShowForm] = useState(false)
     const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
     const [loading, setLoading] = useState(false)
+    const timezoneOptions = useMemo(() => {
+        const fallback = [
+            'America/Lima',
+            'America/Bogota',
+            'America/New_York',
+            'America/Mexico_City',
+            'America/Buenos_Aires',
+            'Europe/Madrid',
+            'UTC'
+        ]
+
+        try {
+            const maybeIntl = Intl as unknown as {
+                supportedValuesOf?: (key: string) => string[]
+            }
+            const values = typeof maybeIntl.supportedValuesOf === 'function'
+                ? maybeIntl.supportedValuesOf('timeZone')
+                : []
+            const merged = [...values]
+            for (const tz of fallback) {
+                if (!merged.includes(tz)) merged.push(tz)
+            }
+            if (selectedMember?.timezone && !merged.includes(selectedMember.timezone)) {
+                merged.push(selectedMember.timezone)
+            }
+            return merged.sort((a, b) => a.localeCompare(b))
+        } catch {
+            return fallback
+        }
+    }, [selectedMember?.timezone])
+    const formatTimezoneLabel = (timezone: string) => {
+        try {
+            const parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: timezone,
+                timeZoneName: 'longOffset',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            }).formatToParts(new Date())
+            const offset = parts.find((part) => part.type === 'timeZoneName')?.value || 'GMT'
+            return `${timezone} (${offset})`
+        } catch {
+            return timezone
+        }
+    }
 
     const filteredTeam = initialUsers.filter(member =>
         member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -152,7 +197,7 @@ export function EquipoClient({ initialUsers }: EquipoClientProps) {
 
             {showForm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => { setShowForm(false); setSelectedMember(null); }}>
-                    <div className="glass-card p-6 w-full max-w-md mx-4 relative" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4 relative" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-foreground">{selectedMember ? 'Editar Miembro' : 'Nuevo Miembro'}</h2>
                             <button onClick={() => { setShowForm(false); setSelectedMember(null); }} className="text-muted-foreground hover:text-foreground text-xl">✕</button>
@@ -202,7 +247,15 @@ export function EquipoClient({ initialUsers }: EquipoClientProps) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="form-label">Zona Horaria</label>
-                                    <input name="timezone" type="text" className="form-input" placeholder="America/Lima" defaultValue={selectedMember?.timezone || ''} />
+                                    <select
+                                        name="timezone"
+                                        className="form-input"
+                                        defaultValue={selectedMember?.timezone || 'America/Lima'}
+                                    >
+                                        {timezoneOptions.map((tz) => (
+                                            <option key={tz} value={tz}>{formatTimezoneLabel(tz)}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="form-label">Horario</label>

@@ -3,6 +3,8 @@ import prisma from '@/lib/prisma'
 import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { unstable_cache } from 'next/cache'
+import { ensureDefaultServices } from '@/lib/actions/services'
+import { ensureProjectDataQualityNotifications } from '@/lib/data-quality-notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,23 +26,31 @@ const getProyectosData = unstable_cache(
                 prisma.user.findMany({
                     orderBy: { name: 'asc' },
                     select: { id: true, name: true, email: true, role: true }
+                }),
+                prisma.serviceCatalog.findMany({
+                    where: { isActive: true },
+                    orderBy: { name: 'asc' },
+                    select: { id: true, name: true }
                 })
             ])
         ),
-    ['proyectos-data-v1'],
+    ['proyectos-data-v2'],
     { revalidate: 15 }
 )
 
 export default async function ProyectosPage() {
-    await requireModuleAccess('proyectos')
+    const user = await requireModuleAccess('proyectos')
+    await ensureDefaultServices()
+    await ensureProjectDataQualityNotifications(user.id)
 
-    const [projects, clients, users] = await getProyectosData()
+    const [projects, clients, users, services] = await getProyectosData()
 
     return (
         <ProjectClient
             initialProjects={projects as any[]}
             clients={clients}
             users={users}
+            services={services}
         />
     )
 }

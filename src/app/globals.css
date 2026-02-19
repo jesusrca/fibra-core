@@ -128,6 +128,14 @@
     @apply shadow-none;
   }
 
+  .modal-form-card {
+    @apply bg-white border border-slate-200 rounded-2xl text-foreground shadow-2xl shadow-slate-900/10;
+  }
+
+  .dark .modal-form-card {
+    @apply bg-card border-border shadow-none;
+  }
+
   .gradient-text {
     @apply bg-gradient-to-r from-blue-600 to-sky-500 bg-clip-text text-transparent;
   }

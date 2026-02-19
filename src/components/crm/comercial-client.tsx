@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useOptimistic, startTransition, useEffect } from 'react'
-import { Plus, Building2, MoreHorizontal, Rocket, Loader2, Target, Users, Briefcase, Mail, MapPin, FileText, Receipt } from 'lucide-react'
+import { Plus, Building2, MoreHorizontal, Rocket, Loader2, Target, Users, Briefcase, Mail, MapPin, FileText, Receipt, Trash2 } from 'lucide-react'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { LeadForm } from './lead-form'
 import { ContactForm } from './contact-form'
@@ -9,7 +9,7 @@ import { CompanyForm } from './company-form'
 import { QuoteForm } from './quote-form'
 import { InvoiceForm } from './invoice-form'
 import { InvoiceStatus, Lead, LeadStatus, User, Client, Contact } from '@prisma/client'
-import { convertLeadToProject, updateInvoiceStatus, updateLeadStatus, updateQuoteStatus } from '@/lib/actions/crm'
+import { convertLeadToProject, createLeadActivity, deleteClient, deleteContact, syncInvoicesFromMilestones, updateInvoiceStatus, updateLeadStatus, updateQuoteStatus } from '@/lib/actions/crm'
 
 type QuoteStatus = 'PENDING' | 'SENT' | 'ACCEPTED' | 'REJECTED'
 
@@ -56,14 +56,35 @@ interface ProjectItem {
     name: string
 }
 
+interface LeadActivityItem {
+    id: string
+    type: string
+    description: string
+    date: Date
+    contact: { id: string; firstName: string; lastName: string } | null
+}
+
+type LeadRow = Lead & {
+    client: { id: string; name: string } | null
+    contact: { id: string; firstName: string; lastName: string; email: string } | null
+    activities: LeadActivityItem[]
+}
+
 interface ComercialClientProps {
-    initialLeads: (Lead & { client: { id: string; name: string } | null; contact: { id: string; firstName: string; lastName: string; email: string } | null })[]
+    initialLeads: LeadRow[]
     users: User[]
     clients: Client[]
     contacts: (Contact & { client: { id: string; name: string } })[]
     quotes: QuoteItem[]
     invoices: InvoiceItem[]
     projects: ProjectItem[]
+    invoicesToIssueProjection: Array<{
+        projectId: string
+        projectName: string
+        pendingToIssue: number
+        installmentAmount: number
+        totalAmount: number
+    }>
 }
 
 const pipelineStages = [
@@ -74,10 +95,13 @@ const pipelineStages = [
     { key: LeadStatus.WON, label: 'Ganado', color: 'border-[hsl(var(--success-text))]/40', dot: 'bg-[hsl(var(--success-text))]' },
 ] as const
 
-export function ComercialClient({ initialLeads, users, clients, contacts, quotes, invoices, projects }: ComercialClientProps) {
+export function ComercialClient({ initialLeads, users, clients, contacts, quotes, invoices, projects, invoicesToIssueProjection }: ComercialClientProps) {
     const [activeTab, setActiveTab] = useState<'leads' | 'contacts' | 'companies' | 'quotes' | 'invoices'>('leads')
     const [view, setView] = useState<'pipeline' | 'list'>('pipeline')
-    const [selectedLead, setSelectedLead] = useState<(Lead & { client: { id: string; name: string } | null; contact: { id: string; firstName: string; lastName: string; email: string } | null }) | null>(null)
+    const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null)
+    const [activityType, setActivityType] = useState('NOTE')
+    const [activityDescription, setActivityDescription] = useState('')
+    const [savingActivity, setSavingActivity] = useState(false)
     const [convertingId, setConvertingId] = useState<string | null>(null)
 
     const [showLeadForm, setShowLeadForm] = useState(false)
@@ -91,6 +115,9 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
     const [selectedCompany, setSelectedCompany] = useState<Client | null>(null)
     const [selectedQuote, setSelectedQuote] = useState<QuoteItem | null>(null)
     const [selectedInvoice, setSelectedInvoice] = useState<InvoiceItem | null>(null)
+    const [syncingInvoices, setSyncingInvoices] = useState(false)
+    const [deletingContactId, setDeletingContactId] = useState<string | null>(null)
+    const [deletingClientId, setDeletingClientId] = useState<string | null>(null)
 
     const [quoteRows, setQuoteRows] = useState(quotes)
     const [invoiceRows, setInvoiceRows] = useState(invoices)
@@ -164,6 +191,18 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
         if (!result.success) alert(result.error)
     }
 
+    const handleSyncInvoicesFromMilestones = async () => {
+        if (syncingInvoices) return
+        setSyncingInvoices(true)
+        const result = await syncInvoicesFromMilestones()
+        if (!result.success) {
+            alert(result.error)
+        } else {
+            alert(`Sincronización completada. Facturas creadas: ${result.createdCount}`)
+        }
+        setSyncingInvoices(false)
+    }
+
     const handleConvert = async (leadId: string) => {
         setConvertingId(leadId)
         const defaultDirector = users.find((user) => user.role === 'ADMIN' || user.role === 'PROYECTOS') || users[0]
@@ -175,6 +214,51 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
         const result = await convertLeadToProject(leadId, defaultDirector.id)
         if (!result.success) alert(result.error)
         setConvertingId(null)
+    }
+
+    const handleCreateActivity = async () => {
+        if (!selectedLead) return
+        const description = activityDescription.trim()
+        if (!description || savingActivity) return
+
+        setSavingActivity(true)
+        const result = await createLeadActivity({
+            leadId: selectedLead.id,
+            type: activityType,
+            description,
+            contactId: selectedLead.contact?.id || undefined
+        })
+
+        if (!result.success || !result.activity) {
+            alert(result.error || 'No se pudo guardar la actividad')
+            setSavingActivity(false)
+            return
+        }
+
+        const newActivity = result.activity as LeadActivityItem
+        setSelectedLead((prev) => {
+            if (!prev || prev.id !== selectedLead.id) return prev
+            return { ...prev, activities: [newActivity, ...(prev.activities || [])] }
+        })
+        setActivityDescription('')
+        setActivityType('NOTE')
+        setSavingActivity(false)
+    }
+
+    const handleDeleteContact = async (id: string) => {
+        if (!confirm('¿Eliminar este contacto? Esta acción no se puede deshacer.')) return
+        setDeletingContactId(id)
+        const result = await deleteContact(id)
+        if (!result.success) alert(result.error)
+        setDeletingContactId(null)
+    }
+
+    const handleDeleteClient = async (id: string) => {
+        if (!confirm('¿Eliminar esta empresa? Esta acción no se puede deshacer.')) return
+        setDeletingClientId(id)
+        const result = await deleteClient(id)
+        if (!result.success) alert(result.error)
+        setDeletingClientId(null)
     }
 
     return (
@@ -404,15 +488,25 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
                                         <span className="badge badge-neutral">{contact.specialty || 'General'}</span>
                                     </td>
                                     <td className="text-right">
-                                        <button
-                                            className="btn-ghost p-1.5"
-                                            onClick={() => {
-                                                setSelectedContact(contact)
-                                                setShowContactForm(true)
-                                            }}
-                                        >
-                                            <MoreHorizontal className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex items-center justify-end gap-1">
+                                            <button
+                                                className="btn-ghost p-1.5 text-danger"
+                                                onClick={() => handleDeleteContact(contact.id)}
+                                                disabled={deletingContactId === contact.id}
+                                                title="Eliminar contacto"
+                                            >
+                                                {deletingContactId === contact.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                            </button>
+                                            <button
+                                                className="btn-ghost p-1.5"
+                                                onClick={() => {
+                                                    setSelectedContact(contact)
+                                                    setShowContactForm(true)
+                                                }}
+                                            >
+                                                <MoreHorizontal className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -455,15 +549,25 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
                                     </td>
                                     <td className="text-sm text-muted-foreground whitespace-nowrap">{client.mainEmail || '-'}</td>
                                     <td className="text-right">
-                                        <button
-                                            className="btn-ghost p-1.5"
-                                            onClick={() => {
-                                                setSelectedCompany(client)
-                                                setShowCompanyForm(true)
-                                            }}
-                                        >
-                                            <MoreHorizontal className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex items-center justify-end gap-1">
+                                            <button
+                                                className="btn-ghost p-1.5 text-danger"
+                                                onClick={() => handleDeleteClient(client.id)}
+                                                disabled={deletingClientId === client.id}
+                                                title="Eliminar empresa"
+                                            >
+                                                {deletingClientId === client.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                            </button>
+                                            <button
+                                                className="btn-ghost p-1.5"
+                                                onClick={() => {
+                                                    setSelectedCompany(client)
+                                                    setShowCompanyForm(true)
+                                                }}
+                                            >
+                                                <MoreHorizontal className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -530,60 +634,91 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
             )}
 
             {activeTab === 'invoices' && (
-                <div className="glass-card table-container">
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>Número</th>
-                                <th>Cliente</th>
-                                <th>Proyecto</th>
-                                <th>Monto</th>
-                                <th>Vencimiento</th>
-                                <th>Estado</th>
-                                <th className="text-right">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {invoiceRows.map((invoice) => (
-                                <tr key={invoice.id}>
-                                    <td className="text-sm font-medium">{invoice.invoiceNumber}</td>
-                                    <td className="text-sm text-muted-foreground">{invoice.client?.name || '-'}</td>
-                                    <td className="text-sm text-muted-foreground">{invoice.project?.name || '-'}</td>
-                                    <td className="text-sm font-semibold">{formatCurrency(invoice.amount)}</td>
-                                    <td className="text-xs text-muted-foreground">{invoice.dueDate ? formatDate(invoice.dueDate) : '-'}</td>
-                                    <td>
-                                        <select
-                                            value={invoice.status}
-                                            onChange={(e) => handleInvoiceStatus(invoice.id, e.target.value as InvoiceStatus)}
-                                            className="form-input py-1 text-xs"
-                                        >
-                                            <option value={InvoiceStatus.DRAFT}>DRAFT</option>
-                                            <option value={InvoiceStatus.SENT}>SENT</option>
-                                            <option value={InvoiceStatus.PAID}>PAID</option>
-                                            <option value={InvoiceStatus.OVERDUE}>OVERDUE</option>
-                                            <option value={InvoiceStatus.CANCELLED}>CANCELLED</option>
-                                        </select>
-                                    </td>
-                                    <td className="text-right">
-                                        <button
-                                            className="btn-ghost p-1.5"
-                                            onClick={() => {
-                                                setSelectedInvoice(invoice)
-                                                setShowInvoiceForm(true)
-                                            }}
-                                        >
-                                            <MoreHorizontal className="w-4 h-4" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {invoiceRows.length === 0 && (
+                <div className="space-y-4">
+                    <div className="glass-card p-4 border border-primary/20 bg-primary/5">
+                        <div className="flex items-center justify-between gap-3 mb-3">
+                            <div>
+                                <h3 className="text-sm font-semibold text-foreground">Facturas por emitir (auto por hitos)</h3>
+                                <p className="text-xs text-muted-foreground">Si hay hitos completados sin facturar, puedes sincronizar aquí.</p>
+                            </div>
+                            <button className="btn-primary h-9" onClick={handleSyncInvoicesFromMilestones} disabled={syncingInvoices}>
+                                {syncingInvoices ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sincronizar por hitos'}
+                            </button>
+                        </div>
+                        {invoicesToIssueProjection.length > 0 ? (
+                            <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+                                {invoicesToIssueProjection.map((row) => (
+                                    <div key={row.projectId} className="flex items-center justify-between border border-border/40 rounded-lg px-3 py-2 bg-background/60">
+                                        <div>
+                                            <p className="text-sm font-medium">{row.projectName}</p>
+                                            <p className="text-[11px] text-muted-foreground">
+                                                {row.pendingToIssue} pendiente(s) x {formatCurrency(row.installmentAmount)}
+                                            </p>
+                                        </div>
+                                        <p className="text-sm font-semibold text-primary">{formatCurrency(row.totalAmount)}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-muted-foreground">No hay facturas pendientes por emitir según hitos completados.</p>
+                        )}
+                    </div>
+
+                    <div className="glass-card table-container">
+                        <table className="data-table">
+                            <thead>
                                 <tr>
-                                    <td colSpan={7} className="text-center py-8 text-sm text-muted-foreground">No hay facturas registradas.</td>
+                                    <th>Número</th>
+                                    <th>Cliente</th>
+                                    <th>Proyecto</th>
+                                    <th>Monto</th>
+                                    <th>Vencimiento</th>
+                                    <th>Estado</th>
+                                    <th className="text-right">Acciones</th>
                                 </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {invoiceRows.map((invoice) => (
+                                    <tr key={invoice.id}>
+                                        <td className="text-sm font-medium">{invoice.invoiceNumber}</td>
+                                        <td className="text-sm text-muted-foreground">{invoice.client?.name || '-'}</td>
+                                        <td className="text-sm text-muted-foreground">{invoice.project?.name || '-'}</td>
+                                        <td className="text-sm font-semibold">{formatCurrency(invoice.amount)}</td>
+                                        <td className="text-xs text-muted-foreground">{invoice.dueDate ? formatDate(invoice.dueDate) : '-'}</td>
+                                        <td>
+                                            <select
+                                                value={invoice.status}
+                                                onChange={(e) => handleInvoiceStatus(invoice.id, e.target.value as InvoiceStatus)}
+                                                className="form-input py-1 text-xs"
+                                            >
+                                                <option value={InvoiceStatus.DRAFT}>DRAFT</option>
+                                                <option value={InvoiceStatus.SENT}>SENT</option>
+                                                <option value={InvoiceStatus.PAID}>PAID</option>
+                                                <option value={InvoiceStatus.OVERDUE}>OVERDUE</option>
+                                                <option value={InvoiceStatus.CANCELLED}>CANCELLED</option>
+                                            </select>
+                                        </td>
+                                        <td className="text-right">
+                                            <button
+                                                className="btn-ghost p-1.5"
+                                                onClick={() => {
+                                                    setSelectedInvoice(invoice)
+                                                    setShowInvoiceForm(true)
+                                                }}
+                                            >
+                                                <MoreHorizontal className="w-4 h-4" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {invoiceRows.length === 0 && (
+                                    <tr>
+                                        <td colSpan={7} className="text-center py-8 text-sm text-muted-foreground">No hay facturas registradas.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
 
@@ -731,7 +866,60 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
                             </div>
                         </div>
 
-                        <div className="flex gap-3 pt-6 border-t border-border/40">
+                        <div className="pt-6 border-t border-border/40">
+                            <div className="mb-4">
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-2">Actividades del Lead</p>
+                                <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                                    {(selectedLead.activities || []).length === 0 && (
+                                        <div className="text-xs text-muted-foreground italic p-2 border border-border/40 rounded-lg bg-muted/20">
+                                            Aún no hay actividades registradas.
+                                        </div>
+                                    )}
+                                    {(selectedLead.activities || []).map((activity) => (
+                                        <div key={activity.id} className="p-2.5 border border-border/40 rounded-lg bg-muted/20">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="text-[10px] uppercase tracking-wider font-bold text-primary">{activity.type}</span>
+                                                <span className="text-[10px] text-muted-foreground">{formatDate(activity.date)}</span>
+                                            </div>
+                                            <p className="text-xs mt-1">{activity.description}</p>
+                                            {activity.contact && (
+                                                <p className="text-[10px] text-muted-foreground mt-1">
+                                                    Contacto: {activity.contact.firstName} {activity.contact.lastName}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-[160px_1fr_auto] gap-2 mb-6">
+                                <select
+                                    value={activityType}
+                                    onChange={(e) => setActivityType(e.target.value)}
+                                    className="form-input text-xs"
+                                >
+                                    <option value="NOTE">Nota</option>
+                                    <option value="CALL">Llamada</option>
+                                    <option value="EMAIL">Email</option>
+                                    <option value="MEETING">Reunión</option>
+                                    <option value="CHAT">Chat</option>
+                                </select>
+                                <input
+                                    value={activityDescription}
+                                    onChange={(e) => setActivityDescription(e.target.value)}
+                                    placeholder="Agregar actividad o nota..."
+                                    className="form-input text-sm"
+                                />
+                                <button
+                                    className="btn-secondary px-4"
+                                    onClick={handleCreateActivity}
+                                    disabled={savingActivity || !activityDescription.trim()}
+                                >
+                                    {savingActivity ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar'}
+                                </button>
+                            </div>
+
+                            <div className="flex gap-3">
                             {(selectedLead.status === 'PROPOSAL' || selectedLead.status === 'QUALIFIED') && (
                                 <button className="btn-primary flex-1 justify-center gap-2" onClick={() => handleConvert(selectedLead.id)}>
                                     <Rocket className="w-4 h-4" /> Convertir a Proyecto
@@ -740,6 +928,7 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
                             <button className="btn-secondary flex-1 justify-center" onClick={() => setShowLeadEditForm(true)}>
                                 Editar Información
                             </button>
+                            </div>
                         </div>
                     </div>
                 </div>

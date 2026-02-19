@@ -3,6 +3,7 @@ import { requireModuleAccess } from '@/lib/server-auth'
 import { MarketingClient } from '@/components/marketing/marketing-client'
 import { unstable_cache } from 'next/cache'
 import { withPrismaRetry } from '@/lib/prisma-retry'
+import { ensureDefaultServices } from '@/lib/actions/services'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,17 +39,22 @@ const getMarketingData = unstable_cache(
                         amount: true
                     },
                     take: 500
+                }),
+                prisma.serviceCatalog.findMany({
+                    orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+                    take: 300
                 })
             ])
         ),
-    ['marketing-data-v1'],
+    ['marketing-data-v2'],
     { revalidate: 20 }
 )
 
 export default async function MarketingPage() {
     await requireModuleAccess('marketing')
+    await ensureDefaultServices()
 
-    const [leads, transactions] = await getMarketingData()
+    const [leads, transactions, services] = await getMarketingData()
 
     const sourceMap = new Map<string, number>()
     for (const lead of leads) {
@@ -75,6 +81,7 @@ export default async function MarketingPage() {
             totalClicks={totalClicks}
             totalConversions={totalConversions}
             totalSpent={totalSpent}
+            services={services}
         />
     )
 }

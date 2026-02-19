@@ -17,12 +17,19 @@ interface LeadFormProps {
 }
 
 export function LeadForm({ onClose, clients, contacts, initialData }: LeadFormProps) {
+    const initialSelectedContact: ContactSelectOption | null = initialData?.contact
+        ? contacts.find((contact) => contact.id === initialData.contact?.id) || {
+            ...initialData.contact,
+            clientId: initialData.client?.id || ''
+        }
+        : null
+
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState(initialData?.companyName || '')
     const [selectedClient, setSelectedClient] = useState<ClientOption | null>(initialData?.client || null)
     const [contactSearch, setContactSearch] = useState('')
-    const [selectedContact, setSelectedContact] = useState<ContactSelectOption | null>(null)
+    const [selectedContact, setSelectedContact] = useState<ContactSelectOption | null>(initialSelectedContact)
 
     const isEditing = !!initialData
 
@@ -65,7 +72,7 @@ export function LeadForm({ onClose, clients, contacts, initialData }: LeadFormPr
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] animate-fade-in" onClick={onClose}>
-            <div className="glass-card p-6 w-full max-w-lg mx-4 overflow-visible" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-form-card p-6 w-full max-w-lg mx-4 overflow-visible" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-foreground">{isEditing ? 'Editar Lead' : 'Nuevo Lead / Cotización'}</h2>
                     <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl">✕</button>
@@ -137,77 +144,80 @@ export function LeadForm({ onClose, clients, contacts, initialData }: LeadFormPr
                     </div>
 
                     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                        {!isEditing && (
-                            <>
-                                <div className="col-span-2">
-                                    <label className="form-label">Seleccionar contacto existente (opcional)</label>
-                                    {!selectedContact ? (
-                                        <div className="relative">
-                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                            <input
-                                                type="text"
-                                                value={contactSearch}
-                                                onChange={(e) => setContactSearch(e.target.value)}
-                                                className="form-input pl-9"
-                                                placeholder={selectedClient ? 'Buscar por nombre o email...' : 'Primero selecciona empresa para filtrar'}
-                                            />
-                                            {contactSearch && filteredContacts.length > 0 && (
-                                                <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-[70] py-1 max-h-48 overflow-y-auto custom-scrollbar">
-                                                    {filteredContacts.map((contact) => (
-                                                        <button
-                                                            key={contact.id}
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setSelectedContact(contact)
-                                                                setContactSearch('')
-                                                                if (!selectedClient || selectedClient.id !== contact.clientId) {
-                                                                    const relatedClient = clients.find((client) => client.id === contact.clientId)
-                                                                    if (relatedClient) {
-                                                                        setSelectedClient({ id: relatedClient.id, name: relatedClient.name })
-                                                                        setSearchTerm(relatedClient.name)
-                                                                    }
+                        <>
+                            <div className="col-span-2">
+                                <label className="form-label">Seleccionar contacto existente (opcional)</label>
+                                {!selectedContact ? (
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        <input
+                                            type="text"
+                                            value={contactSearch}
+                                            onChange={(e) => setContactSearch(e.target.value)}
+                                            className="form-input pl-9"
+                                            placeholder={selectedClient ? 'Buscar por nombre o email...' : 'Buscar por nombre o email...'}
+                                        />
+                                        {contactSearch && filteredContacts.length > 0 && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-[70] py-1 max-h-48 overflow-y-auto custom-scrollbar">
+                                                {filteredContacts.map((contact) => (
+                                                    <button
+                                                        key={contact.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedContact(contact)
+                                                            setContactSearch('')
+                                                            if (!selectedClient || selectedClient.id !== contact.clientId) {
+                                                                const relatedClient = clients.find((client) => client.id === contact.clientId)
+                                                                if (relatedClient) {
+                                                                    setSelectedClient({ id: relatedClient.id, name: relatedClient.name })
+                                                                    setSearchTerm(relatedClient.name)
                                                                 }
-                                                            }}
-                                                            className="w-full px-4 py-2 text-left text-sm hover:bg-primary/10 hover:text-primary transition-colors"
-                                                        >
-                                                            <div className="font-medium">{contact.firstName} {contact.lastName}</div>
-                                                            <div className="text-xs opacity-80">{contact.email}</div>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center justify-between p-2.5 bg-primary/5 border border-primary/20 rounded-lg">
-                                            <div className="text-sm">
-                                                <p className="font-semibold text-primary">{selectedContact.firstName} {selectedContact.lastName}</p>
-                                                <p className="text-xs text-muted-foreground">{selectedContact.email}</p>
+                                                            }
+                                                        }}
+                                                        className="w-full px-4 py-2 text-left text-sm hover:bg-primary/10 hover:text-primary transition-colors"
+                                                    >
+                                                        <div className="font-medium">{contact.firstName} {contact.lastName}</div>
+                                                        <div className="text-xs opacity-80">{contact.email}</div>
+                                                    </button>
+                                                ))}
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setSelectedContact(null)}
-                                                className="text-muted-foreground hover:text-foreground text-xs font-bold"
-                                            >
-                                                CAMBIAR
-                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-between p-2.5 bg-primary/5 border border-primary/20 rounded-lg">
+                                        <div className="text-sm">
+                                            <p className="font-semibold text-primary">{selectedContact.firstName} {selectedContact.lastName}</p>
+                                            <p className="text-xs text-muted-foreground">{selectedContact.email}</p>
                                         </div>
-                                    )}
-                                    <input type="hidden" name="contactId" value={selectedContact?.id || ''} />
-                                </div>
-                                {!selectedContact && (
-                                    <>
-                                        <div className="col-span-2">
-                                            <label className="form-label">Persona de Contacto (nuevo)</label>
-                                            <input name="contactName" type="text" className="form-input" placeholder="Nombre completo" />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <label className="form-label">Correo de Contacto</label>
-                                            <input name="contactEmail" type="email" className="form-input" placeholder="ejemplo@correo.com" />
-                                        </div>
-                                    </>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedContact(null)}
+                                            className="text-muted-foreground hover:text-foreground text-xs font-bold"
+                                        >
+                                            CAMBIAR
+                                        </button>
+                                    </div>
                                 )}
-                            </>
-                        )}
+                                <input type="hidden" name="contactId" value={selectedContact?.id || ''} />
+                            </div>
+                            {!selectedContact && !isEditing && (
+                                <>
+                                    <div className="col-span-2">
+                                        <label className="form-label">Persona de Contacto (nuevo)</label>
+                                        <input name="contactName" type="text" className="form-input" placeholder="Nombre completo" />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="form-label">Correo de Contacto</label>
+                                        <input name="contactEmail" type="email" className="form-input" placeholder="ejemplo@correo.com" />
+                                    </div>
+                                </>
+                            )}
+                            {!selectedContact && isEditing && initialData?.contact && (
+                                <p className="col-span-2 text-[11px] text-muted-foreground">
+                                    Este lead quedará sin contacto asociado si guardas así.
+                                </p>
+                            )}
+                        </>
                         <div className="col-span-2">
                             <label className="form-label">Servicio Solicitado</label>
                             <input

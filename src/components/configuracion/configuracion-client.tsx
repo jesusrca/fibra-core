@@ -7,6 +7,8 @@ import {
 import { cn } from '@/lib/utils'
 import { roleLabels, roleColors } from '@/lib/rbac'
 import type { Role } from '@prisma/client'
+import { useRouter } from 'next/navigation'
+import { createAccountingBank, deleteAccountingBank, updateAccountingBank } from '@/lib/actions/accounting-settings'
 
 interface ConfigUser {
     id: string
@@ -16,8 +18,69 @@ interface ConfigUser {
     telegramId: string | null
 }
 
-export function ConfiguracionClient({ users }: { users: ConfigUser[] }) {
-    const [activeTab, setActiveTab] = useState<'usuarios' | 'integraciones' | 'notificaciones'>('usuarios')
+interface AccountingBank {
+    id: string
+    name: string
+    code: string | null
+    isActive: boolean
+    createdAt: Date | string
+}
+
+export function ConfiguracionClient({ users, accountingBanks }: { users: ConfigUser[]; accountingBanks: AccountingBank[] }) {
+    const router = useRouter()
+    const [activeTab, setActiveTab] = useState<'usuarios' | 'integraciones' | 'notificaciones' | 'contabilidad'>('usuarios')
+    const [showBankForm, setShowBankForm] = useState(false)
+    const [editingBank, setEditingBank] = useState<AccountingBank | null>(null)
+    const [savingBank, setSavingBank] = useState(false)
+    const [bankError, setBankError] = useState<string | null>(null)
+
+    const openCreateBank = () => {
+        setEditingBank(null)
+        setBankError(null)
+        setShowBankForm(true)
+    }
+
+    const openEditBank = (bank: AccountingBank) => {
+        setEditingBank(bank)
+        setBankError(null)
+        setShowBankForm(true)
+    }
+
+    const handleSaveBank = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setSavingBank(true)
+        setBankError(null)
+        const formData = new FormData(e.currentTarget)
+        const payload = {
+            name: (formData.get('name') as string || '').trim(),
+            code: (formData.get('code') as string || '').trim(),
+            isActive: formData.get('isActive') === 'on'
+        }
+
+        const result = editingBank
+            ? await updateAccountingBank(editingBank.id, payload)
+            : await createAccountingBank(payload)
+
+        setSavingBank(false)
+        if (!result.success) {
+            setBankError(result.error || 'No se pudo guardar el banco')
+            return
+        }
+
+        setShowBankForm(false)
+        setEditingBank(null)
+        router.refresh()
+    }
+
+    const handleDeleteBank = async (bankId: string) => {
+        if (!confirm('¿Eliminar este banco?')) return
+        const result = await deleteAccountingBank(bankId)
+        if (!result.success) {
+            alert(result.error || 'No se pudo eliminar el banco')
+            return
+        }
+        router.refresh()
+    }
 
     return (
         <div className="space-y-6 animate-fade-in">
@@ -31,6 +94,7 @@ export function ConfiguracionClient({ users }: { users: ConfigUser[] }) {
             <div className="flex gap-1 border-b border-border/60 mb-6">
                 {[
                     { id: 'usuarios', label: 'Usuarios y Roles', icon: User },
+                    { id: 'contabilidad', label: 'Contabilidad', icon: Plus },
                     { id: 'integraciones', label: 'Integraciones', icon: Zap },
                     { id: 'notificaciones', label: 'Notificaciones', icon: Bell },
                 ].map((tab) => {
@@ -38,7 +102,7 @@ export function ConfiguracionClient({ users }: { users: ConfigUser[] }) {
                     return (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id as 'usuarios' | 'integraciones' | 'notificaciones')}
+                            onClick={() => setActiveTab(tab.id as 'usuarios' | 'integraciones' | 'notificaciones' | 'contabilidad')}
                             className={cn(
                                 'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all',
                                 activeTab === tab.id
@@ -99,6 +163,67 @@ export function ConfiguracionClient({ users }: { users: ConfigUser[] }) {
                                     <tr>
                                         <td colSpan={5} className="text-center text-sm text-muted-foreground py-8">
                                             No hay usuarios registrados.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'contabilidad' && (
+                <div className="space-y-5">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h2 className="section-title text-base font-bold">Configuración Contable</h2>
+                            <p className="text-xs text-muted-foreground mt-1">Catálogo de bancos para registrar transacciones</p>
+                        </div>
+                        <button className="btn-primary" onClick={openCreateBank}>
+                            <Plus className="w-4 h-4" /> Nuevo Banco
+                        </button>
+                    </div>
+
+                    <div className="glass-card overflow-hidden">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Banco</th>
+                                    <th>Código</th>
+                                    <th>Estado</th>
+                                    <th>Creado</th>
+                                    <th className="text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {accountingBanks.map((bank) => (
+                                    <tr key={bank.id}>
+                                        <td className="font-medium">{bank.name}</td>
+                                        <td className="text-xs font-mono text-muted-foreground">{bank.code || '-'}</td>
+                                        <td>
+                                            <span className={cn('badge', bank.isActive ? 'badge-success' : 'badge-neutral')}>
+                                                {bank.isActive ? 'Activo' : 'Inactivo'}
+                                            </span>
+                                        </td>
+                                        <td className="text-xs text-muted-foreground">
+                                            {new Date(bank.createdAt).toLocaleDateString('es-PE')}
+                                        </td>
+                                        <td className="text-right">
+                                            <div className="flex justify-end gap-1">
+                                                <button className="btn-ghost p-1.5" onClick={() => openEditBank(bank)}>
+                                                    <Edit2 className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button className="btn-ghost p-1.5 text-[hsl(var(--danger-text))] hover:bg-red-500/10" onClick={() => handleDeleteBank(bank.id)}>
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {accountingBanks.length === 0 && (
+                                    <tr>
+                                        <td colSpan={5} className="text-center text-sm text-muted-foreground py-8">
+                                            No hay bancos configurados.
                                         </td>
                                     </tr>
                                 )}
@@ -196,6 +321,39 @@ export function ConfiguracionClient({ users }: { users: ConfigUser[] }) {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {showBankForm && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowBankForm(false)}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-lg font-semibold text-foreground mb-4">{editingBank ? 'Editar banco' : 'Nuevo banco'}</h3>
+                        <form className="space-y-4" onSubmit={handleSaveBank}>
+                            {bankError && (
+                                <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm p-3 rounded-lg">
+                                    {bankError}
+                                </div>
+                            )}
+                            <div>
+                                <label className="form-label">Nombre</label>
+                                <input name="name" required className="form-input" defaultValue={editingBank?.name || ''} placeholder="Ej: BCP" />
+                            </div>
+                            <div>
+                                <label className="form-label">Código (opcional)</label>
+                                <input name="code" className="form-input" defaultValue={editingBank?.code || ''} placeholder="Ej: BCP" />
+                            </div>
+                            <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                                <input name="isActive" type="checkbox" defaultChecked={editingBank ? editingBank.isActive : true} />
+                                Banco activo
+                            </label>
+                            <div className="flex gap-2 pt-2">
+                                <button type="button" className="flex-1 btn-secondary" onClick={() => setShowBankForm(false)}>Cancelar</button>
+                                <button type="submit" className="flex-1 btn-primary justify-center" disabled={savingBank}>
+                                    {savingBank ? 'Guardando...' : 'Guardar'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

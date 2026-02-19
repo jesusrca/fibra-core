@@ -27,12 +27,13 @@ export type AIToolContext = {
     role: Role
 }
 
-type WriteToolName = 'createLead' | 'createClient' | 'createContact'
+type WriteToolName = 'createLead' | 'createClient' | 'createContact' | 'createProject'
 
 const WRITE_TOOL_ROLES: Record<WriteToolName, Role[]> = {
     createLead: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
     createClient: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
-    createContact: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL]
+    createContact: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
+    createProject: [Role.ADMIN, Role.GERENCIA, Role.PROYECTOS]
 }
 
 async function auditWriteTool(params: {
@@ -425,6 +426,134 @@ export async function createLeadByAI(
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Error creando lead'
         await auditWriteTool({ ctx, toolName: 'createLead', input, success: false, error: message })
+        return { success: false as const, error: message }
+    }
+}
+
+export async function createProjectByAI(
+    ctx: AIToolContext,
+    input: {
+        name: string
+        clientId?: string
+        clientName?: string
+        directorId?: string
+        directorEmail?: string
+        directorName?: string
+        budget?: number
+        serviceType?: string
+        status?: ProjectStatus
+        startDate?: string
+        endDate?: string
+    }
+) {
+    if (!canRunWriteTool(ctx.role, 'createProject')) {
+        const error = `Rol ${ctx.role} sin permisos para crear proyectos`
+        await auditWriteTool({ ctx, toolName: 'createProject', input, success: false, error })
+        return { success: false as const, error }
+    }
+
+    try {
+        let clientId = input.clientId
+        if (!clientId && input.clientName) {
+            const existingClient = await prisma.client.findFirst({
+                where: { name: { equals: input.clientName, mode: 'insensitive' } },
+                select: { id: true }
+            })
+
+            if (existingClient) {
+                clientId = existingClient.id
+            } else {
+                const newClient = await prisma.client.create({
+                    data: { name: input.clientName },
+                    select: { id: true }
+                })
+                clientId = newClient.id
+            }
+        }
+
+        if (!clientId) {
+            const error = 'Debes indicar clientId o clientName para crear proyecto'
+            await auditWriteTool({ ctx, toolName: 'createProject', input, success: false, error })
+            return { success: false as const, error }
+        }
+
+        let directorId = input.directorId
+        if (!directorId && input.directorEmail) {
+            const byEmail = await prisma.user.findFirst({
+                where: { email: { equals: input.directorEmail, mode: 'insensitive' } },
+                select: { id: true }
+            })
+            if (byEmail) directorId = byEmail.id
+        }
+        if (!directorId && input.directorName) {
+            const byName = await prisma.user.findFirst({
+                where: { name: { contains: input.directorName, mode: 'insensitive' } },
+                select: { id: true }
+            })
+            if (byName) directorId = byName.id
+        }
+        if (!directorId) {
+            const currentUser = await prisma.user.findUnique({
+                where: { id: ctx.userId },
+                select: { id: true }
+            })
+            if (currentUser) directorId = currentUser.id
+        }
+        if (!directorId) {
+            const error = 'No se encontró directorId válido para el proyecto'
+            await auditWriteTool({ ctx, toolName: 'createProject', input, success: false, error })
+            return { success: false as const, error }
+        }
+
+        const existingProject = await prisma.project.findFirst({
+            where: {
+                name: { equals: input.name, mode: 'insensitive' },
+                clientId,
+                status: { in: [ProjectStatus.PLANNING, ProjectStatus.ACTIVE, ProjectStatus.REVIEW] }
+            },
+            select: {
+                id: true,
+                name: true,
+                status: true,
+                clientId: true
+            }
+        })
+
+        if (existingProject) {
+            await auditWriteTool({ ctx, toolName: 'createProject', input, success: true })
+            return { success: true as const, created: false as const, project: existingProject }
+        }
+
+        const startDate = input.startDate ? new Date(input.startDate) : new Date()
+        const endDate = input.endDate ? new Date(input.endDate) : undefined
+        const project = await prisma.project.create({
+            data: {
+                name: input.name,
+                clientId,
+                directorId,
+                budget: input.budget ?? 0,
+                serviceType: input.serviceType,
+                status: input.status ?? ProjectStatus.PLANNING,
+                startDate: Number.isNaN(startDate.getTime()) ? new Date() : startDate,
+                endDate: endDate && !Number.isNaN(endDate.getTime()) ? endDate : null
+            },
+            select: {
+                id: true,
+                name: true,
+                status: true,
+                budget: true,
+                clientId: true,
+                directorId: true,
+                startDate: true,
+                endDate: true
+            }
+        })
+
+        await auditWriteTool({ ctx, toolName: 'createProject', input, success: true })
+        return { success: true as const, created: true as const, project }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error creando proyecto'
+        await auditWriteTool({ ctx, toolName: 'createProject', input, success: false, error: message })
         return { success: false as const, error: message }
     }
 }

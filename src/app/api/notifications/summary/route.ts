@@ -20,8 +20,10 @@ function mapTypeToModules(type: string): NotificationModule[] {
     switch (type) {
         case 'new_lead':
         case 'quote_update':
+        case 'contact_data_missing':
             return ['comercial', 'dashboard']
         case 'project_update':
+        case 'project_data_missing':
             return ['proyectos', 'dashboard']
         case 'task_due':
             return ['proyectos', 'equipo', 'dashboard']

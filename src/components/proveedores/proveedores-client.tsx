@@ -4,6 +4,7 @@ import { Truck, Search, Plus, Globe, Phone, Mail, MapPin, MoreHorizontal, Star, 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { createSupplier, updateSupplier, deleteSupplier } from '@/lib/actions/suppliers'
+import Link from 'next/link'
 
 interface ProveedoresClientProps {
     initialSuppliers: any[]
@@ -96,7 +97,9 @@ export function ProveedoresClient({ initialSuppliers }: ProveedoresClientProps) 
                                                 <Truck className="w-5 h-5" />
                                             </div>
                                             <div>
-                                                <p className="text-sm font-bold text-foreground">{p.name}</p>
+                                                <Link href={`/proveedores/${p.id}`} className="text-sm font-bold text-foreground hover:text-primary transition-colors">
+                                                    {p.name}
+                                                </Link>
                                                 <div className="flex items-center gap-1.5 mt-0.5">
                                                     <ShieldCheck className="w-3 h-3 text-emerald-400" />
                                                     <span className="text-[10px] text-emerald-400 uppercase font-bold">Verificado</span>
@@ -123,16 +126,21 @@ export function ProveedoresClient({ initialSuppliers }: ProveedoresClientProps) 
                                         </div>
                                     </td>
                                     <td className="text-right">
-                                        <button
-                                            className="btn-ghost p-1.5"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedSupplier(p);
-                                                setShowForm(true);
-                                            }}
-                                        >
-                                            <Edit2 className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex justify-end gap-1">
+                                            <Link href={`/proveedores/${p.id}`} className="btn-ghost p-1.5 text-xs">
+                                                Ver
+                                            </Link>
+                                            <button
+                                                className="btn-ghost p-1.5"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedSupplier(p);
+                                                    setShowForm(true);
+                                                }}
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -150,7 +158,7 @@ export function ProveedoresClient({ initialSuppliers }: ProveedoresClientProps) 
 
             {showForm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => { setShowForm(false); setSelectedSupplier(null); }}>
-                    <div className="glass-card p-6 w-full max-w-md mx-4 relative" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4 relative" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-foreground">{selectedSupplier ? 'Editar Proveedor' : 'Nuevo Proveedor'}</h2>
                             <button onClick={() => { setShowForm(false); setSelectedSupplier(null); }} className="text-muted-foreground hover:text-foreground text-xl">✕</button>

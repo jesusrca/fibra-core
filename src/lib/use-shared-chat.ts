@@ -5,7 +5,7 @@ import { useChat, type UIMessage } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 
 const SHARED_CHAT_ID = 'fibra-chat-session'
-const SHARED_CHAT_STORAGE_KEY = 'fibra-chat-messages-v1'
+const SHARED_CHAT_STORAGE_KEY = 'fibra-chat-messages-v2'
 
 function isValidMessage(message: any): message is UIMessage {
     if (!message || typeof message !== 'object') return false
@@ -41,7 +41,16 @@ export function useSharedChat() {
     useEffect(() => {
         if (!hydratedRef.current) return
         try {
-            localStorage.setItem(SHARED_CHAT_STORAGE_KEY, JSON.stringify(chat.messages))
+            const safeMessages = chat.messages.map((message) => {
+                const nonFileParts = message.parts.filter((part) => part.type !== 'file')
+                return {
+                    ...message,
+                    parts: nonFileParts.length > 0
+                        ? nonFileParts
+                        : [{ type: 'text' as const, text: '[Adjunto enviado]' }]
+                }
+            })
+            localStorage.setItem(SHARED_CHAT_STORAGE_KEY, JSON.stringify(safeMessages))
         } catch {
             // Ignore storage quota / serialization errors
         }

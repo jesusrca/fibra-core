@@ -25,8 +25,12 @@ interface ContabilidadClientProps {
         id: string
         invoiceNumber: string
         amount: number
+        issueDate: Date | null
         dueDate: Date | null
         status: InvoiceStatus
+        paymentMethod: string | null
+        paymentCountry: string | null
+        quote: { id: string; lead: { companyName: string | null } } | null
         client: { name: string } | null
         project: { name: string } | null
     }>
@@ -37,10 +41,55 @@ interface ContabilidadClientProps {
         client: { name: string } | null
         project: { name: string } | null
     }>
+    fixedCosts: Array<{
+        id: string
+        name: string
+        category: string
+        amount: number
+        dueDate: Date | string
+    }>
+    pendingPayroll: Array<{
+        id: string
+        salary: number
+        bonus: number
+        status: string
+        paymentDate: Date | string
+        user: { id: string; name: string; role: string } | null
+    }>
+    pendingSupplierPayments: Array<{
+        id: string
+        amount: number
+        status: string
+        issueDate: Date | string | null
+        paymentDate: Date | string | null
+        receiptUrl: string | null
+        description: string | null
+        supplierWork: {
+            id: string
+            supplierName: string
+            serviceProvided: string
+            project: { id: string; name: string } | null
+            supplier: { id: string; name: string } | null
+        }
+    }>
+    banks: Array<{
+        id: string
+        name: string
+        code: string | null
+    }>
 }
 
-export function ContabilidadClient({ initialTransactions, pendingInvoices, invoices }: ContabilidadClientProps) {
+export function ContabilidadClient({
+    initialTransactions,
+    pendingInvoices,
+    invoices,
+    fixedCosts,
+    pendingPayroll,
+    pendingSupplierPayments,
+    banks
+}: ContabilidadClientProps) {
     const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all')
+    const [debtView, setDebtView] = useState<'receivables' | 'payables'>('receivables')
     const [showForm, setShowForm] = useState(false)
     const [transactionType, setTransactionType] = useState<TransactionCategory>('INCOME')
     const [loading, setLoading] = useState(false)
@@ -80,6 +129,18 @@ export function ContabilidadClient({ initialTransactions, pendingInvoices, invoi
         due.setHours(0, 0, 0, 0)
         return due >= today && due <= next7Days
     })
+    const costsPayableTotal = fixedCosts.reduce((sum, cost) => sum + cost.amount, 0)
+    const payrollPayableTotal = pendingPayroll.reduce((sum, row) => sum + row.salary + row.bonus, 0)
+    const supplierPayableTotal = pendingSupplierPayments.reduce((sum, row) => sum + row.amount, 0)
+    const payablesTotal = costsPayableTotal + payrollPayableTotal + supplierPayableTotal
+    const overduePayablesCount =
+        fixedCosts.filter((cost) => new Date(cost.dueDate) < today).length +
+        pendingPayroll.filter((row) => new Date(row.paymentDate) < today).length +
+        pendingSupplierPayments.filter((row) => {
+            const date = row.paymentDate || row.issueDate
+            if (!date) return false
+            return new Date(date) < today
+        }).length
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -174,64 +235,245 @@ export function ContabilidadClient({ initialTransactions, pendingInvoices, invoi
                 <div className="kpi-card border border-blue-500/20">
                     <div className="flex items-center gap-3 mb-2">
                         <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 font-bold">
-                            7d
+                            $
                         </div>
-                        <span className="text-xs text-muted-foreground font-medium">Vencen en 7 días</span>
+                        <span className="text-xs text-muted-foreground font-medium">Total por pagar</span>
                     </div>
-                    <p className="text-2xl font-bold text-blue-500">{dueSoonInvoices.length}</p>
+                    <p className="text-2xl font-bold text-blue-500">{formatCurrency(payablesTotal)}</p>
                 </div>
             </div>
 
             <div className="glass-card p-5">
                 <div className="flex items-center justify-between mb-5">
-                    <h2 className="section-title">Alertas de Cobranza</h2>
-                    <span className="badge badge-neutral">{pendingInvoices.length} por cobrar</span>
-                </div>
-                <div className="table-container">
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>Factura</th>
-                                <th>Cliente</th>
-                                <th>Proyecto</th>
-                                <th>Vence</th>
-                                <th className="text-right">Monto</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {pendingInvoices.map((invoice) => {
-                                const due = invoice.dueDate ? new Date(invoice.dueDate) : null
-                                const isOverdue = !!due && (invoice.status === InvoiceStatus.OVERDUE || due < today)
-                                const dueSoon = !!due && due >= today && due <= next7Days
-                                return (
-                                    <tr key={invoice.id}>
-                                        <td className="font-medium whitespace-nowrap">{invoice.invoiceNumber}</td>
-                                        <td className="text-muted-foreground whitespace-nowrap">{invoice.client?.name || '-'}</td>
-                                        <td className="text-muted-foreground whitespace-nowrap">{invoice.project?.name || '-'}</td>
-                                        <td className={cn('whitespace-nowrap', isOverdue ? 'text-[hsl(var(--danger-text))] font-semibold' : dueSoon ? 'text-amber-500 font-semibold' : 'text-muted-foreground')}>
-                                            {invoice.dueDate ? formatDate(invoice.dueDate) : 'Sin fecha'}
-                                        </td>
-                                        <td className="text-right font-bold whitespace-nowrap">{formatCurrency(invoice.amount)}</td>
-                                        <td>
-                                            <span className={cn(
-                                                'badge',
-                                                isOverdue ? 'badge-danger' : dueSoon ? 'badge-warning' : 'badge-info'
-                                            )}>
-                                                {isOverdue ? 'Vencida' : dueSoon ? 'Próxima' : invoice.status}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                )
-                            })}
-                            {pendingInvoices.length === 0 && (
-                                <tr>
-                                    <td colSpan={6} className="text-center py-8 text-muted-foreground">No hay facturas por cobrar activas.</td>
-                                </tr>
+                    <div className="flex items-center gap-2">
+                        <h2 className="section-title">Deudas y Cobranzas</h2>
+                        <span className="badge badge-neutral">
+                            {debtView === 'receivables' ? `${pendingInvoices.length} por cobrar` : `${fixedCosts.length + pendingPayroll.length + pendingSupplierPayments.length} por pagar`}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <button
+                            className={cn(
+                                'text-xs px-3 py-1.5 rounded-lg border transition-all',
+                                debtView === 'receivables'
+                                    ? 'bg-primary/10 border-primary/30 text-primary font-semibold'
+                                    : 'border-border text-muted-foreground hover:text-foreground'
                             )}
-                        </tbody>
-                    </table>
+                            onClick={() => setDebtView('receivables')}
+                        >
+                            Por cobrar
+                        </button>
+                        <button
+                            className={cn(
+                                'text-xs px-3 py-1.5 rounded-lg border transition-all',
+                                debtView === 'payables'
+                                    ? 'bg-primary/10 border-primary/30 text-primary font-semibold'
+                                    : 'border-border text-muted-foreground hover:text-foreground'
+                            )}
+                            onClick={() => setDebtView('payables')}
+                        >
+                            Por pagar
+                        </button>
+                    </div>
                 </div>
+                {debtView === 'receivables' ? (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Total por cobrar</p>
+                                <p className="text-lg font-bold text-amber-500">{formatCurrency(receivablesTotal)}</p>
+                            </div>
+                            <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Vencidas</p>
+                                <p className="text-lg font-bold text-[hsl(var(--danger-text))]">{overdueInvoices.length}</p>
+                            </div>
+                            <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Vencen en 7 días</p>
+                                <p className="text-lg font-bold text-blue-500">{dueSoonInvoices.length}</p>
+                            </div>
+                        </div>
+                        <div className="table-container">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Factura</th>
+                                        <th>Cliente / Proyecto</th>
+                                        <th>Cotización / Empresa Lead</th>
+                                        <th>Emisión / Vencimiento</th>
+                                        <th>Método / País</th>
+                                        <th className="text-right">Monto</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pendingInvoices.map((invoice) => {
+                                        const due = invoice.dueDate ? new Date(invoice.dueDate) : null
+                                        const isOverdue = !!due && (invoice.status === InvoiceStatus.OVERDUE || due < today)
+                                        const dueSoon = !!due && due >= today && due <= next7Days
+                                        return (
+                                            <tr key={invoice.id}>
+                                                <td className="font-medium whitespace-nowrap">{invoice.invoiceNumber}</td>
+                                                <td className="text-muted-foreground whitespace-nowrap">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs">{invoice.client?.name || 'Sin cliente'}</span>
+                                                        <span className="text-[11px] text-muted-foreground">{invoice.project?.name || 'Sin proyecto'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="text-muted-foreground whitespace-nowrap">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs">{invoice.quote?.id?.slice(0, 8) || 'Sin cotización'}</span>
+                                                        <span className="text-[11px] text-muted-foreground">{invoice.quote?.lead.companyName || '-'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="whitespace-nowrap">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs text-muted-foreground">{invoice.issueDate ? formatDate(invoice.issueDate) : 'Sin emisión'}</span>
+                                                        <span className={cn('text-xs', isOverdue ? 'text-[hsl(var(--danger-text))] font-semibold' : dueSoon ? 'text-amber-500 font-semibold' : 'text-muted-foreground')}>
+                                                            {invoice.dueDate ? formatDate(invoice.dueDate) : 'Sin fecha'}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="text-muted-foreground whitespace-nowrap">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs">{invoice.paymentMethod || 'Sin método'}</span>
+                                                        <span className="text-[11px]">{invoice.paymentCountry || 'Sin país'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="text-right font-bold whitespace-nowrap">{formatCurrency(invoice.amount)}</td>
+                                                <td>
+                                                    <span className={cn('badge', isOverdue ? 'badge-danger' : dueSoon ? 'badge-warning' : 'badge-info')}>
+                                                        {isOverdue ? 'Vencida' : dueSoon ? 'Próxima' : invoice.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                    {pendingInvoices.length === 0 && (
+                                        <tr>
+                                            <td colSpan={7} className="text-center py-8 text-muted-foreground">No hay facturas por cobrar activas.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Total por pagar</p>
+                                <p className="text-lg font-bold text-blue-500">{formatCurrency(payablesTotal)}</p>
+                            </div>
+                            <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Vencidas</p>
+                                <p className="text-lg font-bold text-[hsl(var(--danger-text))]">{overduePayablesCount}</p>
+                            </div>
+                            <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Registros</p>
+                                <p className="text-lg font-bold text-foreground">{fixedCosts.length + pendingPayroll.length + pendingSupplierPayments.length}</p>
+                            </div>
+                        </div>
+                        <div className="table-container">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Entidad / Referencia</th>
+                                        <th>Proyecto / Área</th>
+                                        <th>Detalle</th>
+                                        <th>Fecha objetivo</th>
+                                        <th className="text-right">Monto</th>
+                                        <th>Estado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pendingSupplierPayments.map((payment) => {
+                                        const targetDate = payment.paymentDate || payment.issueDate
+                                        const isOverdue = !!targetDate && new Date(targetDate) < today
+                                        return (
+                                            <tr key={`supplier-${payment.id}`}>
+                                                <td><span className="badge badge-warning">Proveedor</span></td>
+                                                <td className="whitespace-nowrap">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs font-medium">{payment.supplierWork.supplier?.name || payment.supplierWork.supplierName}</span>
+                                                        <span className="text-[11px] text-muted-foreground">{payment.supplierWork.serviceProvided}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="text-muted-foreground whitespace-nowrap">{payment.supplierWork.project?.name || 'Sin proyecto'}</td>
+                                                <td className="whitespace-nowrap">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs">{payment.description || 'Pago pendiente proveedor'}</span>
+                                                        {payment.receiptUrl ? (
+                                                            <a href={payment.receiptUrl} target="_blank" rel="noreferrer" className="text-[11px] text-primary hover:underline">
+                                                                Ver comprobante
+                                                            </a>
+                                                        ) : (
+                                                            <span className="text-[11px] text-muted-foreground">Sin comprobante</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className={cn('whitespace-nowrap text-xs', isOverdue ? 'text-[hsl(var(--danger-text))] font-semibold' : 'text-muted-foreground')}>
+                                                    {targetDate ? formatDate(targetDate) : 'Sin fecha'}
+                                                </td>
+                                                <td className="text-right font-bold whitespace-nowrap">{formatCurrency(payment.amount)}</td>
+                                                <td><span className={cn('badge', isOverdue ? 'badge-danger' : 'badge-warning')}>{isOverdue ? 'Vencida' : payment.status}</span></td>
+                                            </tr>
+                                        )
+                                    })}
+                                    {pendingPayroll.map((row) => {
+                                        const isOverdue = new Date(row.paymentDate) < today
+                                        const total = row.salary + row.bonus
+                                        return (
+                                            <tr key={`payroll-${row.id}`}>
+                                                <td><span className="badge badge-info">Planilla</span></td>
+                                                <td className="whitespace-nowrap">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs font-medium">{row.user?.name || 'Sin usuario'}</span>
+                                                        <span className="text-[11px] text-muted-foreground">{row.user?.role || '-'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="text-muted-foreground whitespace-nowrap">Nómina</td>
+                                                <td className="text-xs text-muted-foreground whitespace-nowrap">Sueldo {formatCurrency(row.salary)} + bono {formatCurrency(row.bonus)}</td>
+                                                <td className={cn('whitespace-nowrap text-xs', isOverdue ? 'text-[hsl(var(--danger-text))] font-semibold' : 'text-muted-foreground')}>
+                                                    {formatDate(row.paymentDate)}
+                                                </td>
+                                                <td className="text-right font-bold whitespace-nowrap">{formatCurrency(total)}</td>
+                                                <td><span className={cn('badge', isOverdue ? 'badge-danger' : 'badge-warning')}>{isOverdue ? 'Vencida' : row.status}</span></td>
+                                            </tr>
+                                        )
+                                    })}
+                                    {fixedCosts.map((cost) => {
+                                        const due = new Date(cost.dueDate)
+                                        const isOverdue = due < today
+                                        return (
+                                            <tr key={`cost-${cost.id}`}>
+                                                <td><span className="badge badge-neutral">Costo fijo</span></td>
+                                                <td className="whitespace-nowrap">
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="text-xs font-medium">{cost.name}</span>
+                                                        <span className="text-[11px] text-muted-foreground">{cost.category}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="text-muted-foreground whitespace-nowrap">Gastos operativos</td>
+                                                <td className="text-xs text-muted-foreground whitespace-nowrap">Compromiso recurrente mensual</td>
+                                                <td className={cn('whitespace-nowrap text-xs', isOverdue ? 'text-[hsl(var(--danger-text))] font-semibold' : 'text-muted-foreground')}>
+                                                    {formatDate(cost.dueDate)}
+                                                </td>
+                                                <td className="text-right font-bold whitespace-nowrap">{formatCurrency(cost.amount)}</td>
+                                                <td><span className={cn('badge', isOverdue ? 'badge-danger' : 'badge-warning')}>{isOverdue ? 'Vencida' : 'PENDING'}</span></td>
+                                            </tr>
+                                        )
+                                    })}
+                                    {fixedCosts.length + pendingPayroll.length + pendingSupplierPayments.length === 0 && (
+                                        <tr>
+                                            <td colSpan={7} className="text-center py-8 text-muted-foreground">No hay deudas por pagar activas.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Transactions table */}
@@ -323,7 +565,7 @@ export function ContabilidadClient({ initialTransactions, pendingInvoices, invoi
             {/* New Transaction Modal */}
             {showForm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowForm(false)}>
-                    <div className="glass-card p-6 w-full max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                         <h3 className="text-lg font-semibold mb-4 text-foreground">Nueva Transacción</h3>
                         <form className="space-y-4" onSubmit={handleSubmit}>
                             <div>
@@ -376,7 +618,14 @@ export function ContabilidadClient({ initialTransactions, pendingInvoices, invoi
                                 </div>
                                 <div>
                                     <label className="form-label">Banco</label>
-                                    <input name="bank" type="text" placeholder="BCP, Interbank, etc." className="form-input" />
+                                    <select name="bank" className="form-input" defaultValue="">
+                                        <option value="">Sin banco</option>
+                                        {banks.map((bank) => (
+                                            <option key={bank.id} value={bank.name}>
+                                                {bank.code ? `${bank.name} (${bank.code})` : bank.name}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
                             <div>

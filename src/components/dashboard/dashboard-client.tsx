@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell,
@@ -8,7 +8,7 @@ import {
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
     TrendingUp, TrendingDown, FolderKanban, Users, Megaphone,
-    ArrowUpRight,
+    ArrowUpRight, Clock3, Cake, Globe2,
 } from 'lucide-react'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -39,6 +39,16 @@ interface DashboardClientProps {
             to: string
             label: string
         }
+        team: Array<{
+            id: string
+            name: string
+            role: string
+            timezone: string | null
+            schedule: string | null
+            birthday: string | null
+            nextBirthday: string | null
+            daysUntilNextBirthday: number | null
+        }>
     }
 }
 
@@ -66,8 +76,44 @@ export function DashboardClient({ stats }: DashboardClientProps) {
 
     const [customFrom, setCustomFrom] = useState(stats.filters.from)
     const [customTo, setCustomTo] = useState(stats.filters.to)
+    const [clockTick, setClockTick] = useState(Date.now())
 
     const projectStatusColors = ['#2563EB', '#06B6D4', '#10B981', '#F59E0B']
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setClockTick(Date.now()), 60000)
+        return () => window.clearInterval(timer)
+    }, [])
+
+    const roleLabels: Record<string, string> = {
+        ADMIN: 'Admin',
+        GERENCIA: 'Gerencia',
+        CONTABILIDAD: 'Contabilidad',
+        FINANZAS: 'Finanzas',
+        PROYECTOS: 'Proyectos',
+        MARKETING: 'Marketing',
+        COMERCIAL: 'Comercial'
+    }
+
+    const formatTimeForTimezone = (timezone: string | null) => {
+        if (!timezone) return 'Sin zona horaria'
+        try {
+            return new Intl.DateTimeFormat('es-PE', {
+                timeZone: timezone,
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(clockTick)
+        } catch {
+            return 'Zona inválida'
+        }
+    }
+
+    const formatBirthdayLabel = (nextBirthday: string | null, daysUntil: number | null) => {
+        if (!nextBirthday || daysUntil == null) return 'Sin cumpleaños'
+        if (daysUntil === 0) return 'Hoy'
+        if (daysUntil === 1) return 'Mañana'
+        return `En ${daysUntil} días`
+    }
 
     const applyRange = (range: '7d' | '30d' | '90d' | 'custom') => {
         const params = new URLSearchParams(searchParams.toString())
@@ -418,6 +464,70 @@ export function DashboardClient({ stats }: DashboardClientProps) {
                     </div>
                 </Card>
             </div>
+
+            <Card className="p-6">
+                <div className="flex items-center justify-between mb-5">
+                    <div>
+                        <h2 className="text-lg font-bold text-foreground">Equipo</h2>
+                        <p className="text-xs text-muted-foreground">Horario, zona horaria actual y próximos cumpleaños</p>
+                    </div>
+                    <Badge variant="secondary">{stats.team.length} miembros</Badge>
+                </div>
+                <div className="overflow-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-secondary/30 rounded-lg">
+                            <tr className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                <th className="py-3 px-4 rounded-l-lg">Miembro</th>
+                                <th className="py-3 px-4">Rol</th>
+                                <th className="py-3 px-4">Hora actual</th>
+                                <th className="py-3 px-4">Horario</th>
+                                <th className="py-3 px-4">Próximo cumpleaños</th>
+                                <th className="py-3 px-4 rounded-r-lg">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/40">
+                            {stats.team.map((member) => (
+                                <tr key={member.id} className="hover:bg-secondary/20 transition-colors">
+                                    <td className="py-3 px-4 font-medium">{member.name}</td>
+                                    <td className="py-3 px-4 text-muted-foreground">{roleLabels[member.role] || member.role}</td>
+                                    <td className="py-3 px-4">
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                            <Clock3 className="w-3.5 h-3.5" />
+                                            <span className="font-medium text-foreground">{formatTimeForTimezone(member.timezone)}</span>
+                                            <span className="opacity-70">{member.timezone || '-'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="py-3 px-4 text-xs text-muted-foreground">{member.schedule || 'Sin horario'}</td>
+                                    <td className="py-3 px-4">
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <Cake className="w-3.5 h-3.5 text-amber-500" />
+                                            <span className="text-muted-foreground">
+                                                {member.nextBirthday ? formatDate(member.nextBirthday) : 'Sin fecha'}
+                                            </span>
+                                            <span className="font-medium text-foreground">
+                                                ({formatBirthdayLabel(member.nextBirthday, member.daysUntilNextBirthday)})
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="py-3 px-4">
+                                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                            <Globe2 className="w-3.5 h-3.5" />
+                                            {member.timezone ? 'Configurado' : 'Falta zona horaria'}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {stats.team.length === 0 && (
+                                <tr>
+                                    <td colSpan={6} className="py-8 px-4 text-center text-sm text-muted-foreground">
+                                        No hay miembros de equipo con datos para mostrar.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </Card>
         </div>
     )
 }

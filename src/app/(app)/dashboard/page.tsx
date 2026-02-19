@@ -190,11 +190,23 @@ const getDashboardData = unstable_cache(
                     },
                     orderBy: { dueDate: 'asc' },
                     take: 12
+                }),
+                prisma.user.findMany({
+                    select: {
+                        id: true,
+                        name: true,
+                        role: true,
+                        timezone: true,
+                        schedule: true,
+                        birthday: true
+                    },
+                    orderBy: { name: 'asc' },
+                    take: 80
                 })
             ])
         )
     },
-    ['dashboard-data-v2'],
+    ['dashboard-data-v3'],
     { revalidate: 20 }
 )
 
@@ -212,6 +224,14 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
     let recentTasks: any[] = []
     let receivablesAgg: { _sum: { amount: number | null } } = { _sum: { amount: 0 } }
     let receivableAlerts: any[] = []
+    let teamUsers: Array<{
+        id: string
+        name: string
+        role: string
+        timezone: string | null
+        schedule: string | null
+        birthday: Date | null
+    }> = []
 
     try {
         const data = await getDashboardData(resolvedRange.from.toISOString(), resolvedRange.to.toISOString())
@@ -226,7 +246,8 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
             recentLeads,
             recentTasks,
             receivablesAgg,
-            receivableAlerts
+            receivableAlerts,
+            teamUsers
         ] = data as typeof data
     } catch (error) {
         console.error('Dashboard data fetch failed:', error)
@@ -301,6 +322,39 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
         .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
         .slice(0, 5)
 
+    const startToday = new Date(today)
+
+    const team = teamUsers
+        .map((user) => {
+            let nextBirthday: Date | null = null
+            let daysUntilNextBirthday: number | null = null
+            if (user.birthday) {
+                const birthday = new Date(user.birthday)
+                const candidate = new Date(startToday)
+                candidate.setMonth(birthday.getMonth(), birthday.getDate())
+                candidate.setHours(0, 0, 0, 0)
+                if (candidate < startToday) candidate.setFullYear(candidate.getFullYear() + 1)
+                nextBirthday = candidate
+                daysUntilNextBirthday = Math.round((candidate.getTime() - startToday.getTime()) / (1000 * 60 * 60 * 24))
+            }
+            return {
+                id: user.id,
+                name: user.name,
+                role: user.role,
+                timezone: user.timezone || null,
+                schedule: user.schedule || null,
+                birthday: user.birthday ? new Date(user.birthday).toISOString() : null,
+                nextBirthday: nextBirthday ? nextBirthday.toISOString() : null,
+                daysUntilNextBirthday
+            }
+        })
+        .sort((a, b) => {
+            const aDays = a.daysUntilNextBirthday ?? 9999
+            const bDays = b.daysUntilNextBirthday ?? 9999
+            return aDays - bDays
+        })
+        .slice(0, 10)
+
     const stats = {
         totalRevenue: wonRevenueAgg._sum.estimatedValue || 0,
         activeProjectsCount,
@@ -317,6 +371,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
             dueSoonCount: receivablesSummary.dueSoonCount,
             items: receivableAlerts
         },
+        team,
         filters: {
             range: resolvedRange.range,
             from: resolvedRange.fromInput,
