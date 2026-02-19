@@ -11,10 +11,8 @@ interface PageProps {
 }
 
 export default async function ProjectDetailPage({ params }: PageProps) {
-    const [project, users] = await Promise.all([
-        getProjectById(params.id),
-        getUsers()
-    ])
+    const project = await getProjectById(params.id)
+    const users = await getUsers()
 
     if (!project) {
         notFound()

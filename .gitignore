@@ -21,6 +21,7 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 dev_output.log
 
 # local env files
@@ -33,3 +34,12 @@ dev_output.log
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local build/cache artifacts
+.next_stale_*/
+.turbo/
+.eslintcache
+
+# editor/OS
+.idea/
+.vscode/

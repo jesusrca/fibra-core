@@ -5,11 +5,9 @@ import { FinanzasClient } from '@/components/finanzas/finanzas-client'
 export const dynamic = 'force-dynamic'
 
 export default async function FinanzasPage() {
-    const [fixedCosts, payroll, users] = await Promise.all([
-        getFixedCosts(),
-        getPayroll(),
-        getUsers(),
-    ])
+    const fixedCosts = await getFixedCosts()
+    const payroll = await getPayroll()
+    const users = await getUsers()
 
     return (
         <FinanzasClient
