@@ -1,4 +1,4 @@
-import { Role } from './mock-data'
+import { Role } from '@prisma/client'
 
 export interface Permission {
     canView: boolean
@@ -7,9 +7,35 @@ export interface Permission {
     canDelete: boolean
 }
 
-export type Module = 'dashboard' | 'contabilidad' | 'finanzas' | 'proyectos' | 'marketing' | 'comercial' | 'reportes' | 'chatbot' | 'configuracion'
+export type Module =
+    | 'dashboard'
+    | 'contabilidad'
+    | 'finanzas'
+    | 'proyectos'
+    | 'marketing'
+    | 'comercial'
+    | 'reportes'
+    | 'chatbot'
+    | 'configuracion'
+    | 'equipo'
+    | 'proveedores'
+    | 'perfil'
 
 const permissions: Record<Role, Record<Module, Permission>> = {
+    ADMIN: {
+        dashboard: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        contabilidad: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        finanzas: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        proyectos: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        marketing: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        comercial: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        reportes: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        chatbot: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        configuracion: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        equipo: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        proveedores: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        perfil: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+    },
     GERENCIA: {
         dashboard: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         contabilidad: { canView: true, canCreate: true, canEdit: true, canDelete: true },
@@ -20,6 +46,9 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         reportes: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         chatbot: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         configuracion: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        equipo: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        proveedores: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        perfil: { canView: true, canCreate: true, canEdit: true, canDelete: true },
     },
     CONTABILIDAD: {
         dashboard: { canView: true, canCreate: false, canEdit: false, canDelete: false },
@@ -31,6 +60,9 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         reportes: { canView: true, canCreate: true, canEdit: false, canDelete: false },
         chatbot: { canView: true, canCreate: true, canEdit: false, canDelete: false },
         configuracion: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        equipo: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        proveedores: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+        perfil: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     },
     FINANZAS: {
         dashboard: { canView: true, canCreate: false, canEdit: false, canDelete: false },
@@ -42,6 +74,9 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         reportes: { canView: true, canCreate: true, canEdit: false, canDelete: false },
         chatbot: { canView: true, canCreate: true, canEdit: false, canDelete: false },
         configuracion: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        equipo: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        proveedores: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+        perfil: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     },
     PROYECTOS: {
         dashboard: { canView: true, canCreate: false, canEdit: false, canDelete: false },
@@ -53,6 +88,9 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         reportes: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         chatbot: { canView: true, canCreate: true, canEdit: false, canDelete: false },
         configuracion: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        equipo: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        proveedores: { canView: true, canCreate: true, canEdit: true, canDelete: false },
+        perfil: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     },
     MARKETING: {
         dashboard: { canView: true, canCreate: false, canEdit: false, canDelete: false },
@@ -64,6 +102,9 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         reportes: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         chatbot: { canView: true, canCreate: true, canEdit: false, canDelete: false },
         configuracion: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        equipo: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        proveedores: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        perfil: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     },
     COMERCIAL: {
         dashboard: { canView: true, canCreate: false, canEdit: false, canDelete: false },
@@ -75,6 +116,9 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         reportes: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         chatbot: { canView: true, canCreate: true, canEdit: false, canDelete: false },
         configuracion: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        equipo: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        proveedores: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        perfil: { canView: true, canCreate: true, canEdit: true, canDelete: false },
     },
 }
 
@@ -91,6 +135,7 @@ export function getAccessibleModules(role: Role): Module[] {
 }
 
 export const roleLabels: Record<Role, string> = {
+    ADMIN: 'Admin',
     GERENCIA: 'Gerencia',
     CONTABILIDAD: 'Contabilidad',
     FINANZAS: 'Finanzas',
@@ -100,6 +145,7 @@ export const roleLabels: Record<Role, string> = {
 }
 
 export const roleColors: Record<Role, string> = {
+    ADMIN: 'badge-info',
     GERENCIA: 'badge-info',
     CONTABILIDAD: 'badge-success',
     FINANZAS: 'badge-warning',

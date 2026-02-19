@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { canAccess, type Module } from '@/lib/rbac'
-import type { Role } from '@/lib/mock-data'
+import type { Role } from '@prisma/client'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import {

@@ -10,10 +10,10 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardPage() {
     await requireModuleAccess('dashboard')
 
-    let pipelineAgg = { _sum: { estimatedValue: 0 } }
+    let pipelineAgg: { _sum: { estimatedValue: number | null } } = { _sum: { estimatedValue: 0 } }
     let opportunitiesCount = 0
-    let wonRevenueAgg = { _sum: { estimatedValue: 0 } }
-    let groupedProjects: Array<{ status: ProjectStatus; _count: { _all: number } }> = []
+    let wonRevenueAgg: { _sum: { estimatedValue: number | null } } = { _sum: { estimatedValue: 0 } }
+    let groupedProjects: any[] = []
     let activeProjects: any[] = []
     let recentTransactions: any[] = []
 
@@ -37,6 +37,9 @@ export default async function DashboardPage() {
                 }),
                 prisma.project.groupBy({
                     by: ['status'],
+                    orderBy: {
+                        status: 'asc'
+                    },
                     _count: { _all: true }
                 }),
                 prisma.project.findMany({

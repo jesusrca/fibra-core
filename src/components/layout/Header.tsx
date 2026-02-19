@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { cn, getInitials } from '@/lib/utils'
 import { mockNotifications } from '@/lib/mock-data'
 import { roleLabels } from '@/lib/rbac'
-import type { User as UserType } from '@/lib/mock-data'
+import type { AppUser } from '@/lib/app-context'
 import { formatDate } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useApp } from '@/lib/app-context'
@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 
 interface HeaderProps {
-    user: UserType
+    user: AppUser
 }
 
 export function Header({ user }: HeaderProps) {

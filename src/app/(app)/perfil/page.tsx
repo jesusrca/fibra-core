@@ -8,6 +8,9 @@ import { roleLabels } from '@/lib/rbac'
 
 export default function PerfilPage() {
     const { currentUser } = useApp()
+    if (!currentUser) {
+        return <div className="text-sm text-muted-foreground">Cargando perfil...</div>
+    }
 
     // Using mock data for own profile
     const userProfile = {
