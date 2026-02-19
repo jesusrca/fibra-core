@@ -290,9 +290,10 @@ export async function createClientByAI(
 export async function createContactByAI(
     ctx: AIToolContext,
     input: {
-        firstName: string
-        lastName: string
-        email: string
+        firstName?: string
+        lastName?: string
+        fullName?: string
+        email?: string
         phone?: string
         contactMethod?: string
         country?: string
@@ -308,6 +309,21 @@ export async function createContactByAI(
     }
 
     try {
+        const fullName = (input.fullName || '').trim()
+        let normalizedFirstName = (input.firstName || '').trim()
+        let normalizedLastName = (input.lastName || '').trim()
+        if ((!normalizedFirstName || !normalizedLastName) && fullName) {
+            const parts = fullName.split(/\s+/).filter(Boolean)
+            if (!normalizedFirstName) normalizedFirstName = parts[0] || ''
+            if (!normalizedLastName) normalizedLastName = parts.slice(1).join(' ') || '-'
+        }
+        if (!normalizedFirstName) {
+            const error = 'Debes indicar al menos el nombre del contacto'
+            await auditWriteTool({ ctx, toolName: 'createContact', input, success: false, error })
+            return { success: false as const, error }
+        }
+        if (!normalizedLastName) normalizedLastName = '-'
+
         let clientId = input.clientId
         if (!clientId && input.clientName) {
             const byName = await prisma.client.findFirst({
@@ -327,16 +343,32 @@ export async function createContactByAI(
         }
 
         if (!clientId) {
-            const error = 'Debes indicar clientId o clientName para crear contacto'
-            await auditWriteTool({ ctx, toolName: 'createContact', input, success: false, error })
-            return { success: false as const, error }
+            const defaultClientName = 'Sin empresa asignada'
+            const fallbackClient = await prisma.client.findFirst({
+                where: { name: { equals: defaultClientName, mode: 'insensitive' } },
+                select: { id: true }
+            })
+            if (fallbackClient) {
+                clientId = fallbackClient.id
+            } else {
+                const createdClient = await prisma.client.create({
+                    data: { name: defaultClientName },
+                    select: { id: true }
+                })
+                clientId = createdClient.id
+            }
         }
+
+        const normalizedEmail = (input.email || '').trim().toLowerCase()
+        const email =
+            normalizedEmail ||
+            `pendiente+${Date.now()}${Math.floor(Math.random() * 1000)}@pending.local`
 
         const contact = await prisma.contact.create({
             data: {
-                firstName: input.firstName,
-                lastName: input.lastName,
-                email: input.email,
+                firstName: normalizedFirstName,
+                lastName: normalizedLastName,
+                email,
                 phone: input.phone,
                 contactMethod: input.contactMethod,
                 country: input.country,
@@ -472,9 +504,20 @@ export async function createProjectByAI(
         }
 
         if (!clientId) {
-            const error = 'Debes indicar clientId o clientName para crear proyecto'
-            await auditWriteTool({ ctx, toolName: 'createProject', input, success: false, error })
-            return { success: false as const, error }
+            const defaultClientName = 'Sin cliente asignado'
+            const fallbackClient = await prisma.client.findFirst({
+                where: { name: { equals: defaultClientName, mode: 'insensitive' } },
+                select: { id: true }
+            })
+            if (fallbackClient) {
+                clientId = fallbackClient.id
+            } else {
+                const createdClient = await prisma.client.create({
+                    data: { name: defaultClientName },
+                    select: { id: true }
+                })
+                clientId = createdClient.id
+            }
         }
 
         let directorId = input.directorId

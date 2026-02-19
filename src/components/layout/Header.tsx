@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Bell, Search, ChevronDown, LogOut, User, Settings, Menu } from 'lucide-react'
 import Link from 'next/link'
-import { signOut } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 import { cn, getInitials } from '@/lib/utils'
 import { roleLabels } from '@/lib/rbac'
 import type { AppUser } from '@/lib/app-context'
@@ -29,8 +29,14 @@ interface HeaderProps {
 
 export function Header({ user }: HeaderProps) {
     const { toggleSidebar } = useApp()
+    const { data: session } = useSession()
     const [notifOpen, setNotifOpen] = useState(false)
     const [notifications, setNotifications] = useState<Array<{ id: string; message: string; createdAt: string; read?: boolean; type?: string }>>([])
+    const effectiveUser = {
+        ...user,
+        name: session?.user?.name || user.name,
+        email: session?.user?.email || user.email
+    }
 
     const unread = notifications.filter((n) => !n.read).length
 
@@ -151,11 +157,11 @@ export function Header({ user }: HeaderProps) {
                         >
                             <Avatar className="w-7 h-7">
                                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                                    {getInitials(user.name)}
+                                    {getInitials(effectiveUser.name)}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="text-left hidden sm:block">
-                                <p className="text-xs font-medium text-foreground leading-none">{user.name}</p>
+                                <p className="text-xs font-medium text-foreground leading-none">{effectiveUser.name}</p>
                                 <p className="text-[10px] text-muted-foreground mt-0.5">{roleLabels[user.role]}</p>
                             </div>
                             <ChevronDown className="w-3 h-3 text-muted-foreground" />
@@ -163,8 +169,8 @@ export function Header({ user }: HeaderProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuLabel className="space-y-0.5">
-                            <p className="text-xs font-medium text-foreground">{user.name}</p>
-                            <p className="text-[10px] font-normal text-muted-foreground">{user.email}</p>
+                            <p className="text-xs font-medium text-foreground">{effectiveUser.name}</p>
+                            <p className="text-[10px] font-normal text-muted-foreground">{effectiveUser.email}</p>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>

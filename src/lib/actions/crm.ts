@@ -18,6 +18,32 @@ function buildContactName(firstName: string, lastName: string) {
     return `${normalizeText(firstName)} ${normalizeText(lastName)}`.trim()
 }
 
+function toInboxSlug(value: string) {
+    return value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 24) || 'proyecto'
+}
+
+async function generateProjectInboxEmail(projectName: string) {
+    const domain = (process.env.PROJECT_INBOX_DOMAIN || 'projects.fibra.local').trim().toLowerCase()
+    const base = toInboxSlug(projectName)
+    for (let i = 0; i < 6; i += 1) {
+        const suffix = Math.random().toString(36).slice(2, 6)
+        const local = `${base}-${suffix}`
+        const email = `${local}@${domain}`
+        const exists = await withPrismaRetry(() => prisma.project.findFirst({
+            where: { inboxEmail: { equals: email, mode: 'insensitive' } },
+            select: { id: true }
+        }))
+        if (!exists) return email
+    }
+    return `${base}-${Date.now()}@${domain}`
+}
+
 async function ensureClientByName(name: string) {
     const normalized = normalizeText(name)
     const existing = await withPrismaRetry(() => prisma.client.findFirst({
@@ -472,10 +498,14 @@ export async function convertLeadToProject(leadId: string, directorId: string) {
             clientId = await ensureClientByName(lead.companyName)
         }
         if (!clientId) throw new Error('No se pudo determinar el cliente')
+        const inboxEmail = await generateProjectInboxEmail(
+            lead.serviceRequested || `Proyecto ${lead.companyName || 'cliente'}`
+        )
 
         const project = await withPrismaRetry(() => prisma.project.create({
             data: {
                 name: lead.serviceRequested || `Proyecto ${lead.companyName}`,
+                inboxEmail,
                 clientId,
                 directorId,
                 budget: lead.estimatedValue,
@@ -876,6 +906,14 @@ export async function syncInvoicesFromMilestones() {
                 name: true,
                 clientId: true,
                 budget: true,
+                startDate: true,
+                status: true,
+                quote: {
+                    select: {
+                        installmentsCount: true,
+                        status: true
+                    }
+                },
                 milestones: { select: { id: true, status: true } },
                 invoices: { select: { id: true, status: true } }
             },
@@ -883,16 +921,28 @@ export async function syncInvoicesFromMilestones() {
         }))
 
         let createdCount = 0
-        const details: Array<{ projectId: string; projectName: string; created: number; amountPerInvoice: number }> = []
+        const details: Array<{ projectId: string; projectName: string; created: number; amountPerInvoice: number; targetInvoices: number }> = []
 
         for (const project of projects) {
             const totalMilestones = Math.max(project.milestones.length, 1)
             const completedMilestones = project.milestones.filter((m) => m.status === 'COMPLETED').length
             const issuedInvoices = project.invoices.filter((invoice) => invoice.status !== InvoiceStatus.CANCELLED).length
-            const missing = Math.max(completedMilestones - issuedInvoices, 0)
+            const quoteInstallments = Math.max(project.quote?.installmentsCount || 0, 0)
+            const statusAllowsInstallments = project.status === 'ACTIVE' || project.status === 'REVIEW' || project.status === 'COMPLETED'
+            const startDate = project.startDate || new Date()
+            const monthsElapsed = Math.max(
+                0,
+                (new Date().getFullYear() - startDate.getFullYear()) * 12 + (new Date().getMonth() - startDate.getMonth())
+            )
+            const accruedInstallments = statusAllowsInstallments
+                ? Math.min(quoteInstallments, monthsElapsed + 1)
+                : 0
+            const targetInvoices = Math.max(completedMilestones, accruedInstallments)
+            const missing = Math.max(targetInvoices - issuedInvoices, 0)
             if (missing === 0) continue
 
-            const installmentAmount = Math.round((project.budget / totalMilestones) * 100) / 100
+            const divisor = Math.max(totalMilestones, quoteInstallments, 1)
+            const installmentAmount = Math.round((project.budget / divisor) * 100) / 100
             const dueDate = new Date()
             dueDate.setDate(dueDate.getDate() + 7)
 
@@ -917,7 +967,8 @@ export async function syncInvoicesFromMilestones() {
                 projectId: project.id,
                 projectName: project.name,
                 created: missing,
-                amountPerInvoice: installmentAmount
+                amountPerInvoice: installmentAmount,
+                targetInvoices
             })
         }
 
@@ -929,10 +980,12 @@ export async function syncInvoicesFromMilestones() {
             })
         }
 
-        revalidatePath('/comercial')
-        revalidatePath('/contabilidad')
-        revalidatePath('/dashboard')
-        revalidatePath('/proyectos')
+        if (createdCount > 0) {
+            revalidatePath('/comercial')
+            revalidatePath('/contabilidad')
+            revalidatePath('/dashboard')
+            revalidatePath('/proyectos')
+        }
         return { success: true, createdCount, details }
     } catch (error) {
         console.error('Error syncing milestone invoices:', error)

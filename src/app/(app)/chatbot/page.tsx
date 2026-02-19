@@ -459,7 +459,7 @@ export default function ChatbotPage() {
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
+                            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                                 e.preventDefault()
                                 handleSend()
                             }
@@ -473,7 +473,7 @@ export default function ChatbotPage() {
                         }}
                         placeholder="Pregúntame sobre tus finanzas, proyectos o ventas..."
                         className="flex-1 bg-transparent border-none resize-none px-3 py-2.5 text-sm text-foreground focus:ring-0 placeholder:text-muted-foreground max-h-32 min-h-[44px]"
-                        rows={1}
+                        rows={2}
                         disabled={isBusy}
                     />
                     <button
@@ -503,6 +503,7 @@ export default function ChatbotPage() {
                 </div>
                 {uploadError && <p className="text-[11px] text-red-500 mt-2">{uploadError}</p>}
                 {isRecording && <p className="text-[11px] text-red-500 mt-2">Grabando audio... presiona el micrófono para detener.</p>}
+                <p className="text-[10px] text-muted-foreground mt-1">`Enter` agrega salto de línea. `Ctrl+Enter` envía.</p>
                 <p className="text-[10px] text-center text-muted-foreground mt-3 flex items-center justify-center gap-1">
                     <Sparkles className="w-3 h-3" />
                     Respuestas basadas en datos reales de Fibra Core

@@ -323,9 +323,10 @@ export async function POST(req: Request) {
       - For dates, use a readable format (e.g., "DD/MM/YYYY").
       - If you can't find information, state that clearly.
       - When listing multiple items, use bullet points for readability.
-      - For write operations (create lead/client/contact), always confirm required data and then call tools.
+      - For write operations (create lead/client/contact/project), indica los datos recomendados, pero permite guardado mínimo cuando solo hay nombre.
+      - Si faltan datos no críticos (email, empresa, director, presupuesto), crea el registro base y sugiere completarlo luego.
       - If a write tool returns "success: false", explain the reason to the user clearly.
-      - For project creation, request at minimum: project name and client (id or name). If director is missing, use current user as director.
+      - For project creation, minimum operativo: nombre del proyecto. Si falta cliente, usar cliente placeholder y luego completar.
       - If user sends attachments (images, audio, documents), process them and answer using that content.
       - Always keep the final response clean, structured, and in Spanish.
       - If extracted/transcribed content is in another language, translate it to Spanish before final response.
@@ -381,11 +382,12 @@ export async function POST(req: Request) {
                     execute: async (input) => createClientByAI({ userId: user.id, role: user.role }, input)
                 }),
                 createContact: tool({
-                    description: 'Create a contact. Requires firstName, lastName, email and either clientId or clientName.',
+                    description: 'Create a contact. Can be created with minimal data (name only) and completed later.',
                     inputSchema: z.object({
-                        firstName: z.string().min(1),
-                        lastName: z.string().min(1),
-                        email: z.string().email(),
+                        firstName: z.string().min(1).optional(),
+                        lastName: z.string().min(1).optional(),
+                        fullName: z.string().min(1).optional(),
+                        email: z.string().email().optional(),
                         phone: z.string().optional(),
                         contactMethod: z.string().optional(),
                         country: z.string().optional(),
@@ -410,7 +412,7 @@ export async function POST(req: Request) {
                     execute: async (input) => createLeadByAI({ userId: user.id, role: user.role }, input)
                 }),
                 createProject: tool({
-                    description: 'Create a project. Requires name and either clientId or clientName. Director is optional.',
+                    description: 'Create a project. Can be created with only name. Missing fields are completed later.',
                     inputSchema: z.object({
                         name: z.string().min(2),
                         clientId: z.string().optional(),

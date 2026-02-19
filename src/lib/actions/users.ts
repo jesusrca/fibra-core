@@ -3,7 +3,7 @@
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { Role } from '@prisma/client'
-import { requireModuleAccess } from '@/lib/server-auth'
+import { requireAuthUser, requireModuleAccess } from '@/lib/server-auth'
 import { hashPassword } from '@/lib/password'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 
@@ -105,5 +105,63 @@ export async function deleteUser(id: string) {
     } catch (error) {
         console.error('Error deleting user:', error)
         return { success: false, error: 'Error al eliminar el usuario' }
+    }
+}
+
+export async function getMyProfile() {
+    try {
+        const user = await requireAuthUser()
+        const profile = await withPrismaRetry(() => prisma.user.findUnique({
+            where: { id: user.id },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                phone: true,
+                country: true,
+                timezone: true,
+                specialty: true,
+                birthday: true,
+                createdAt: true
+            }
+        }))
+        return profile
+    } catch (error) {
+        console.error('Error fetching my profile:', error)
+        return null
+    }
+}
+
+export async function updateMyProfile(data: {
+    name: string
+    phone?: string
+    country?: string
+    timezone?: string
+    specialty?: string
+    birthday?: Date
+}) {
+    try {
+        const user = await requireAuthUser()
+        const name = (data.name || '').trim()
+        if (!name) return { success: false, error: 'El nombre es obligatorio' }
+
+        await withPrismaRetry(() => prisma.user.update({
+            where: { id: user.id },
+            data: {
+                name,
+                phone: (data.phone || '').trim() || null,
+                country: (data.country || '').trim() || null,
+                timezone: (data.timezone || '').trim() || null,
+                specialty: (data.specialty || '').trim() || null,
+                birthday: data.birthday || null
+            }
+        }))
+
+        revalidatePath('/perfil')
+        return { success: true }
+    } catch (error) {
+        console.error('Error updating my profile:', error)
+        return { success: false, error: 'No se pudo actualizar el perfil' }
     }
 }

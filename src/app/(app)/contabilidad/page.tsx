@@ -8,6 +8,35 @@ import { ensureDefaultAccountingBanks } from '@/lib/actions/accounting-settings'
 
 export const dynamic = 'force-dynamic'
 
+async function getActiveBanksCompatible() {
+    try {
+        return await withPrismaRetry(() =>
+            prisma.accountingBank.findMany({
+                where: { isActive: true },
+                select: { id: true, name: true, code: true, supportedCurrencies: true },
+                orderBy: { name: 'asc' },
+                take: 120
+            })
+        )
+    } catch (error) {
+        const message = error instanceof Error ? error.message : ''
+        if (!message.includes('Unknown field `supportedCurrencies`')) throw error
+
+        const legacyBanks = await withPrismaRetry(() =>
+            prisma.accountingBank.findMany({
+                where: { isActive: true },
+                select: { id: true, name: true, code: true },
+                orderBy: { name: 'asc' },
+                take: 120
+            })
+        )
+        return legacyBanks.map((bank) => ({
+            ...bank,
+            supportedCurrencies: ['PEN', 'USD']
+        }))
+    }
+}
+
 const getContabilidadData = unstable_cache(
     async () =>
         withPrismaRetry(() =>
@@ -96,12 +125,7 @@ const getContabilidadData = unstable_cache(
                     orderBy: [{ paymentDate: 'asc' }, { issueDate: 'asc' }],
                     take: 180
                 }),
-                prisma.accountingBank.findMany({
-                    where: { isActive: true },
-                    select: { id: true, name: true, code: true },
-                    orderBy: { name: 'asc' },
-                    take: 120
-                })
+                getActiveBanksCompatible()
             ])
         ),
     ['contabilidad-data-v4'],

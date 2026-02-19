@@ -7,8 +7,43 @@ import { ensureDefaultAccountingBanks } from '@/lib/actions/accounting-settings'
 
 export const dynamic = 'force-dynamic'
 
+async function getAccountingBanksCompatible() {
+    try {
+        return await withPrismaRetry(() =>
+            prisma.accountingBank.findMany({
+                select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                    supportedCurrencies: true,
+                    isActive: true,
+                    createdAt: true
+                },
+                orderBy: [{ isActive: 'desc' }, { name: 'asc' }]
+            })
+        )
+    } catch (error) {
+        const message = error instanceof Error ? error.message : ''
+        if (!message.includes('Unknown field `supportedCurrencies`')) throw error
+
+        const legacyBanks = await withPrismaRetry(() =>
+            prisma.accountingBank.findMany({
+                select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                    isActive: true,
+                    createdAt: true
+                },
+                orderBy: [{ isActive: 'desc' }, { name: 'asc' }]
+            })
+        )
+        return legacyBanks.map((bank) => ({ ...bank, supportedCurrencies: ['PEN', 'USD'] }))
+    }
+}
+
 const getConfiguracionData = unstable_cache(
-    async () =>
+    async (userId: string) =>
         withPrismaRetry(() =>
             Promise.all([
                 prisma.user.findMany({
@@ -21,27 +56,30 @@ const getConfiguracionData = unstable_cache(
                     },
                     orderBy: { name: 'asc' }
                 }),
-                prisma.accountingBank.findMany({
+                getAccountingBanksCompatible(),
+                prisma.emailIntegration.findMany({
+                    where: { userId },
                     select: {
                         id: true,
-                        name: true,
-                        code: true,
+                        provider: true,
+                        accountEmail: true,
                         isActive: true,
-                        createdAt: true
+                        lastSyncAt: true,
+                        updatedAt: true
                     },
-                    orderBy: [{ isActive: 'desc' }, { name: 'asc' }]
+                    orderBy: { updatedAt: 'desc' }
                 })
             ])
         ),
-    ['configuracion-data-v2'],
+    ['configuracion-data-v3'],
     { revalidate: 30 }
 )
 
 export default async function ConfiguracionPage() {
-    await requireModuleAccess('configuracion')
+    const user = await requireModuleAccess('configuracion')
     await ensureDefaultAccountingBanks()
 
-    const [users, accountingBanks] = await getConfiguracionData()
+    const [users, accountingBanks, emailIntegrations] = await getConfiguracionData(user.id)
 
-    return <ConfiguracionClient users={users} accountingBanks={accountingBanks} />
+    return <ConfiguracionClient users={users} accountingBanks={accountingBanks} emailIntegrations={emailIntegrations as any} />
 }

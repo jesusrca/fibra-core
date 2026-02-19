@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import {
-    User, Bell, Zap, Trash2, Edit2, Plus, Key, Cloud, Send, Mail
+    User, Bell, Zap, Trash2, Edit2, Plus, Key, Cloud, Send, Mail, RefreshCcw, Link2Off
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { roleLabels, roleColors } from '@/lib/rbac'
 import type { Role } from '@prisma/client'
 import { useRouter } from 'next/navigation'
 import { createAccountingBank, deleteAccountingBank, updateAccountingBank } from '@/lib/actions/accounting-settings'
+import { disconnectEmailIntegration, syncGmailEmails, upsertGmailIntegration } from '@/lib/actions/email'
 
 interface ConfigUser {
     id: string
@@ -22,17 +23,38 @@ interface AccountingBank {
     id: string
     name: string
     code: string | null
+    supportedCurrencies: string[]
     isActive: boolean
     createdAt: Date | string
 }
 
-export function ConfiguracionClient({ users, accountingBanks }: { users: ConfigUser[]; accountingBanks: AccountingBank[] }) {
+interface EmailIntegration {
+    id: string
+    provider: string
+    accountEmail: string
+    isActive: boolean
+    lastSyncAt: Date | string | null
+    updatedAt: Date | string
+}
+
+export function ConfiguracionClient({
+    users,
+    accountingBanks,
+    emailIntegrations
+}: {
+    users: ConfigUser[]
+    accountingBanks: AccountingBank[]
+    emailIntegrations: EmailIntegration[]
+}) {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<'usuarios' | 'integraciones' | 'notificaciones' | 'contabilidad'>('usuarios')
     const [showBankForm, setShowBankForm] = useState(false)
     const [editingBank, setEditingBank] = useState<AccountingBank | null>(null)
     const [savingBank, setSavingBank] = useState(false)
     const [bankError, setBankError] = useState<string | null>(null)
+    const [gmailError, setGmailError] = useState<string | null>(null)
+    const [gmailSaving, setGmailSaving] = useState(false)
+    const [gmailSyncing, setGmailSyncing] = useState(false)
 
     const openCreateBank = () => {
         setEditingBank(null)
@@ -54,6 +76,7 @@ export function ConfiguracionClient({ users, accountingBanks }: { users: ConfigU
         const payload = {
             name: (formData.get('name') as string || '').trim(),
             code: (formData.get('code') as string || '').trim(),
+            supportedCurrencies: (formData.getAll('supportedCurrencies') as string[]).map((c) => c.toUpperCase()),
             isActive: formData.get('isActive') === 'on'
         }
 
@@ -77,6 +100,48 @@ export function ConfiguracionClient({ users, accountingBanks }: { users: ConfigU
         const result = await deleteAccountingBank(bankId)
         if (!result.success) {
             alert(result.error || 'No se pudo eliminar el banco')
+            return
+        }
+        router.refresh()
+    }
+
+    const handleSaveGmail = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setGmailSaving(true)
+        setGmailError(null)
+        const formData = new FormData(e.currentTarget)
+        const result = await upsertGmailIntegration({
+            accountEmail: (formData.get('accountEmail') as string || '').trim(),
+            refreshToken: (formData.get('refreshToken') as string || '').trim(),
+            clientId: (formData.get('clientId') as string || '').trim(),
+            clientSecret: (formData.get('clientSecret') as string || '').trim()
+        })
+        setGmailSaving(false)
+        if (!result.success) {
+            setGmailError(result.error || 'No se pudo guardar la integración Gmail')
+            return
+        }
+        router.refresh()
+    }
+
+    const handleSyncGmail = async () => {
+        setGmailSyncing(true)
+        const result = await syncGmailEmails()
+        setGmailSyncing(false)
+        if (!result.success) {
+            setGmailError(result.error || 'No se pudo sincronizar')
+            return
+        }
+        alert(`Sincronización completada. Correos nuevos: ${result.synced || 0}`)
+        router.refresh()
+    }
+
+    const handleDisconnectGmail = async (integrationId: string) => {
+        const confirmed = confirm('¿Desconectar esta integración Gmail?')
+        if (!confirmed) return
+        const result = await disconnectEmailIntegration(integrationId)
+        if (!result.success) {
+            setGmailError(result.error || 'No se pudo desconectar')
             return
         }
         router.refresh()
@@ -190,6 +255,7 @@ export function ConfiguracionClient({ users, accountingBanks }: { users: ConfigU
                                 <tr>
                                     <th>Banco</th>
                                     <th>Código</th>
+                                    <th>Monedas</th>
                                     <th>Estado</th>
                                     <th>Creado</th>
                                     <th className="text-right">Acciones</th>
@@ -200,6 +266,7 @@ export function ConfiguracionClient({ users, accountingBanks }: { users: ConfigU
                                     <tr key={bank.id}>
                                         <td className="font-medium">{bank.name}</td>
                                         <td className="text-xs font-mono text-muted-foreground">{bank.code || '-'}</td>
+                                        <td className="text-xs text-muted-foreground">{(bank.supportedCurrencies || []).join(' / ') || '-'}</td>
                                         <td>
                                             <span className={cn('badge', bank.isActive ? 'badge-success' : 'badge-neutral')}>
                                                 {bank.isActive ? 'Activo' : 'Inactivo'}
@@ -222,7 +289,7 @@ export function ConfiguracionClient({ users, accountingBanks }: { users: ConfigU
                                 ))}
                                 {accountingBanks.length === 0 && (
                                     <tr>
-                                        <td colSpan={5} className="text-center text-sm text-muted-foreground py-8">
+                                        <td colSpan={6} className="text-center text-sm text-muted-foreground py-8">
                                             No hay bancos configurados.
                                         </td>
                                     </tr>
@@ -234,7 +301,96 @@ export function ConfiguracionClient({ users, accountingBanks }: { users: ConfigU
             )}
 
             {activeTab === 'integraciones' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4">
+                    <div className="glass-card p-5 border-l-4 border-red-500">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                                    <Mail className="w-5 h-5 text-red-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold">Gmail por Usuario</h3>
+                                    <p className="text-[10px] text-muted-foreground">Conecta cuenta y sincroniza emails para contacto/proyecto</p>
+                                </div>
+                            </div>
+                            <button className="btn-secondary text-xs" onClick={handleSyncGmail} disabled={gmailSyncing}>
+                                {gmailSyncing ? <RefreshCcw className="w-3.5 h-3.5 animate-spin" /> : <RefreshCcw className="w-3.5 h-3.5" />}
+                                Sync ahora
+                            </button>
+                        </div>
+
+                        {gmailError && (
+                            <div className="mb-4 bg-destructive/10 border border-destructive/20 text-destructive text-sm p-3 rounded-lg">
+                                {gmailError}
+                            </div>
+                        )}
+
+                        <form className="grid grid-cols-1 md:grid-cols-2 gap-3" onSubmit={handleSaveGmail}>
+                            <div>
+                                <label className="form-label">Correo Gmail</label>
+                                <input name="accountEmail" type="email" className="form-input" placeholder="usuario@gmail.com" required />
+                            </div>
+                            <div>
+                                <label className="form-label">Refresh Token</label>
+                                <input name="refreshToken" type="password" className="form-input" placeholder="1//..." required />
+                            </div>
+                            <div>
+                                <label className="form-label">Google Client ID</label>
+                                <input name="clientId" className="form-input" placeholder="xxxx.apps.googleusercontent.com (opcional si está en .env)" />
+                            </div>
+                            <div>
+                                <label className="form-label">Google Client Secret</label>
+                                <input name="clientSecret" type="password" className="form-input" placeholder="GOCSPX-... (opcional si está en .env)" />
+                            </div>
+                            <div className="md:col-span-2 flex justify-end">
+                                <button className="btn-primary" type="submit" disabled={gmailSaving}>
+                                    {gmailSaving ? 'Guardando...' : 'Guardar integración Gmail'}
+                                </button>
+                            </div>
+                        </form>
+
+                        <div className="mt-4 table-container">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Cuenta</th>
+                                        <th>Proveedor</th>
+                                        <th>Estado</th>
+                                        <th>Última sync</th>
+                                        <th className="text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {emailIntegrations.map((integration) => (
+                                        <tr key={integration.id}>
+                                            <td className="font-medium">{integration.accountEmail}</td>
+                                            <td className="text-xs uppercase text-muted-foreground">{integration.provider}</td>
+                                            <td>
+                                                <span className={cn('badge', integration.isActive ? 'badge-success' : 'badge-neutral')}>
+                                                    {integration.isActive ? 'Activa' : 'Inactiva'}
+                                                </span>
+                                            </td>
+                                            <td className="text-xs text-muted-foreground">
+                                                {integration.lastSyncAt ? new Date(integration.lastSyncAt).toLocaleString('es-PE') : 'Sin sincronizar'}
+                                            </td>
+                                            <td className="text-right">
+                                                <button className="btn-ghost p-1.5 text-destructive" onClick={() => handleDisconnectGmail(integration.id)}>
+                                                    <Link2Off className="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {emailIntegrations.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="text-center py-6 text-sm text-muted-foreground">No hay integraciones de correo configuradas.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="glass-card p-5 border-l-4 border-indigo-500">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
@@ -294,6 +450,7 @@ export function ConfiguracionClient({ users, accountingBanks }: { users: ConfigU
                         </div>
                     </div>
                 </div>
+                </div>
             )}
 
             {activeTab === 'notificaciones' && (
@@ -342,6 +499,29 @@ export function ConfiguracionClient({ users, accountingBanks }: { users: ConfigU
                             <div>
                                 <label className="form-label">Código (opcional)</label>
                                 <input name="code" className="form-input" defaultValue={editingBank?.code || ''} placeholder="Ej: BCP" />
+                            </div>
+                            <div>
+                                <label className="form-label">Monedas habilitadas</label>
+                                <div className="flex items-center gap-4 mt-2">
+                                    <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                                        <input
+                                            name="supportedCurrencies"
+                                            type="checkbox"
+                                            value="PEN"
+                                            defaultChecked={editingBank ? editingBank.supportedCurrencies.includes('PEN') : true}
+                                        />
+                                        PEN
+                                    </label>
+                                    <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                                        <input
+                                            name="supportedCurrencies"
+                                            type="checkbox"
+                                            value="USD"
+                                            defaultChecked={editingBank ? editingBank.supportedCurrencies.includes('USD') : true}
+                                        />
+                                        USD
+                                    </label>
+                                </div>
                             </div>
                             <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                                 <input name="isActive" type="checkbox" defaultChecked={editingBank ? editingBank.isActive : true} />

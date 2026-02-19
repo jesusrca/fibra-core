@@ -30,7 +30,7 @@ export function AppProvider({
 }) {
     const { data: session, status } = useSession()
     const [sidebarOpen, setSidebarOpen] = useState(false)
-    const sessionLoading = !initialUser && status === 'loading'
+    const sessionLoading = status === 'loading'
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen)
 
     const sessionUser = useMemo<AppUser | null>(() => {
@@ -42,7 +42,7 @@ export function AppProvider({
             role: session.user.role as Role
         }
     }, [session])
-    const currentUser = initialUser ?? sessionUser
+    const currentUser = sessionUser ?? initialUser
 
     return (
         <AppContext.Provider value={{

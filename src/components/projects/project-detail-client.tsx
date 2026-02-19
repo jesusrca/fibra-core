@@ -3,14 +3,15 @@
 import { useState, useOptimistic, startTransition } from 'react'
 import {
     CheckCircle2, Clock, Plus,
-    ArrowLeft, Users, Target, ReceiptText
+    ArrowLeft, Users, Target, ReceiptText, Mail, Edit2
 } from 'lucide-react'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createMilestone, updateMilestoneStatus, createTask, updateTaskStatus } from '@/lib/actions/projects'
+import { createMilestone, updateMilestoneStatus, createTask, updateTaskStatus, updateProjectAssignments, updateProjectStatus } from '@/lib/actions/projects'
 import { createTransaction } from '@/lib/actions/accounting'
 import { createSupplierPayment, createSupplierWork } from '@/lib/actions/suppliers'
+import { sendProjectEmail } from '@/lib/actions/email'
 
 interface ProjectDetailClientProps {
     project: any
@@ -26,16 +27,28 @@ interface ProjectDetailClientProps {
 export function ProjectDetailClient({ project, users, suppliers }: ProjectDetailClientProps) {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'finance'>('overview')
+    const [projectStatus, setProjectStatus] = useState(project.status)
     const [showMilestoneForm, setShowMilestoneForm] = useState(false)
     const [showTaskForm, setShowTaskForm] = useState(false)
     const [showExpenseForm, setShowExpenseForm] = useState(false)
     const [showSupplierWorkForm, setShowSupplierWorkForm] = useState(false)
     const [showSupplierPaymentForm, setShowSupplierPaymentForm] = useState(false)
+    const [showAssignmentsForm, setShowAssignmentsForm] = useState(false)
+    const [showSendEmailForm, setShowSendEmailForm] = useState(false)
     const [selectedSupplierWorkId, setSelectedSupplierWorkId] = useState<string | null>(null)
     const [supplierInstallments, setSupplierInstallments] = useState(1)
     const [installmentDates, setInstallmentDates] = useState<string[]>([new Date().toISOString().split('T')[0]])
     const [supplierWorkError, setSupplierWorkError] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
+    const [mailSending, setMailSending] = useState(false)
+    const [mailError, setMailError] = useState<string | null>(null)
+    const [statusSaving, setStatusSaving] = useState(false)
+    const [mailToEmail, setMailToEmail] = useState(project.contact?.email || '')
+    const [mailSubject, setMailSubject] = useState(`Actualización proyecto ${project.name}`)
+    const [mailBody, setMailBody] = useState('')
+    const [mailContactId, setMailContactId] = useState<string | undefined>(project.contact?.id || undefined)
+    const [selectedDirectorId, setSelectedDirectorId] = useState(project.directorId || '')
+    const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>((project.team || []).map((member: any) => member.id))
 
     const closeSupplierWorkForm = () => {
         setShowSupplierWorkForm(false)
@@ -100,6 +113,7 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
     const installmentEstimate = project.budget / milestonesForBilling
     const invoicesToIssue = Math.max(completedMilestones - issuedInvoicesCount, 0)
     const amountToIssue = invoicesToIssue * installmentEstimate
+    const recentProjectEmails = (project.emailMessages || []).slice(0, 5)
 
     const handleCreateMilestone = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -209,6 +223,62 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
         setSelectedSupplierWorkId(null)
     }
 
+    const handleSaveAssignments = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setLoading(true)
+        const result = await updateProjectAssignments({
+            projectId: project.id,
+            directorId: selectedDirectorId,
+            teamIds: selectedTeamIds
+        })
+        setLoading(false)
+        if (!result.success) {
+            alert(result.error)
+            return
+        }
+        setShowAssignmentsForm(false)
+        router.refresh()
+    }
+
+    const handleSendEmail = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setMailError(null)
+        setMailSending(true)
+        const result = await sendProjectEmail({
+            projectId: project.id,
+            toEmail: mailToEmail.trim(),
+            subject: mailSubject.trim(),
+            body: mailBody.trim(),
+            contactId: mailContactId
+        })
+        setMailSending(false)
+        if (!result.success) {
+            setMailError(result.error || 'No se pudo enviar el correo')
+            return
+        }
+        setMailBody('')
+        setShowSendEmailForm(false)
+        router.refresh()
+    }
+
+    const openNewEmailComposer = () => {
+        setMailError(null)
+        setMailToEmail(project.contact?.email || '')
+        setMailSubject(`Actualización proyecto ${project.name}`)
+        setMailBody('')
+        setMailContactId(project.contact?.id || undefined)
+        setShowSendEmailForm(true)
+    }
+
+    const openReplyComposer = (mailItem: any) => {
+        setMailError(null)
+        setMailToEmail(mailItem.fromEmail || project.contact?.email || '')
+        setMailSubject(mailItem.subject ? `Re: ${mailItem.subject}` : `Re: ${project.name}`)
+        setMailBody('')
+        setMailContactId(mailItem.contact?.id || undefined)
+        setShowSendEmailForm(true)
+    }
+
     const toggleMilestone = async (id: string, currentStatus: string) => {
         const newStatus = currentStatus === 'COMPLETED' ? 'PENDING' : 'COMPLETED'
 
@@ -229,6 +299,21 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
         await updateTaskStatus(id, newStatus, project.id)
     }
 
+    const handleChangeProjectStatus = async (nextStatus: string) => {
+        if (!nextStatus || nextStatus === projectStatus) return
+        const prev = projectStatus
+        setProjectStatus(nextStatus)
+        setStatusSaving(true)
+        const result = await updateProjectStatus(project.id, nextStatus as any)
+        setStatusSaving(false)
+        if (!result.success) {
+            setProjectStatus(prev)
+            alert('No se pudo actualizar el estado del proyecto')
+            return
+        }
+        router.refresh()
+    }
+
     return (
         <div className="space-y-6 animate-fade-in pb-12">
             {/* Header */}
@@ -242,11 +327,23 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
                             <h1 className="text-3xl font-bold text-foreground font-display">{project.name}</h1>
                             <span className={cn(
                                 'badge',
-                                project.status === 'ACTIVE' ? 'badge-info' :
-                                    project.status === 'COMPLETED' ? 'badge-success' : 'badge-warning'
+                                projectStatus === 'ACTIVE' ? 'badge-info' :
+                                    projectStatus === 'COMPLETED' ? 'badge-success' : 'badge-warning'
                             )}>
-                                {project.status}
+                                {projectStatus}
                             </span>
+                            <select
+                                className="text-xs bg-background border border-border rounded px-2 py-1"
+                                value={projectStatus}
+                                disabled={statusSaving}
+                                onChange={(e) => handleChangeProjectStatus(e.target.value)}
+                            >
+                                <option value="PLANNING">Planeación</option>
+                                <option value="ACTIVE">Activo</option>
+                                <option value="REVIEW">Revisión</option>
+                                <option value="COMPLETED">Completado</option>
+                                <option value="ON_HOLD">En pausa</option>
+                            </select>
                         </div>
                         <p className="text-muted-foreground mt-1 flex items-center gap-2">
                             <Users className="w-4 h-4" /> {project.client?.name}
@@ -255,6 +352,24 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
                         </p>
                     </div>
                     <div className="flex gap-2">
+                        <button
+                            className="btn-secondary"
+                            onClick={() => setShowAssignmentsForm(true)}
+                        >
+                            <Edit2 className="w-4 h-4" /> Asignaciones
+                        </button>
+                        <button
+                            className="btn-secondary"
+                            onClick={() => setShowMilestoneForm(true)}
+                        >
+                            <Plus className="w-4 h-4" /> Nuevo Entregable
+                        </button>
+                        <button
+                            className="btn-secondary"
+                            onClick={openNewEmailComposer}
+                        >
+                            <Mail className="w-4 h-4" /> Enviar correo
+                        </button>
                         <button
                             className="btn-secondary"
                             onClick={() => setShowTaskForm(true)}
@@ -333,6 +448,23 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
                                     </div>
                                 </div>
                             </div>
+                            <div className="pt-4 mt-4 border-t border-border/40">
+                                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-2">Equipo asignado</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {(project.team || []).map((member: any) => (
+                                        <span key={member.id} className="badge badge-neutral">
+                                            {member.name}
+                                        </span>
+                                    ))}
+                                    {(project.team || []).length === 0 && (
+                                        <span className="text-xs text-muted-foreground">Sin equipo asignado</span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="pt-4 mt-4 border-t border-border/40">
+                                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Correo del proyecto</p>
+                                <p className="text-sm font-medium text-foreground">{project.inboxEmail || 'Sin buzón configurado'}</p>
+                            </div>
                         </div>
 
                         {/* Recent Activity / Tasks Preview */}
@@ -382,6 +514,34 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
                                         {formatCurrency(margin)}
                                     </span>
                                 </div>
+                            </div>
+                        </div>
+
+                        <div className="glass-card p-6">
+                            <h3 className="section-title mb-4">Correos del Proyecto</h3>
+                            <div className="space-y-3">
+                                {recentProjectEmails.map((mailItem: any) => (
+                                    <div key={mailItem.id} className="rounded-lg border border-border/40 bg-secondary/20 p-3">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="text-sm font-medium truncate">{mailItem.subject || '(Sin asunto)'}</p>
+                                            <span className="text-[11px] text-muted-foreground whitespace-nowrap">{formatDate(mailItem.receivedAt)}</span>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground mt-1 truncate">{mailItem.snippet || mailItem.fromEmail}</p>
+                                        <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                                            <Mail className="w-3 h-3" />
+                                            {mailItem.fromEmail}
+                                            {mailItem.contact ? ` · ${mailItem.contact.firstName} ${mailItem.contact.lastName}` : ''}
+                                        </p>
+                                        <div className="mt-2 flex justify-end">
+                                            <button className="btn-ghost text-xs px-2 py-1" onClick={() => openReplyComposer(mailItem)}>
+                                                Responder
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {recentProjectEmails.length === 0 && (
+                                    <p className="text-xs text-muted-foreground">Sin correos vinculados a este proyecto.</p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -863,6 +1023,109 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
                             <div className="pt-2 flex gap-3">
                                 <button type="button" className="btn-secondary flex-1" onClick={() => setShowExpenseForm(false)}>Cancelar</button>
                                 <button type="submit" className="btn-primary flex-1 justify-center" disabled={loading}>Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showAssignmentsForm && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowAssignmentsForm(false)}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="section-title mb-4">Editar Director y Equipo</h3>
+                        <form onSubmit={handleSaveAssignments} className="space-y-4">
+                            <div>
+                                <label className="form-label">Director</label>
+                                <select className="form-input" value={selectedDirectorId} onChange={(e) => setSelectedDirectorId(e.target.value)} required>
+                                    <option value="">Seleccionar director...</option>
+                                    {users.map((user) => (
+                                        <option key={user.id} value={user.id}>{user.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="form-label">Equipo</label>
+                                <div className="max-h-48 overflow-y-auto space-y-2 border border-border/40 rounded-lg p-3">
+                                    {users.map((user) => (
+                                        <label key={user.id} className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedTeamIds.includes(user.id)}
+                                                onChange={(e) => {
+                                                    setSelectedTeamIds((prev) => {
+                                                        if (e.target.checked) return Array.from(new Set([...prev, user.id]))
+                                                        return prev.filter((id) => id !== user.id)
+                                                    })
+                                                }}
+                                            />
+                                            {user.name}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button type="button" className="btn-secondary flex-1" onClick={() => setShowAssignmentsForm(false)}>Cancelar</button>
+                                <button type="submit" className="btn-primary flex-1 justify-center" disabled={loading}>
+                                    {loading ? 'Guardando...' : 'Guardar'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showSendEmailForm && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowSendEmailForm(false)}>
+                    <div className="modal-form-card p-6 w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="section-title mb-4">Enviar correo del proyecto</h3>
+                        <p className="text-xs text-muted-foreground mb-3">
+                            Responde usando tu integración Gmail. Correo del proyecto: {project.inboxEmail || 'no configurado'}.
+                        </p>
+                        <form onSubmit={handleSendEmail} className="space-y-4">
+                            {mailError && (
+                                <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm p-3 rounded-lg">
+                                    {mailError}
+                                </div>
+                            )}
+                            <div>
+                                <label className="form-label">Para</label>
+                                <input
+                                    name="toEmail"
+                                    type="email"
+                                    className="form-input"
+                                    required
+                                    placeholder="cliente@empresa.com"
+                                    value={mailToEmail}
+                                    onChange={(e) => setMailToEmail(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="form-label">Asunto</label>
+                                <input
+                                    name="subject"
+                                    className="form-input"
+                                    required
+                                    placeholder={`Actualización proyecto ${project.name}`}
+                                    value={mailSubject}
+                                    onChange={(e) => setMailSubject(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="form-label">Mensaje</label>
+                                <textarea
+                                    name="body"
+                                    className="form-input min-h-[140px]"
+                                    required
+                                    placeholder="Escribe tu respuesta..."
+                                    value={mailBody}
+                                    onChange={(e) => setMailBody(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex gap-3 pt-2">
+                                <button type="button" className="btn-secondary flex-1" onClick={() => setShowSendEmailForm(false)}>Cancelar</button>
+                                <button type="submit" className="btn-primary flex-1 justify-center" disabled={mailSending}>
+                                    {mailSending ? 'Enviando...' : 'Enviar'}
+                                </button>
                             </div>
                         </form>
                     </div>

@@ -74,7 +74,17 @@ interface ComercialClientProps {
     initialLeads: LeadRow[]
     users: User[]
     clients: Client[]
-    contacts: (Contact & { client: { id: string; name: string } })[]
+    contacts: (Contact & {
+        client: { id: string; name: string }
+        emailMessages?: Array<{
+            id: string
+            subject: string | null
+            snippet: string | null
+            fromEmail: string
+            receivedAt: Date | string
+            project: { id: string; name: string } | null
+        }>
+    })[]
     quotes: QuoteItem[]
     invoices: InvoiceItem[]
     projects: ProjectItem[]
@@ -460,6 +470,7 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
                                 <th>Nombre</th>
                                 <th>Empresa</th>
                                 <th>Email</th>
+                                <th>Correos vinculados</th>
                                 <th>País</th>
                                 <th>Especialidad</th>
                                 <th className="text-right">Acciones</th>
@@ -481,6 +492,22 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
                                         <div className="flex items-center gap-2">
                                             <Mail className="w-3 h-3" />
                                             {contact.email}
+                                        </div>
+                                    </td>
+                                    <td className="text-xs text-muted-foreground">
+                                        <div className="space-y-1 max-w-[260px]">
+                                            {(contact.emailMessages || []).slice(0, 2).map((mailItem) => (
+                                                <div key={mailItem.id} className="rounded-md border border-border/40 px-2 py-1 bg-secondary/20">
+                                                    <p className="truncate font-medium text-foreground">{mailItem.subject || '(Sin asunto)'}</p>
+                                                    <p className="truncate">{mailItem.snippet || mailItem.fromEmail}</p>
+                                                    {mailItem.project?.id && (
+                                                        <a href={`/proyectos/${mailItem.project.id}`} className="text-primary hover:underline">
+                                                            {mailItem.project.name}
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            {(contact.emailMessages || []).length === 0 && <span>Sin correos</span>}
                                         </div>
                                     </td>
                                     <td className="text-sm text-muted-foreground whitespace-nowrap">{contact.country || '-'}</td>

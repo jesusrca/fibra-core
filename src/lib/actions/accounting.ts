@@ -37,16 +37,35 @@ export async function createTransaction(data: {
         const normalizedBank = (data.bank || '').trim()
 
         if (normalizedBank) {
-            const bank = await withPrismaRetry(() =>
-                prisma.accountingBank.findFirst({
-                    where: {
-                        name: { equals: normalizedBank, mode: 'insensitive' },
-                        isActive: true
-                    },
-                    select: { id: true, name: true }
-                })
-            )
+            let bank: { id: string; name: string; supportedCurrencies: string[] } | null = null
+            try {
+                bank = await withPrismaRetry(() =>
+                    prisma.accountingBank.findFirst({
+                        where: {
+                            name: { equals: normalizedBank, mode: 'insensitive' },
+                            isActive: true
+                        },
+                        select: { id: true, name: true, supportedCurrencies: true }
+                    })
+                )
+            } catch (error) {
+                const message = error instanceof Error ? error.message : ''
+                if (!message.includes('Unknown field `supportedCurrencies`')) throw error
+                const legacyBank = await withPrismaRetry(() =>
+                    prisma.accountingBank.findFirst({
+                        where: {
+                            name: { equals: normalizedBank, mode: 'insensitive' },
+                            isActive: true
+                        },
+                        select: { id: true, name: true }
+                    })
+                )
+                bank = legacyBank ? { ...legacyBank, supportedCurrencies: ['PEN', 'USD'] } : null
+            }
             if (!bank) return { success: false, error: 'Banco inválido o inactivo. Configúralo en Configuración > Contabilidad.' }
+            if (!bank.supportedCurrencies.includes(currency)) {
+                return { success: false, error: `El banco ${bank.name} no tiene habilitada la moneda ${currency}.` }
+            }
         }
 
         const transaction = await withPrismaRetry(() => prisma.transaction.create({

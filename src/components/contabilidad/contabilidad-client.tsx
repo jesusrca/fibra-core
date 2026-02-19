@@ -76,6 +76,7 @@ interface ContabilidadClientProps {
         id: string
         name: string
         code: string | null
+        supportedCurrencies: string[]
     }>
 }
 
@@ -92,7 +93,9 @@ export function ContabilidadClient({
     const [debtView, setDebtView] = useState<'receivables' | 'payables'>('receivables')
     const [showForm, setShowForm] = useState(false)
     const [transactionType, setTransactionType] = useState<TransactionCategory>('INCOME')
+    const [selectedCurrency, setSelectedCurrency] = useState<'PEN' | 'USD'>('PEN')
     const [loading, setLoading] = useState(false)
+    const compatibleBanks = banks.filter((bank) => bank.supportedCurrencies.includes(selectedCurrency))
 
     // Filter logic
     const filtered = initialTransactions.filter((t) => {
@@ -161,6 +164,7 @@ export function ContabilidadClient({
 
         setLoading(false)
         setShowForm(false)
+        setSelectedCurrency('PEN')
     }
 
     const handleDelete = async (id: string) => {
@@ -178,7 +182,7 @@ export function ContabilidadClient({
                 </div>
                 <div className="flex gap-2">
                     <button className="btn-secondary"><Download className="w-4 h-4" /> Exportar</button>
-                    <button className="btn-primary" onClick={() => setShowForm(true)}><Plus className="w-4 h-4" /> Nueva Transacción</button>
+                    <button className="btn-primary" onClick={() => { setSelectedCurrency('PEN'); setShowForm(true) }}><Plus className="w-4 h-4" /> Nueva Transacción</button>
                 </div>
             </div>
 
@@ -610,19 +614,23 @@ export function ContabilidadClient({
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="form-label">Moneda</label>
-                                    <select name="currency" className="form-input" defaultValue="PEN">
+                                    <select
+                                        name="currency"
+                                        className="form-input"
+                                        value={selectedCurrency}
+                                        onChange={(e) => setSelectedCurrency(e.target.value as 'PEN' | 'USD')}
+                                    >
                                         <option value="PEN">PEN (S/)</option>
                                         <option value="USD">USD ($)</option>
-                                        <option value="EUR">EUR (€)</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label className="form-label">Banco</label>
                                     <select name="bank" className="form-input" defaultValue="">
                                         <option value="">Sin banco</option>
-                                        {banks.map((bank) => (
+                                        {compatibleBanks.map((bank) => (
                                             <option key={bank.id} value={bank.name}>
-                                                {bank.code ? `${bank.name} (${bank.code})` : bank.name}
+                                                {bank.code ? `${bank.name} (${bank.code})` : bank.name} · {bank.supportedCurrencies.join('/')}
                                             </option>
                                         ))}
                                     </select>

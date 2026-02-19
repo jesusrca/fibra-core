@@ -4,6 +4,7 @@ import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { unstable_cache } from 'next/cache'
 import { ensureComercialDataQualityNotifications } from '@/lib/data-quality-notifications'
+import { syncInvoicesFromMilestones } from '@/lib/actions/crm'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,21 @@ const getComercialData = unstable_cache(
                 take: 120
             }),
             prisma.contact.findMany({
-                include: { client: { select: { id: true, name: true } } },
+                include: {
+                    client: { select: { id: true, name: true } },
+                    emailMessages: {
+                        orderBy: { receivedAt: 'desc' },
+                        take: 3,
+                        select: {
+                            id: true,
+                            subject: true,
+                            snippet: true,
+                            fromEmail: true,
+                            receivedAt: true,
+                            project: { select: { id: true, name: true } }
+                        }
+                    }
+                },
                 orderBy: { firstName: 'asc' },
                 take: 120
             }),
@@ -75,6 +90,9 @@ const getComercialData = unstable_cache(
                     id: true,
                     name: true,
                     budget: true,
+                    startDate: true,
+                    status: true,
+                    quote: { select: { installmentsCount: true } },
                     milestones: { select: { id: true, status: true } },
                     invoices: { select: { id: true, status: true } }
                 },
@@ -88,16 +106,28 @@ const getComercialData = unstable_cache(
 
 export default async function ComercialPage() {
     const user = await requireModuleAccess('comercial')
+    await syncInvoicesFromMilestones()
     await ensureComercialDataQualityNotifications(user.id)
 
     const [leads, users, clients, contacts, quotes, invoices, projects] = await getComercialData()
     const invoicesToIssueProjection = projects
         .map((project) => {
+            const now = new Date()
+            const startDate = project.startDate || now
             const totalMilestones = Math.max(project.milestones.length, 1)
             const completedMilestones = project.milestones.filter((m) => m.status === 'COMPLETED').length
             const issuedInvoices = project.invoices.filter((inv) => inv.status !== 'CANCELLED').length
-            const pendingToIssue = Math.max(completedMilestones - issuedInvoices, 0)
-            const installmentAmount = Math.round(((project.budget || 0) / totalMilestones) * 100) / 100
+            const installments = Math.max(project.quote?.installmentsCount || 0, 0)
+            const monthsElapsed = Math.max(
+                0,
+                (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth())
+            )
+            const accruedInstallments = (project.status === 'ACTIVE' || project.status === 'REVIEW' || project.status === 'COMPLETED')
+                ? Math.min(installments, monthsElapsed + 1)
+                : 0
+            const pendingToIssue = Math.max(Math.max(completedMilestones, accruedInstallments) - issuedInvoices, 0)
+            const divisor = Math.max(totalMilestones, installments, 1)
+            const installmentAmount = Math.round(((project.budget || 0) / divisor) * 100) / 100
             return {
                 projectId: project.id,
                 projectName: project.name,

@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Business Management Platform for Branding Studio",
   "scripts": {
-    "dev": "next dev --turbo",
+    "clean": "rm -rf .next",
+    "dev": "next dev",
+    "dev:turbo": "next dev --turbo",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",

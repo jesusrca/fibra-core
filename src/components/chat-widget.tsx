@@ -285,13 +285,20 @@ export function ChatWidget() {
                                 e.preventDefault()
                                 await handleSend()
                             }}
-                            className="flex gap-2 relative"
+                            className="flex gap-2 relative items-end"
                         >
-                            <input
+                            <textarea
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                        e.preventDefault()
+                                        handleSend()
+                                    }
+                                }}
                                 placeholder="Escribe tu mensaje..."
-                                className="flex-1 bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all placeholder:text-muted-foreground/50"
+                                rows={2}
+                                className="flex-1 bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all placeholder:text-muted-foreground/50 resize-none max-h-28 min-h-[44px]"
                                 disabled={isBusy}
                             />
                             <button
@@ -321,6 +328,7 @@ export function ChatWidget() {
                                 {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                             </button>
                         </form>
+                        <p className="mt-2 text-[10px] text-muted-foreground">Enter: salto de línea · Ctrl+Enter: enviar</p>
                         {isRecording && <p className="mt-2 text-[11px] text-red-500">Grabando audio... toca el mic para detener.</p>}
                         {recordError && <p className="mt-2 text-[11px] text-red-500">{recordError}</p>}
                     </div>

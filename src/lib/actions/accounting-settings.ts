@@ -6,15 +6,24 @@ import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 
 const DEFAULT_BANKS = [
-    { name: 'BCP', code: 'BCP' },
-    { name: 'Interbank', code: 'IBK' },
-    { name: 'BBVA', code: 'BBVA' },
-    { name: 'Scotiabank', code: 'SCOTIA' },
-    { name: 'Banco de la Nación', code: 'BN' }
+    { name: 'BCP', code: 'BCP', supportedCurrencies: ['PEN', 'USD'] },
+    { name: 'Interbank', code: 'IBK', supportedCurrencies: ['PEN', 'USD'] },
+    { name: 'BBVA', code: 'BBVA', supportedCurrencies: ['PEN', 'USD'] },
+    { name: 'Scotiabank', code: 'SCOTIA', supportedCurrencies: ['PEN', 'USD'] },
+    { name: 'Banco de la Nación', code: 'BN', supportedCurrencies: ['PEN'] }
 ] as const
 
 function normalizeText(value: string) {
     return value.trim().replace(/\s+/g, ' ')
+}
+
+function normalizeCurrencies(values?: string[]) {
+    const allowed = new Set(['PEN', 'USD'])
+    const cleaned = (values || [])
+        .map((c) => (c || '').trim().toUpperCase())
+        .filter((c) => allowed.has(c))
+    const unique = Array.from(new Set(cleaned))
+    return unique.length > 0 ? unique : ['PEN']
 }
 
 export async function ensureDefaultAccountingBanks() {
@@ -25,12 +34,18 @@ export async function ensureDefaultAccountingBanks() {
                 skipDuplicates: true
             })
         )
+        await withPrismaRetry(() =>
+            prisma.accountingBank.updateMany({
+                where: { supportedCurrencies: { isEmpty: true } },
+                data: { supportedCurrencies: ['PEN', 'USD'] }
+            })
+        )
     } catch (error) {
         console.error('Error ensuring default accounting banks:', error)
     }
 }
 
-export async function createAccountingBank(data: { name: string; code?: string; isActive?: boolean }) {
+export async function createAccountingBank(data: { name: string; code?: string; isActive?: boolean; supportedCurrencies?: string[] }) {
     try {
         await requireModuleAccess('configuracion')
         const name = normalizeText(data.name || '')
@@ -49,6 +64,7 @@ export async function createAccountingBank(data: { name: string; code?: string; 
                 data: {
                     name,
                     code: normalizeText(data.code || '') || null,
+                    supportedCurrencies: normalizeCurrencies(data.supportedCurrencies),
                     isActive: data.isActive ?? true
                 }
             })
@@ -63,7 +79,7 @@ export async function createAccountingBank(data: { name: string; code?: string; 
     }
 }
 
-export async function updateAccountingBank(id: string, data: { name: string; code?: string; isActive?: boolean }) {
+export async function updateAccountingBank(id: string, data: { name: string; code?: string; isActive?: boolean; supportedCurrencies?: string[] }) {
     try {
         await requireModuleAccess('configuracion')
         const name = normalizeText(data.name || '')
@@ -86,6 +102,7 @@ export async function updateAccountingBank(id: string, data: { name: string; cod
                 data: {
                     name,
                     code: normalizeText(data.code || '') || null,
+                    supportedCurrencies: normalizeCurrencies(data.supportedCurrencies),
                     isActive: data.isActive ?? true
                 }
             })

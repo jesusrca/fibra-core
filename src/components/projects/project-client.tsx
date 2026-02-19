@@ -5,6 +5,7 @@ import { Plus, Calendar, Users, DollarSign, CheckCircle2 } from 'lucide-react'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { ProjectForm } from './project-form'
 import { useRouter } from 'next/navigation'
+import { updateProjectStatus } from '@/lib/actions/projects'
 
 const statusColumns = [
     { key: 'PLANNING', label: 'Planeación', color: 'border-purple-500/40', dot: 'bg-purple-500' },
@@ -36,6 +37,8 @@ export function ProjectClient({ initialProjects, clients, users, services }: Pro
     const router = useRouter()
     const [view, setView] = useState<'kanban' | 'list'>('kanban')
     const [showForm, setShowForm] = useState(false)
+    const [projects, setProjects] = useState(initialProjects)
+    const [updatingId, setUpdatingId] = useState<string | null>(null)
 
     // Calculate progress based on milestones if available
     const getProjectProgress = (project: any) => {
@@ -44,12 +47,26 @@ export function ProjectClient({ initialProjects, clients, users, services }: Pro
         return Math.round((completed / project.milestones.length) * 100)
     }
 
+    const handleChangeStatus = async (projectId: string, status: string) => {
+        const previous = projects
+        setUpdatingId(projectId)
+        setProjects((state) => state.map((p) => (p.id === projectId ? { ...p, status } : p)))
+        const result = await updateProjectStatus(projectId, status as any)
+        setUpdatingId(null)
+        if (!result.success) {
+            setProjects(previous)
+            alert('No se pudo actualizar el estado del proyecto')
+            return
+        }
+        router.refresh()
+    }
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="page-header">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">Proyectos</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">{initialProjects.length} proyectos en total</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{projects.length} proyectos en total</p>
                 </div>
                 <div className="flex gap-2">
                     <div className="flex border border-border rounded-lg overflow-hidden h-9 bg-background/50">
@@ -75,10 +92,10 @@ export function ProjectClient({ initialProjects, clients, users, services }: Pro
             {/* Summary */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'Total Proyectos', value: initialProjects.length, color: 'text-foreground' },
-                    { label: 'Activos', value: initialProjects.filter((p) => p.status === 'ACTIVE').length, color: 'text-[hsl(var(--info-text))]' },
-                    { label: 'En Revisión', value: initialProjects.filter((p) => p.status === 'REVIEW').length, color: 'text-[hsl(var(--warning-text))]' },
-                    { label: 'Completados', value: initialProjects.filter((p) => p.status === 'COMPLETED').length, color: 'text-[hsl(var(--success-text))]' },
+                    { label: 'Total Proyectos', value: projects.length, color: 'text-foreground' },
+                    { label: 'Activos', value: projects.filter((p) => p.status === 'ACTIVE').length, color: 'text-[hsl(var(--info-text))]' },
+                    { label: 'En Revisión', value: projects.filter((p) => p.status === 'REVIEW').length, color: 'text-[hsl(var(--warning-text))]' },
+                    { label: 'Completados', value: projects.filter((p) => p.status === 'COMPLETED').length, color: 'text-[hsl(var(--success-text))]' },
                 ].map((s) => (
                     <div key={s.label} className="glass-card p-5 relative overflow-hidden group">
                         <div className="relative z-10">
@@ -96,7 +113,7 @@ export function ProjectClient({ initialProjects, clients, users, services }: Pro
             {view === 'kanban' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 items-start">
                     {statusColumns.map((col) => {
-                        const colProjects = initialProjects.filter((p) => p.status === col.key)
+                        const colProjects = projects.filter((p) => p.status === col.key)
                         return (
                             <div key={col.key} className="flex flex-col gap-4">
                                 <div className="flex items-center justify-between px-1">
@@ -120,6 +137,19 @@ export function ProjectClient({ initialProjects, clients, users, services }: Pro
                                             >
                                                 <div className="flex items-start justify-between gap-2 mb-2.5">
                                                     <h3 className="text-sm font-semibold text-foreground leading-tight group-hover:text-primary transition-colors">{p.name}</h3>
+                                                    <select
+                                                        className="text-[10px] bg-background border border-border rounded px-1 py-0.5"
+                                                        value={p.status}
+                                                        disabled={updatingId === p.id}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        onChange={(e) => handleChangeStatus(p.id, e.target.value)}
+                                                    >
+                                                        {statusColumns.map((option) => (
+                                                            <option key={option.key} value={option.key}>
+                                                                {option.label}
+                                                            </option>
+                                                        ))}
+                                                    </select>
                                                 </div>
 
                                                 <p className="text-[11px] font-medium text-muted-foreground mb-4 flex items-center gap-1.5">
@@ -181,7 +211,7 @@ export function ProjectClient({ initialProjects, clients, users, services }: Pro
                                 </tr>
                             </thead>
                             <tbody>
-                                {initialProjects.map((p) => {
+                                {projects.map((p) => {
                                     const progress = getProjectProgress(p)
                                     return (
                                         <tr key={p.id} onClick={() => router.push(`/proyectos/${p.id}`)} className="group cursor-pointer hover:bg-secondary/30 transition-colors">
@@ -196,14 +226,24 @@ export function ProjectClient({ initialProjects, clients, users, services }: Pro
                                                 {p.director?.name}
                                             </td>
                                             <td className="whitespace-nowrap">
-                                                <span className={cn(
-                                                    'badge uppercase text-[9px] font-bold',
-                                                    p.status === 'ACTIVE' ? 'badge-info' :
-                                                        p.status === 'COMPLETED' ? 'badge-success' :
-                                                            p.status === 'REVIEW' ? 'badge-warning' : 'badge-neutral'
-                                                )}>
-                                                    {statusColumns.find((c) => c.key === p.status)?.label}
-                                                </span>
+                                                <select
+                                                    className={cn(
+                                                        'text-[10px] font-bold border rounded px-2 py-1 bg-background',
+                                                        p.status === 'ACTIVE' ? 'border-[hsl(var(--info-text))]/40 text-[hsl(var(--info-text))]' :
+                                                            p.status === 'COMPLETED' ? 'border-[hsl(var(--success-text))]/40 text-[hsl(var(--success-text))]' :
+                                                                p.status === 'REVIEW' ? 'border-[hsl(var(--warning-text))]/40 text-[hsl(var(--warning-text))]' : 'border-border text-muted-foreground'
+                                                    )}
+                                                    value={p.status}
+                                                    disabled={updatingId === p.id}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    onChange={(e) => handleChangeStatus(p.id, e.target.value)}
+                                                >
+                                                    {statusColumns.map((option) => (
+                                                        <option key={option.key} value={option.key}>
+                                                            {option.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
                                             </td>
                                             <td>
                                                 <div className="flex items-center gap-3">

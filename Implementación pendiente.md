@@ -69,8 +69,8 @@
    - `src/components/crm/lead-form.tsx`
 2. [x] Implementar módulo UI de Cotizaciones (crear/listar/editar/estados).
    Estado: Implementado crear/listar/editar y actualización de estado.
-3. [~] Implementar módulo UI de Facturas (emitidas/pagadas/por emitir, por cliente/proyecto).
-   Estado: Implementado crear/listar/editar y actualización de estado + proyección de “por emitir” por hitos en proyecto. Falta “por emitir” automático end-to-end.
+3. [x] Implementar módulo UI de Facturas (emitidas/pagadas/por emitir, por cliente/proyecto).
+   Estado: Implementado crear/listar/editar, actualización de estado y emisión automática “por emitir” por hitos/cuotas.
 4. [x] Alinear fechas de proyecto en UI (`endDate`/fecha fin) para no depender de campo ambiguo `deadline`.
    Archivos relacionados:
    - `src/components/projects/project-form.tsx`
@@ -94,8 +94,8 @@
 2. [~] Implementar acciones/API para `Quote` y `Invoice` con reglas de negocio completas.
    Estado: Implementadas acciones de creación y cambio de estado con UI conectada. Falta completar reglas avanzadas de facturación por cuota/hito.
    Archivo base: `prisma/schema.prisma`
-3. [~] Implementar lógica de "facturas por emitir" por hitos/cuotas de proyecto (no solo facturas registradas).
-   Estado: Implementada notificación al completar hitos para habilitar cobranza. Falta generación/pipeline automático de “por emitir”.
+3. [x] Implementar lógica de "facturas por emitir" por hitos/cuotas de proyecto (no solo facturas registradas).
+   Estado: Implementada generación automática por hitos completados y cuotas acumuladas (sync en CRM + acción manual).
 4. [ ] Definir contacto principal de empresa de forma explícita (`mainContactId` o `isPrimary`) y su flujo.
 5. [~] Validaciones anti-duplicidad consistentes (cliente/contacto/lead) para evitar registros repetidos.
    Estado: Cubierto en create/update de cliente/contacto y en creación de leads. Falta estandarizar en todos los módulos y casos borde.
@@ -119,15 +119,18 @@
 - [x] El chatbot mantiene la conversación de la sesión entre `/chatbot` y el widget.
 - [~] Relación de contactos en lead/cotización/empresa evitando duplicidad.
   Estado: Implementado en flujo de lead (selección de contacto existente + creación si no existe). Falta completar el mismo patrón en todos los bloques.
-- [ ] En marketing mostrar cantidad de seguidores e interacción por red social.
-- [ ] Vincular Gmail/correo por usuario y ver mails recibidos por contacto.
-- [ ] Ver mails por proyecto (buzón por proyecto con reenvío y almacenamiento).
+- [x] En marketing mostrar cantidad de seguidores e interacción por red social.
+  Estado: Implementado con módulo de métricas sociales por plataforma (seguidores, impresiones, interacciones, clicks, leads), visualización agregada, CRUD en BD y endpoint de sync (`/api/integrations/social/sync`).
+- [~] Vincular Gmail/correo por usuario y ver mails recibidos por contacto.
+  Estado: Implementado flujo base Gmail por usuario (configuración OAuth refresh token + sync manual + persistencia en BD + vista en CRM por contacto). Falta OAuth completo one-click y proveedores adicionales.
+- [~] Ver mails por proyecto (buzón por proyecto con reenvío y almacenamiento).
+  Estado: Implementado listado de correos vinculados en detalle de proyecto con asociación automática por contacto. Falta reenvío y almacenamiento de adjuntos.
 - [x] Equipo: horario de trabajo, zona horaria actual, cumpleaños y próximo cumpleaños en dashboard.
   Estado: Implementado en Dashboard (tabla de equipo con hora local por zona, horario y próximo cumpleaños) y edición en Equipo con selector de zona horaria basado en lista IANA.
 - [x] Espacio para deudas por pagar y por cobrar.
   Estado: Implementado en Contabilidad con vistas consolidadas y detalle relacionado (facturas por cobrar + proveedores/planilla/costos fijos por pagar).
-- [~] Espacio para facturas emitidas/pendientes/por emitir por proyecto y por hito.
-  Estado: Implementado emitidas/pendientes con estados y alertas. Falta “por emitir” automático por hito/cuota y proyección de siguiente factura.
+- [x] Espacio para facturas emitidas/pendientes/por emitir por proyecto y por hito.
+  Estado: Implementado emitidas/pendientes con estados y alertas + sincronización automática por hitos/cuotas y proyección de siguiente factura.
 - [x] El bot debe ingresar contactos, empresas, leads y proyectos con datos básicos.
   Estado: Implementado para contactos/empresas/leads/proyectos con permisos por rol y auditoría.
 - [x] Notificaciones por contactos/proyectos con datos faltantes.

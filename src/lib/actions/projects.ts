@@ -11,6 +11,34 @@ function normalizeServiceName(name: string) {
     return name.trim().replace(/\s+/g, ' ')
 }
 
+function toInboxSlug(value: string) {
+    return value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 24) || 'proyecto'
+}
+
+async function generateProjectInboxEmail(projectName: string) {
+    const domain = (process.env.PROJECT_INBOX_DOMAIN || 'projects.fibra.local').trim().toLowerCase()
+    const base = toInboxSlug(projectName)
+    for (let i = 0; i < 6; i += 1) {
+        const suffix = Math.random().toString(36).slice(2, 6)
+        const local = `${base}-${suffix}`
+        const email = `${local}@${domain}`
+        const exists = await withPrismaRetry(() =>
+            prisma.project.findFirst({
+                where: { inboxEmail: { equals: email, mode: 'insensitive' } },
+                select: { id: true }
+            })
+        )
+        if (!exists) return email
+    }
+    return `${base}-${Date.now()}@${domain}`
+}
+
 async function generateInvoiceNumber() {
     const year = new Date().getFullYear()
     for (let i = 0; i < 5; i += 1) {
@@ -33,6 +61,13 @@ async function createMissingInvoicesForCompletedMilestones(projectId: string) {
             name: true,
             clientId: true,
             budget: true,
+            startDate: true,
+            status: true,
+            quote: {
+                select: {
+                    installmentsCount: true
+                }
+            },
             milestones: { select: { id: true, status: true } },
             invoices: { select: { id: true, status: true } }
         }
@@ -43,11 +78,21 @@ async function createMissingInvoicesForCompletedMilestones(projectId: string) {
     const totalMilestones = Math.max(project.milestones.length, 1)
     const completedMilestones = project.milestones.filter((m) => m.status === 'COMPLETED').length
     const issuedInvoices = project.invoices.filter((invoice) => invoice.status !== InvoiceStatus.CANCELLED).length
-    const missing = Math.max(completedMilestones - issuedInvoices, 0)
+    const quoteInstallments = Math.max(project.quote?.installmentsCount || 0, 0)
+    const statusAllowsInstallments = project.status === 'ACTIVE' || project.status === 'REVIEW' || project.status === 'COMPLETED'
+    const startDate = project.startDate || new Date()
+    const monthsElapsed = Math.max(
+        0,
+        (new Date().getFullYear() - startDate.getFullYear()) * 12 + (new Date().getMonth() - startDate.getMonth())
+    )
+    const accruedInstallments = statusAllowsInstallments ? Math.min(quoteInstallments, monthsElapsed + 1) : 0
+    const targetInvoices = Math.max(completedMilestones, accruedInstallments)
+    const missing = Math.max(targetInvoices - issuedInvoices, 0)
 
     if (missing === 0) return { created: 0, amountPerInvoice: 0 }
 
-    const installmentAmount = Math.round((project.budget / totalMilestones) * 100) / 100
+    const divisor = Math.max(totalMilestones, quoteInstallments, 1)
+    const installmentAmount = Math.round((project.budget / divisor) * 100) / 100
     const dueDate = new Date()
     dueDate.setDate(dueDate.getDate() + 7)
 
@@ -138,10 +183,12 @@ export async function createProject(data: {
         if (!serviceType) return { success: false, error: 'El tipo de servicio es obligatorio' }
 
         await upsertServiceCatalogFromName(serviceType)
+        const inboxEmail = await generateProjectInboxEmail(data.name)
 
         const project = await withPrismaRetry(() => prisma.project.create({
             data: {
                 name: data.name,
+                inboxEmail,
                 clientId: data.clientId,
                 directorId: data.directorId,
                 status: data.status,
@@ -216,6 +263,47 @@ export async function updateProjectStatus(projectId: string, status: any) {
     }
 }
 
+export async function updateProjectAssignments(data: {
+    projectId: string
+    directorId: string
+    teamIds: string[]
+}) {
+    try {
+        await requireModuleAccess('proyectos')
+        const uniqueTeam = Array.from(new Set((data.teamIds || []).filter(Boolean)))
+
+        const updated = await withPrismaRetry(() => prisma.project.update({
+            where: { id: data.projectId },
+            data: {
+                directorId: data.directorId,
+                team: {
+                    set: uniqueTeam.map((id) => ({ id }))
+                }
+            },
+            select: {
+                id: true,
+                name: true,
+                director: { select: { id: true, name: true } },
+                team: { select: { id: true, name: true } }
+            }
+        }))
+
+        await createNotificationForRoles({
+            roles: [Role.ADMIN, Role.GERENCIA, Role.PROYECTOS],
+            type: 'project_update',
+            message: `Asignaciones actualizadas en ${updated.name}`
+        })
+
+        revalidatePath('/proyectos')
+        revalidatePath(`/proyectos/${data.projectId}`)
+        revalidatePath('/dashboard')
+        return { success: true, project: updated }
+    } catch (error) {
+        console.error('Error updating project assignments:', error)
+        return { success: false, error: 'No se pudo actualizar director/equipo' }
+    }
+}
+
 export async function getClients() {
     try {
         await requireModuleAccess('proyectos')
@@ -264,6 +352,7 @@ export async function getProjectById(id: string) {
             where: { id },
             include: {
                 client: true,
+                contact: true,
                 director: true,
                 team: true,
                 milestones: {
@@ -291,6 +380,14 @@ export async function getProjectById(id: string) {
                         }
                     },
                     orderBy: { createdAt: 'desc' }
+                },
+                emailMessages: {
+                    orderBy: { receivedAt: 'desc' },
+                    take: 25,
+                    include: {
+                        contact: { select: { id: true, firstName: true, lastName: true, email: true } },
+                        integration: { select: { accountEmail: true, provider: true } }
+                    }
                 }
             }
         }))
