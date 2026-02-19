@@ -110,6 +110,7 @@ model Contact {
   // Relations
   leads           Lead[]
   projects        Project[] @relation("ProjectContact")
+  activities      Activity[]
 }
 
 model Project {
@@ -128,6 +129,7 @@ model Project {
   serviceType     String?
   milestonesCount Int           @default(0)
   quoteId         String?       // Reference to original quote
+  quote           Quote?         @relation(fields: [quoteId], references: [id])
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -178,6 +180,8 @@ model Activity {
   date        DateTime @default(now())
   leadId      String
   lead        Lead     @relation(fields: [leadId], references: [id])
+  contactId   String?
+  contact     Contact? @relation(fields: [contactId], references: [id])
 }
 
 model Quote {
@@ -196,6 +200,10 @@ model Quote {
   installmentsCount Int      @default(1)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  // Relations
+  projects          Project[]
+  invoices          Invoice[]
 }
 
 model Invoice {
@@ -205,6 +213,8 @@ model Invoice {
   client          Client        @relation(fields: [clientId], references: [id])
   projectId       String?
   project         Project?      @relation(fields: [projectId], references: [id])
+  quoteId         String?
+  quote           Quote?        @relation(fields: [quoteId], references: [id])
   issueDate       DateTime      @default(now())
   dueDate         DateTime?
   amount          Float
@@ -238,6 +248,7 @@ model Transaction {
   id          String              @id @default(cuid())
   date        DateTime            @default(now())
   category    TransactionCategory @default(EXPENSE)
+  subcategory String?             // Marketing, Office, Salary, etc.
   currency    String              @default("PEN")
   bank        String?
   amount      Float
@@ -273,9 +284,28 @@ model Payroll {
   updatedAt   DateTime @updatedAt
 }
 
+model Supplier {
+  id              String         @id @default(cuid())
+  name            String
+  category        String?        // Imprenta, Logística, IT, etc.
+  city            String?
+  country         String?
+  rating          Float          @default(0)
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  status          String         @default("ACTIVE")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  works           SupplierWork[]
+}
+
 model SupplierWork {
   id                String   @id @default(cuid())
-  supplierName      String
+  supplierId        String?
+  supplier          Supplier? @relation(fields: [supplierId], references: [id])
+  supplierName      String   // Fallback or legacy
   serviceProvided   String
   totalBudget       Float
   installmentsCount Int      @default(1)

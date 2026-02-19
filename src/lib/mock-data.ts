@@ -160,12 +160,7 @@ export const monthlyRevenue = [
     { month: 'Feb', ingresos: 22700, gastos: 16590 },
 ]
 
-export const projectStatusData = [
-    { name: 'Activos', value: 3, color: '#0EA5E9' },
-    { name: 'Revisión', value: 1, color: '#F5C842' },
-    { name: 'Planeación', value: 1, color: '#8B5CF6' },
-    { name: 'Completados', value: 1, color: '#10B981' },
-]
+export const COLORS = ['#0EA5E9', '#F5C842', '#8B5CF6', '#10B981']
 
 export const leadFunnelData = [
     { stage: 'Nuevos', count: 1 },

@@ -1,0 +1,166 @@
+{
+  "node": {
+    "0b254a2293bbafe412db7ca7f5354730da54f0bc": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "22049728b111c27fc89ece64de2a25aee91fbeb0": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "b6f5d226ef689d4f2e8118a456d89b76a6ce2b5d": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "d2a6eafd705ce93c4e4229da7beb2e57584942ea": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "f5840fd246fb21e68833e93fea0c529fbca918d9": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "fdb2578830dad70507deac5c22e09187ea635a52": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "2368aef92fc01183294b6c188e993ecaa180fa8d": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "347167003af87c2244c6afaff9f32f0eeb67d8eb": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "4b012cb11b924969ed85504426b7e62aef808a3c": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "64a54205d19a49259b753888e77406f832f4456c": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "82438b064b7e8b5834f137cb40bab1b6db827c8b": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "c101597cd6894faf4e273147283227260d49933a": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "c5f7079b0b75d4209a11975fbf2cfc8c2de775ef": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "c77bcf8f07d65a4ae2b5177ba77ab870d7410343": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "c92b95f24067f3cc6062da6b4ae85da0064ba788": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    },
+    "d6845961f709e644a9b7fa6121f31fc8f1a6e857": {
+      "workers": {
+        "app/(app)/dashboard/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!",
+        "app/(app)/comercial/page": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fcrm.ts%22%2C%5B%22getLeads%22%2C%22updateLead%22%2C%22getContacts%22%2C%22createLead%22%2C%22updateLeadStatus%22%2C%22convertLeadToProject%22%5D%5D%2C%5B%22%2FUsers%2Fjesuscerron%2Flocal%2Ffibra-core%2Fsrc%2Flib%2Factions%2Fprojects.ts%22%2C%5B%22createProject%22%2C%22getUsers%22%2C%22createMilestone%22%2C%22updateTaskStatus%22%2C%22getProjectById%22%2C%22updateProjectStatus%22%2C%22createTask%22%2C%22updateMilestoneStatus%22%2C%22getProjects%22%2C%22getClients%22%5D%5D%5D&__client_imported__=!"
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "rsc",
+        "app/(app)/comercial/page": "rsc"
+      }
+    }
+  },
+  "edge": {},
+  "encryptionKey": "UBxCIn9TAOD0Y/A1XFEkxAWmatoiG+unBTFhPrgaQrc="
+}

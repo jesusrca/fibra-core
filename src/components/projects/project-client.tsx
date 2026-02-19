@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Plus, Calendar, Users, DollarSign, CheckCircle2 } from 'lucide-react'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { ProjectForm } from './project-form'
+import { useRouter } from 'next/navigation'
 
 const statusColumns = [
     { key: 'PLANNING', label: 'Planeación', color: 'border-purple-500/40', dot: 'bg-purple-500' },
@@ -31,6 +32,7 @@ interface ProjectClientProps {
 }
 
 export function ProjectClient({ initialProjects, clients, users }: ProjectClientProps) {
+    const router = useRouter()
     const [view, setView] = useState<'kanban' | 'list'>('kanban')
     const [showForm, setShowForm] = useState(false)
 
@@ -112,6 +114,7 @@ export function ProjectClient({ initialProjects, clients, users }: ProjectClient
                                         return (
                                             <div
                                                 key={p.id}
+                                                onClick={() => router.push(`/proyectos/${p.id}`)}
                                                 className="glass-card p-4 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 cursor-pointer group"
                                             >
                                                 <div className="flex items-start justify-between gap-2 mb-2.5">
@@ -180,7 +183,7 @@ export function ProjectClient({ initialProjects, clients, users }: ProjectClient
                                 {initialProjects.map((p) => {
                                     const progress = getProjectProgress(p)
                                     return (
-                                        <tr key={p.id} className="group cursor-pointer">
+                                        <tr key={p.id} onClick={() => router.push(`/proyectos/${p.id}`)} className="group cursor-pointer hover:bg-secondary/30 transition-colors">
                                             <td className="font-semibold whitespace-nowrap py-4">
                                                 <p className="group-hover:text-primary transition-colors">{p.name}</p>
                                                 <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{p.serviceType}</p>

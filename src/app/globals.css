@@ -6,43 +6,51 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 220 40% 10%;
-    --card: 0 0% 99%;
-    --card-foreground: 220 40% 10%;
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    /* Pure white #ffffff */
+    --card-foreground: 222 47% 11%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 220 40% 10%;
-    --primary: 199 89% 45%;
-    /* Slightly darker blue */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 40% 10%;
-    --muted: 220 14% 94%;
-    --muted-foreground: 220 10% 38%;
-    /* Darker for accessibility */
-    --accent: 45 93% 42%;
-    /* Darker gold */
-    --accent-foreground: 220 40% 10%;
-    --destructive: 0 84% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 88%;
-    /* Slightly darker border */
-    --input: 220 13% 88%;
-    --ring: 199 89% 45%;
-    --radius: 0.75rem;
+    --popover-foreground: 222 47% 11%;
 
-    /* Theme-specific accent text for light mode (Higher contrast) */
-    --success-text: 160 84% 30%;
-    --warning-text: 35 92% 35%;
-    --danger-text: 0 84% 45%;
-    --info-text: 199 89% 35%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
 
-    --chart-grid: 220 13% 91%;
+    --secondary: 210 40% 96.1%;
+    /* Slate 100 #f1f5f9 */
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
+    /* Slate 500 #64748b */
+
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214 32% 91%;
+    /* Slate 200 #e2e8f0 */
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
+
+    --radius: 1rem;
+
+    --success-text: 142 76% 36%;
+    --warning-text: 38 92% 50%;
+    --danger-text: 0 84% 60%;
+    --info-text: 221 83% 53%;
+
+    --chart-grid: 214 32% 91%;
     --chart-tooltip: 0 0% 100%;
-    --chart-tooltip-border: 220 13% 91%;
+    --chart-tooltip-border: 214 32% 91%;
 
-    --gradient-1: rgba(14, 165, 233, 0.04);
-    --gradient-2: rgba(245, 200, 66, 0.03);
+    --gradient-1: rgba(37, 99, 235, 0.08);
+    --gradient-2: rgba(2, 132, 199, 0.06);
   }
 
   .dark {
@@ -52,20 +60,20 @@
     --card-foreground: 210 40% 95%;
     --popover: 220 25% 9%;
     --popover-foreground: 210 40% 95%;
-    --primary: 199 89% 48%;
+    --primary: 199 89% 55%;
     --primary-foreground: 220 30% 6%;
     --secondary: 220 20% 14%;
     --secondary-foreground: 210 40% 85%;
     --muted: 220 20% 14%;
     --muted-foreground: 215 20% 65%;
     /* Lighter for readability on dark */
-    --accent: 45 93% 62%;
-    --accent-foreground: 220 30% 6%;
+    --accent: 220 20% 14%;
+    --accent-foreground: 210 40% 90%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 95%;
     --border: 220 20% 18%;
     --input: 220 20% 14%;
-    --ring: 199 89% 48%;
+    --ring: 199 89% 55%;
 
     /* Theme-specific accent text for dark mode */
     --success-text: 150 100% 70%;
@@ -77,8 +85,8 @@
     --chart-tooltip: 220 25% 9%;
     --chart-tooltip-border: 220 20% 16%;
 
-    --gradient-1: rgba(14, 165, 233, 0.05);
-    --gradient-2: rgba(245, 200, 66, 0.04);
+    --gradient-1: rgba(56, 189, 248, 0.07);
+    --gradient-2: rgba(59, 130, 246, 0.06);
   }
 
   * {
@@ -88,8 +96,8 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     background-image:
-      radial-gradient(ellipse at 20% 50%, var(--gradient-1) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, var(--gradient-2) 0%, transparent 50%);
+      radial-gradient(1200px 400px at 0% 0%, var(--gradient-1), transparent),
+      radial-gradient(1200px 500px at 100% 0%, var(--gradient-2), transparent);
   }
 
   ::-webkit-scrollbar {
@@ -113,7 +121,7 @@
 
 @layer components {
   .glass-card {
-    @apply bg-card/80 backdrop-blur-sm border border-border/60 rounded-xl shadow-sm shadow-black/5;
+    @apply bg-card/90 backdrop-blur-sm border border-border rounded-xl shadow-sm;
   }
 
   .dark .glass-card {
@@ -121,11 +129,11 @@
   }
 
   .gradient-text {
-    @apply bg-gradient-to-r from-electric-400 to-gold-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-blue-600 to-sky-500 bg-clip-text text-transparent;
   }
 
   .kpi-card {
-    @apply glass-card p-5 hover:border-primary/40 transition-all duration-300 hover:shadow-md hover:shadow-primary/5;
+    @apply glass-card p-5 hover:border-primary/30 transition-all duration-200 hover:shadow-md;
   }
 
   .nav-item {
@@ -133,11 +141,11 @@
   }
 
   .nav-item.active {
-    @apply text-foreground bg-primary/10 border border-primary/20;
+    @apply text-foreground bg-primary/10 border border-primary/30;
   }
 
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 shadow-lg shadow-primary/20 hover:shadow-primary/30;
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 shadow-sm;
   }
 
   .btn-secondary {
@@ -190,6 +198,18 @@
 
   .table-container {
     @apply w-full overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0;
+  }
+
+  .tremor-panel {
+    @apply rounded-xl border border-border bg-card shadow-sm;
+  }
+
+  .tremor-title {
+    @apply text-sm font-medium text-muted-foreground;
+  }
+
+  .tremor-metric {
+    @apply text-3xl font-semibold tracking-tight text-foreground;
   }
 
   .data-table {

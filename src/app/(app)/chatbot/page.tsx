@@ -1,28 +1,105 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useChat } from '@ai-sdk/react'
+import { DefaultChatTransport } from 'ai'
 import { Send, Bot, User, Sparkles, Paperclip, Mic, ArrowRight, Zap, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Link from 'next/link'
 
-interface Message {
-    id: string
-    role: 'user' | 'assistant'
-    content: string
-    timestamp: Date
+function renderInline(text: string, keyPrefix: string) {
+    const parts: React.ReactNode[] = []
+    const pattern = /(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g
+    let last = 0
+    let match: RegExpExecArray | null
+    let idx = 0
+
+    while ((match = pattern.exec(text)) !== null) {
+        if (match.index > last) {
+            parts.push(<span key={`${keyPrefix}-t-${idx++}`}>{text.slice(last, match.index)}</span>)
+        }
+        const token = match[0]
+        if (token.startsWith('**') && token.endsWith('**')) {
+            parts.push(<strong key={`${keyPrefix}-b-${idx++}`}>{token.slice(2, -2)}</strong>)
+        } else {
+            const linkMatch = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+            if (linkMatch) {
+                const [, label, href] = linkMatch
+                const isInternal = href.startsWith('/')
+                parts.push(
+                    isInternal ? (
+                        <Link key={`${keyPrefix}-l-${idx++}`} href={href} className="text-primary underline underline-offset-2 hover:text-primary/80">
+                            {label}
+                        </Link>
+                    ) : (
+                        <a
+                            key={`${keyPrefix}-l-${idx++}`}
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-primary underline underline-offset-2 hover:text-primary/80"
+                        >
+                            {label}
+                        </a>
+                    )
+                )
+            } else {
+                parts.push(<span key={`${keyPrefix}-t-${idx++}`}>{token}</span>)
+            }
+        }
+        last = pattern.lastIndex
+    }
+
+    if (last < text.length) {
+        parts.push(<span key={`${keyPrefix}-t-${idx++}`}>{text.slice(last)}</span>)
+    }
+
+    return parts
+}
+
+function renderAssistantMessage(content: string) {
+    const lines = content.split('\n').map((line) => line.trim()).filter(Boolean)
+    const nodes: React.ReactNode[] = []
+    let listItems: string[] = []
+
+    const flushList = (key: string) => {
+        if (!listItems.length) return
+        nodes.push(
+            <ul key={`ul-${key}`} className="list-disc pl-5 my-2 space-y-1">
+                {listItems.map((item, i) => (
+                    <li key={`li-${key}-${i}`} className="leading-relaxed">
+                        {renderInline(item, `li-${key}-${i}`)}
+                    </li>
+                ))}
+            </ul>
+        )
+        listItems = []
+    }
+
+    lines.forEach((line, i) => {
+        if (line.startsWith('- ')) {
+            listItems.push(line.slice(2).trim())
+            return
+        }
+        flushList(String(i))
+        nodes.push(
+            <p key={`p-${i}`} className="leading-relaxed">
+                {renderInline(line, `p-${i}`)}
+            </p>
+        )
+    })
+
+    flushList('end')
+    return nodes
 }
 
 export default function ChatbotPage() {
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            id: '1',
-            role: 'assistant',
-            content: 'Hola, soy el asistente IA de Fibra Core. Puedo ayudarte a analizar finanzas, gestionar proyectos o reportar métricas comerciales. ¿Qué necesitas saber hoy?',
-            timestamp: new Date(),
-        },
-    ])
     const [input, setInput] = useState('')
-    const [isTyping, setIsTyping] = useState(false)
     const scrollRef = useRef<HTMLDivElement>(null)
+    const { messages, sendMessage, status, error } = useChat({
+        transport: new DefaultChatTransport({ api: '/api/chat' }),
+    })
+    const isTyping = status === 'submitted' || status === 'streaming'
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -31,30 +108,10 @@ export default function ChatbotPage() {
     }, [messages, isTyping])
 
     const handleSend = () => {
-        if (!input.trim()) return
-
-        const userMsg: Message = {
-            id: Date.now().toString(),
-            role: 'user',
-            content: input,
-            timestamp: new Date(),
-        }
-
-        setMessages((prev) => [...prev, userMsg])
+        const text = input.trim()
+        if (!text || isTyping) return
+        sendMessage({ text })
         setInput('')
-        setIsTyping(true)
-
-        // Simulate AI response
-        setTimeout(() => {
-            const assistantMsg: Message = {
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                content: `Basado en la información de la plataforma, he encontrado que el proyecto "Identidad Visual Nexo Corp" tiene un avance del 65% y está dentro del presupuesto. Respecto a tus finanzas, los ingresos de febrero ($22,700) superan los gastos, manteniendo un margen saludable del 27%.`,
-                timestamp: new Date(),
-            }
-            setMessages((prev) => [...prev, assistantMsg])
-            setIsTyping(false)
-        }, 1500)
     }
 
     const suggestions = [
@@ -90,7 +147,7 @@ export default function ChatbotPage() {
             </div>
 
             {/* Suggestion Chips */}
-            {messages.length === 1 && (
+            {messages.length === 0 && (
                 <div className="flex flex-wrap gap-2 mb-6">
                     {suggestions.map((s) => (
                         <button
@@ -106,7 +163,13 @@ export default function ChatbotPage() {
 
             {/* Chat Area */}
             <div className="flex-1 overflow-y-auto pr-2 space-y-6 custom-scrollbar" ref={scrollRef}>
-                {messages.map((m) => (
+                {messages.map((m) => {
+                    const textContent = m.parts
+                        .filter((part) => part.type === 'text')
+                        .map((part) => part.text)
+                        .join('')
+
+                    return (
                     <div
                         key={m.id}
                         className={cn(
@@ -130,18 +193,28 @@ export default function ChatbotPage() {
                                     : 'bg-primary text-primary-foreground font-semibold'
                             )}
                         >
-                            <div className="whitespace-pre-wrap">{m.content}</div>
+                            <div className="space-y-2">
+                                {m.role === 'assistant'
+                                    ? renderAssistantMessage(textContent)
+                                    : <p className="whitespace-pre-wrap">{textContent}</p>}
+                            </div>
                             <div
                                 className={cn(
                                     'text-[10px] mt-2 opacity-70',
                                     m.role === 'user' ? 'text-primary-foreground/90' : 'text-muted-foreground'
                                 )}
                             >
-                                {m.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </div>
                         </div>
                     </div>
-                ))}
+                    )
+                })}
+                {error && (
+                    <div className="text-xs text-red-500 px-2">
+                        Error del chatbot: {error.message}
+                    </div>
+                )}
                 {isTyping && (
                     <div className="flex gap-4 max-w-[80%]">
                         <div className="w-8 h-8 rounded-lg bg-primary/20 text-primary flex items-center justify-center mt-1">
