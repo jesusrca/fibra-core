@@ -26,17 +26,26 @@ export async function createTransaction(data: {
     description: string
     date: Date
     projectId?: string
+    currency?: string
+    bank?: string
+    invoiceId?: string
+    receiptUrl?: string
 }) {
     try {
         await requireModuleAccess('contabilidad')
+        const currency = (data.currency || 'PEN').toUpperCase()
         const transaction = await withPrismaRetry(() => prisma.transaction.create({
             data: {
                 category: data.category,
                 subcategory: data.subcategory,
+                currency,
+                bank: data.bank || null,
                 amount: data.amount,
                 description: data.description,
                 date: data.date,
                 projectId: data.projectId,
+                invoiceId: data.invoiceId || null,
+                receiptUrl: data.receiptUrl || null,
             }
         }))
         await createNotificationForRoles({

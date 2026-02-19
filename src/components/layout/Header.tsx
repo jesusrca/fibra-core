@@ -59,6 +59,7 @@ export function Header({ user }: HeaderProps) {
         report_ready: '📊',
         project_update: '📁',
         invoice_overdue: '⚠️',
+        milestone_billing_due: '💸',
     }
 
     return (

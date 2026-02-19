@@ -2,27 +2,36 @@
 
 import { useState, useOptimistic, startTransition } from 'react'
 import {
-    Calendar, CheckCircle2, Clock, MoreHorizontal, Plus,
-    ArrowLeft, Users, DollarSign, FileText, LayoutList,
-    TrendingUp, TrendingDown, Target
+    CheckCircle2, Clock, Plus,
+    ArrowLeft, Users, Target, ReceiptText
 } from 'lucide-react'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createMilestone, updateMilestoneStatus, createTask, updateTaskStatus } from '@/lib/actions/projects'
 import { createTransaction } from '@/lib/actions/accounting'
+import { createSupplierPayment, createSupplierWork } from '@/lib/actions/suppliers'
 
 interface ProjectDetailClientProps {
     project: any
     users: any[]
+    suppliers: Array<{
+        id: string
+        name: string
+        category?: string | null
+        city?: string | null
+    }>
 }
 
-export function ProjectDetailClient({ project, users }: ProjectDetailClientProps) {
+export function ProjectDetailClient({ project, users, suppliers }: ProjectDetailClientProps) {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'finance'>('overview')
     const [showMilestoneForm, setShowMilestoneForm] = useState(false)
     const [showTaskForm, setShowTaskForm] = useState(false)
     const [showExpenseForm, setShowExpenseForm] = useState(false)
+    const [showSupplierWorkForm, setShowSupplierWorkForm] = useState(false)
+    const [showSupplierPaymentForm, setShowSupplierPaymentForm] = useState(false)
+    const [selectedSupplierWorkId, setSelectedSupplierWorkId] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
 
     const [optimisticTasks, addOptimisticTask] = useOptimistic(
@@ -60,6 +69,27 @@ export function ProjectDetailClient({ project, users }: ProjectDetailClientProps
     const income = project.transactions?.filter((t: any) => t.category === 'INCOME').reduce((s: number, t: any) => s + t.amount, 0) || 0
     const expenses = project.transactions?.filter((t: any) => t.category === 'EXPENSE').reduce((s: number, t: any) => s + t.amount, 0) || 0
     const margin = income - expenses
+    const supplierWorks = project.suppliers || []
+    const supplierCommitted = supplierWorks.reduce((sum: number, work: any) => sum + (work.totalBudget || 0), 0)
+    const supplierPayments = supplierWorks.flatMap((work: any) =>
+        (work.payments || []).map((payment: any) => ({
+            ...payment,
+            supplierWork: {
+                id: work.id,
+                supplierName: work.supplier?.name || work.supplierName,
+                serviceProvided: work.serviceProvided
+            }
+        }))
+    )
+    const supplierPaid = supplierPayments
+        .filter((payment: any) => payment.status === 'PAID')
+        .reduce((sum: number, payment: any) => sum + payment.amount, 0)
+    const supplierPending = Math.max(supplierCommitted - supplierPaid, 0)
+    const issuedInvoicesCount = (project.invoices || []).length
+    const milestonesForBilling = Math.max(totalMilestones, 1)
+    const installmentEstimate = project.budget / milestonesForBilling
+    const invoicesToIssue = Math.max(completedMilestones - issuedInvoicesCount, 0)
+    const amountToIssue = invoicesToIssue * installmentEstimate
 
     const handleCreateMilestone = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -111,6 +141,48 @@ export function ProjectDetailClient({ project, users }: ProjectDetailClientProps
 
         setLoading(false)
         setShowExpenseForm(false)
+    }
+
+    const handleCreateSupplierWork = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setLoading(true)
+        const formData = new FormData(e.currentTarget)
+
+        const supplierId = (formData.get('supplierId') as string || '').trim() || undefined
+        const supplierName = (formData.get('supplierName') as string || '').trim() || undefined
+
+        await createSupplierWork({
+            projectId: project.id,
+            supplierId,
+            supplierName,
+            serviceProvided: formData.get('serviceProvided') as string,
+            totalBudget: parseFloat(formData.get('totalBudget') as string || '0'),
+            installmentsCount: parseInt(formData.get('installmentsCount') as string || '1', 10)
+        })
+
+        setLoading(false)
+        setShowSupplierWorkForm(false)
+    }
+
+    const handleCreateSupplierPayment = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        if (!selectedSupplierWorkId) return
+        setLoading(true)
+        const formData = new FormData(e.currentTarget)
+
+        await createSupplierPayment({
+            supplierWorkId: selectedSupplierWorkId,
+            amount: parseFloat(formData.get('amount') as string || '0'),
+            status: formData.get('status') as string,
+            issueDate: formData.get('issueDate') ? new Date(formData.get('issueDate') as string) : undefined,
+            paymentDate: formData.get('paymentDate') ? new Date(formData.get('paymentDate') as string) : undefined,
+            receiptUrl: ((formData.get('receiptUrl') as string) || '').trim() || undefined,
+            description: ((formData.get('description') as string) || '').trim() || undefined
+        })
+
+        setLoading(false)
+        setShowSupplierPaymentForm(false)
+        setSelectedSupplierWorkId(null)
     }
 
     const toggleMilestone = async (id: string, currentStatus: string) => {
@@ -388,7 +460,256 @@ export function ProjectDetailClient({ project, users }: ProjectDetailClientProps
                 </div>
             )}
 
+            {activeTab === 'finance' && (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+                        <div className="kpi-card border border-electric-500/20">
+                            <p className="text-xs text-muted-foreground font-medium mb-2">Presupuesto proyecto</p>
+                            <p className="text-2xl font-bold text-[hsl(var(--info-text))]">{formatCurrency(project.budget)}</p>
+                        </div>
+                        <div className="kpi-card border border-red-500/20">
+                            <p className="text-xs text-muted-foreground font-medium mb-2">Gasto interno</p>
+                            <p className="text-2xl font-bold text-[hsl(var(--danger-text))]">{formatCurrency(expenses)}</p>
+                        </div>
+                        <div className="kpi-card border border-amber-500/20">
+                            <p className="text-xs text-muted-foreground font-medium mb-2">Comprometido proveedores</p>
+                            <p className="text-2xl font-bold text-amber-500">{formatCurrency(supplierCommitted)}</p>
+                        </div>
+                        <div className="kpi-card border border-emerald-500/20">
+                            <p className="text-xs text-muted-foreground font-medium mb-2">Pagado proveedores</p>
+                            <p className="text-2xl font-bold text-[hsl(var(--success-text))]">{formatCurrency(supplierPaid)}</p>
+                        </div>
+                        <div className="kpi-card border border-blue-500/20">
+                            <p className="text-xs text-muted-foreground font-medium mb-2">Por emitir (hitos)</p>
+                            <p className="text-2xl font-bold text-blue-500">{formatCurrency(amountToIssue)}</p>
+                            <p className="text-[11px] text-muted-foreground mt-1">{invoicesToIssue} factura(s) sugerida(s)</p>
+                        </div>
+                    </div>
+
+                    <div className="glass-card p-5">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="section-title">Proyección de Cobranza por Hitos</h3>
+                            <span className="badge badge-neutral">Estimado</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            Hitos completados: <span className="font-semibold text-foreground">{completedMilestones}</span> ·
+                            Facturas registradas: <span className="font-semibold text-foreground">{issuedInvoicesCount}</span> ·
+                            Valor por cuota estimado: <span className="font-semibold text-foreground">{formatCurrency(installmentEstimate)}</span>
+                        </p>
+                    </div>
+
+                    <div className="glass-card p-5">
+                        <div className="flex items-center justify-between mb-5">
+                            <h3 className="section-title">Presupuesto por Proveedor</h3>
+                            <button className="btn-secondary text-xs" onClick={() => setShowSupplierWorkForm(true)}>
+                                <Plus className="w-3 h-3" /> Agregar proveedor al proyecto
+                            </button>
+                        </div>
+                        <div className="table-container">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Proveedor</th>
+                                        <th>Servicio</th>
+                                        <th>Presupuesto</th>
+                                        <th>Cuotas</th>
+                                        <th>Pagado</th>
+                                        <th>Pendiente</th>
+                                        <th className="text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {supplierWorks.map((work: any) => {
+                                        const paid = (work.payments || [])
+                                            .filter((payment: any) => payment.status === 'PAID')
+                                            .reduce((sum: number, payment: any) => sum + payment.amount, 0)
+                                        const pending = Math.max((work.totalBudget || 0) - paid, 0)
+                                        return (
+                                            <tr key={work.id}>
+                                                <td className="font-medium whitespace-nowrap">{work.supplier?.name || work.supplierName}</td>
+                                                <td className="text-muted-foreground whitespace-nowrap">{work.serviceProvided}</td>
+                                                <td className="whitespace-nowrap">{formatCurrency(work.totalBudget)}</td>
+                                                <td className="whitespace-nowrap">{work.installmentsCount}</td>
+                                                <td className="whitespace-nowrap text-[hsl(var(--success-text))]">{formatCurrency(paid)}</td>
+                                                <td className="whitespace-nowrap text-amber-500">{formatCurrency(pending)}</td>
+                                                <td className="text-right">
+                                                    <button
+                                                        className="btn-ghost p-1.5"
+                                                        onClick={() => {
+                                                            setSelectedSupplierWorkId(work.id)
+                                                            setShowSupplierPaymentForm(true)
+                                                        }}
+                                                        title="Registrar pago"
+                                                    >
+                                                        <ReceiptText className="w-4 h-4" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                    {supplierWorks.length === 0 && (
+                                        <tr>
+                                            <td colSpan={7} className="text-center py-8 text-sm text-muted-foreground">
+                                                No hay proveedores asociados a este proyecto.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="glass-card p-5">
+                        <div className="flex items-center justify-between mb-5">
+                            <h3 className="section-title">Pagos y Comprobantes</h3>
+                            <span className="badge badge-neutral">{supplierPayments.length} registros</span>
+                        </div>
+                        <div className="table-container">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Proveedor</th>
+                                        <th>Concepto</th>
+                                        <th>Monto</th>
+                                        <th>Estado</th>
+                                        <th>Fecha pago</th>
+                                        <th>Comprobante</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {supplierPayments.map((payment: any) => (
+                                        <tr key={payment.id}>
+                                            <td className="font-medium whitespace-nowrap">{payment.supplierWork.supplierName}</td>
+                                            <td className="text-muted-foreground whitespace-nowrap">{payment.description || payment.supplierWork.serviceProvided}</td>
+                                            <td className="whitespace-nowrap">{formatCurrency(payment.amount)}</td>
+                                            <td>
+                                                <span className={cn(
+                                                    'badge',
+                                                    payment.status === 'PAID' ? 'badge-success' : payment.status === 'CANCELLED' ? 'badge-danger' : 'badge-warning'
+                                                )}>
+                                                    {payment.status}
+                                                </span>
+                                            </td>
+                                            <td className="text-muted-foreground whitespace-nowrap">
+                                                {payment.paymentDate ? formatDate(payment.paymentDate) : 'Pendiente'}
+                                            </td>
+                                            <td className="whitespace-nowrap">
+                                                {payment.receiptUrl ? (
+                                                    <a href={payment.receiptUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline text-xs">
+                                                        Ver recibo
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-xs">Sin recibo</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {supplierPayments.length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} className="text-center py-8 text-sm text-muted-foreground">
+                                                No hay pagos registrados para proveedores.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="pt-4 mt-4 border-t border-border/40 flex justify-between text-xs text-muted-foreground">
+                            <span>Pendiente por pagar proveedores</span>
+                            <span className="font-semibold text-amber-500">{formatCurrency(supplierPending)}</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Modals */}
+            {showSupplierWorkForm && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowSupplierWorkForm(false)}>
+                    <div className="glass-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+                        <h3 className="section-title mb-4">Nuevo Presupuesto de Proveedor</h3>
+                        <form onSubmit={handleCreateSupplierWork} className="space-y-4">
+                            <div>
+                                <label className="form-label">Proveedor existente (opcional)</label>
+                                <select name="supplierId" className="form-input" defaultValue="">
+                                    <option value="">Seleccionar proveedor...</option>
+                                    {suppliers.map((supplier) => (
+                                        <option key={supplier.id} value={supplier.id}>
+                                            {supplier.name}{supplier.category ? ` · ${supplier.category}` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="form-label">Nombre proveedor (si no está en lista)</label>
+                                <input name="supplierName" type="text" className="form-input" placeholder="Proveedor externo" />
+                            </div>
+                            <div>
+                                <label className="form-label">Servicio</label>
+                                <input name="serviceProvided" type="text" className="form-input" required placeholder="Ej: Impresión de piezas" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="form-label">Presupuesto total</label>
+                                    <input name="totalBudget" type="number" step="0.01" className="form-input" required placeholder="0.00" />
+                                </div>
+                                <div>
+                                    <label className="form-label">Cantidad de cuotas</label>
+                                    <input name="installmentsCount" type="number" min={1} className="form-input" defaultValue={1} />
+                                </div>
+                            </div>
+                            <div className="pt-2 flex gap-3">
+                                <button type="button" className="btn-secondary flex-1" onClick={() => setShowSupplierWorkForm(false)}>Cancelar</button>
+                                <button type="submit" className="btn-primary flex-1 justify-center" disabled={loading}>Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showSupplierPaymentForm && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => { setShowSupplierPaymentForm(false); setSelectedSupplierWorkId(null) }}>
+                    <div className="glass-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+                        <h3 className="section-title mb-4">Registrar Pago a Proveedor</h3>
+                        <form onSubmit={handleCreateSupplierPayment} className="space-y-4">
+                            <div>
+                                <label className="form-label">Monto</label>
+                                <input name="amount" type="number" step="0.01" className="form-input" required placeholder="0.00" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="form-label">Estado</label>
+                                    <select name="status" className="form-input" defaultValue="PENDING">
+                                        <option value="PENDING">PENDING</option>
+                                        <option value="PAID">PAID</option>
+                                        <option value="CANCELLED">CANCELLED</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="form-label">Fecha emisión</label>
+                                    <input name="issueDate" type="date" className="form-input" defaultValue={new Date().toISOString().split('T')[0]} />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="form-label">Fecha pago (opcional)</label>
+                                <input name="paymentDate" type="date" className="form-input" />
+                            </div>
+                            <div>
+                                <label className="form-label">Comprobante (URL)</label>
+                                <input name="receiptUrl" type="url" className="form-input" placeholder="https://..." />
+                            </div>
+                            <div>
+                                <label className="form-label">Descripción</label>
+                                <input name="description" type="text" className="form-input" placeholder="Detalle del pago" />
+                            </div>
+                            <div className="pt-2 flex gap-3">
+                                <button type="button" className="btn-secondary flex-1" onClick={() => { setShowSupplierPaymentForm(false); setSelectedSupplierWorkId(null) }}>Cancelar</button>
+                                <button type="submit" className="btn-primary flex-1 justify-center" disabled={loading}>Guardar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {showMilestoneForm && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => setShowMilestoneForm(false)}>
                     <div className="glass-card p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>

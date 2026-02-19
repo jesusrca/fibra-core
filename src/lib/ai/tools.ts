@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma'
 import { LeadStatus, Prisma, ProjectStatus, Role } from '@prisma/client'
+import { canAccess } from '@/lib/rbac'
 
 type ProjectFilters = {
     status?: ProjectStatus
@@ -13,6 +14,12 @@ type LeadFilters = {
 
 type UserFilters = {
     role?: Role
+}
+
+type SupplierFilters = {
+    query?: string
+    category?: string
+    city?: string
 }
 
 export type AIToolContext = {
@@ -176,6 +183,57 @@ export async function getUsers({ role }: UserFilters) {
     } catch (error) {
         console.error('Error fetching users:', error)
         return []
+    }
+}
+
+export async function getSuppliers(ctx: AIToolContext, { query, category, city }: SupplierFilters) {
+    if (!canAccess(ctx.role, 'proveedores')) {
+        return {
+            success: false as const,
+            error: `Rol ${ctx.role} sin permisos para ver proveedores`
+        }
+    }
+
+    try {
+        const where: Prisma.SupplierWhereInput = {
+            ...(category ? { category: { contains: category, mode: 'insensitive' } } : {}),
+            ...(city ? { city: { contains: city, mode: 'insensitive' } } : {}),
+            ...(query
+                ? {
+                    OR: [
+                        { name: { contains: query, mode: 'insensitive' } },
+                        { category: { contains: query, mode: 'insensitive' } },
+                        { city: { contains: query, mode: 'insensitive' } },
+                        { contactName: { contains: query, mode: 'insensitive' } }
+                    ]
+                }
+                : {})
+        }
+
+        const suppliers = await prisma.supplier.findMany({
+            where,
+            select: {
+                id: true,
+                name: true,
+                category: true,
+                city: true,
+                rating: true,
+                contactName: true
+            },
+            orderBy: [{ rating: 'desc' }, { name: 'asc' }],
+            take: 20
+        })
+
+        return {
+            success: true as const,
+            suppliers
+        }
+    } catch (error) {
+        console.error('Error fetching suppliers for AI:', error)
+        return {
+            success: false as const,
+            error: 'No se pudo obtener la lista de proveedores'
+        }
     }
 }
 

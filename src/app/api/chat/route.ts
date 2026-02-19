@@ -8,6 +8,7 @@ import {
     getFinancialSummary,
     getLeads,
     getProjects,
+    getSuppliers,
     getUsers
 } from '@/lib/ai/tools';
 import { AuthError, requireModuleAccess } from '@/lib/server-auth';
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
             messages: await convertToModelMessages(messages as UIMessage[]),
             system: `You are Fibra Bot, an AI assistant for the Fibra branding studio management platform.
       You have access to the company database through tools.
-      Your goal is to help users find information about projects, leads, finances, and team members quickly.
+      Your goal is to help users find information about projects, leads, finances, team members, and suppliers quickly.
       
       Guidelines:
       - Always check the database before answering questions about specific data.
@@ -87,6 +88,15 @@ export async function POST(req: Request) {
                         role: z.enum(['ADMIN', 'GERENCIA', 'CONTABILIDAD', 'FINANZAS', 'PROYECTOS', 'MARKETING', 'COMERCIAL']).optional()
                     }),
                     execute: async ({ role }) => getUsers({ role })
+                }),
+                getSuppliers: tool({
+                    description: 'Get a list of suppliers. Filter by category, city or search query.',
+                    inputSchema: z.object({
+                        query: z.string().optional().describe('Search by supplier name, category, city or contact'),
+                        category: z.string().optional(),
+                        city: z.string().optional()
+                    }),
+                    execute: async ({ query, category, city }) => getSuppliers({ userId: user.id, role: user.role }, { query, category, city })
                 }),
                 createClient: tool({
                     description: 'Create a company/client in CRM. Requires name.',

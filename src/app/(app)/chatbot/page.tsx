@@ -1,11 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useChat } from '@ai-sdk/react'
-import { DefaultChatTransport } from 'ai'
 import { Send, Bot, User, Sparkles, Paperclip, Mic, ArrowRight, Zap, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import { useSharedChat } from '@/lib/use-shared-chat'
 
 function renderInline(text: string, keyPrefix: string) {
     const parts: React.ReactNode[] = []
@@ -96,9 +95,7 @@ function renderAssistantMessage(content: string) {
 export default function ChatbotPage() {
     const [input, setInput] = useState('')
     const scrollRef = useRef<HTMLDivElement>(null)
-    const { messages, sendMessage, status, error } = useChat({
-        transport: new DefaultChatTransport({ api: '/api/chat' }),
-    })
+    const { messages, sendMessage, status, error } = useSharedChat()
     const isTyping = status === 'submitted' || status === 'streaming'
 
     useEffect(() => {

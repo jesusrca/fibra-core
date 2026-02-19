@@ -141,7 +141,7 @@ export function ProjectClient({ initialProjects, clients, users }: ProjectClient
                                                 <div className="flex items-center justify-between pt-3 border-t border-border/40">
                                                     <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium">
                                                         <Calendar size={12} className="text-primary/60" />
-                                                        {p.deadline ? formatDate(p.deadline) : 'Sin fecha'}
+                                                        {p.endDate ? formatDate(p.endDate) : 'Sin fecha'}
                                                     </div>
                                                     <div className="text-[10px] font-bold text-foreground">
                                                         {formatCurrency(p.budget)}
@@ -176,7 +176,7 @@ export function ProjectClient({ initialProjects, clients, users }: ProjectClient
                                     <th>Estado</th>
                                     <th>Progreso</th>
                                     <th>Presupuesto</th>
-                                    <th>Deadline</th>
+                                    <th>Fecha Fin</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -216,7 +216,7 @@ export function ProjectClient({ initialProjects, clients, users }: ProjectClient
                                                 {formatCurrency(p.budget)}
                                             </td>
                                             <td className="text-muted-foreground whitespace-nowrap text-xs">
-                                                {p.deadline ? formatDate(p.deadline) : '—'}
+                                                {p.endDate ? formatDate(p.endDate) : '—'}
                                             </td>
                                         </tr>
                                     )

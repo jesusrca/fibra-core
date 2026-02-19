@@ -83,3 +83,91 @@ export async function deleteSupplier(id: string) {
         return { success: false, error: 'Error al eliminar el proveedor' }
     }
 }
+
+export async function createSupplierWork(data: {
+    projectId: string
+    supplierId?: string
+    supplierName?: string
+    serviceProvided: string
+    totalBudget: number
+    installmentsCount?: number
+}) {
+    try {
+        await requireModuleAccess('proyectos')
+
+        let supplierName = (data.supplierName || '').trim()
+        const supplierId = data.supplierId?.trim() || undefined
+
+        if (supplierId) {
+            const supplier = await withPrismaRetry(() => prisma.supplier.findUnique({
+                where: { id: supplierId },
+                select: { id: true, name: true }
+            }))
+            if (!supplier) return { success: false, error: 'Proveedor no encontrado' }
+            supplierName = supplier.name
+        }
+
+        if (!supplierName) {
+            return { success: false, error: 'Debes seleccionar o ingresar un proveedor' }
+        }
+
+        const work = await withPrismaRetry(() => prisma.supplierWork.create({
+            data: {
+                projectId: data.projectId,
+                supplierId: supplierId || null,
+                supplierName,
+                serviceProvided: data.serviceProvided,
+                totalBudget: data.totalBudget,
+                installmentsCount: Math.max(1, data.installmentsCount || 1)
+            }
+        }))
+
+        revalidatePath('/proyectos')
+        revalidatePath(`/proyectos/${data.projectId}`)
+        revalidatePath('/proveedores')
+        return { success: true, work }
+    } catch (error) {
+        console.error('Error creating supplier work:', error)
+        return { success: false, error: 'Error al registrar el presupuesto del proveedor' }
+    }
+}
+
+export async function createSupplierPayment(data: {
+    supplierWorkId: string
+    amount: number
+    status?: string
+    issueDate?: Date
+    paymentDate?: Date
+    receiptUrl?: string
+    description?: string
+}) {
+    try {
+        await requireModuleAccess('proyectos')
+
+        const work = await withPrismaRetry(() => prisma.supplierWork.findUnique({
+            where: { id: data.supplierWorkId },
+            select: { id: true, projectId: true }
+        }))
+        if (!work) return { success: false, error: 'Trabajo de proveedor no encontrado' }
+
+        const payment = await withPrismaRetry(() => prisma.supplierPayment.create({
+            data: {
+                supplierWorkId: data.supplierWorkId,
+                amount: data.amount,
+                status: data.status || 'PENDING',
+                issueDate: data.issueDate || new Date(),
+                paymentDate: data.paymentDate || null,
+                receiptUrl: data.receiptUrl || null,
+                description: data.description || null
+            }
+        }))
+
+        revalidatePath('/proyectos')
+        revalidatePath(`/proyectos/${work.projectId}`)
+        revalidatePath('/proveedores')
+        return { success: true, payment }
+    } catch (error) {
+        console.error('Error creating supplier payment:', error)
+        return { success: false, error: 'Error al registrar el pago al proveedor' }
+    }
+}

@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell,
 } from 'recharts'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
     TrendingUp, TrendingDown, FolderKanban, Users, Megaphone,
     ArrowUpRight,
@@ -25,6 +27,18 @@ interface DashboardClientProps {
         activeProjects: any[]
         recentNotifications: any[]
         revenueSeries: { month: string; ingresos: number; gastos: number }[]
+        receivables: {
+            totalPendingAmount: number
+            overdueCount: number
+            dueSoonCount: number
+            items: any[]
+        }
+        filters: {
+            range: '7d' | '30d' | '90d' | 'custom'
+            from: string
+            to: string
+            label: string
+        }
     }
 }
 
@@ -46,7 +60,39 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 }
 
 export function DashboardClient({ stats }: DashboardClientProps) {
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+
+    const [customFrom, setCustomFrom] = useState(stats.filters.from)
+    const [customTo, setCustomTo] = useState(stats.filters.to)
+
     const projectStatusColors = ['#2563EB', '#06B6D4', '#10B981', '#F59E0B']
+
+    const applyRange = (range: '7d' | '30d' | '90d' | 'custom') => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('range', range)
+
+        if (range !== 'custom') {
+            params.delete('from')
+            params.delete('to')
+        } else {
+            if (!customFrom || !customTo) return
+            params.set('from', customFrom)
+            params.set('to', customTo)
+        }
+
+        router.push(`${pathname}?${params.toString()}`)
+    }
+
+    const applyCustomRange = () => {
+        if (!customFrom || !customTo) return
+        const params = new URLSearchParams(searchParams.toString())
+        params.set('range', 'custom')
+        params.set('from', customFrom)
+        params.set('to', customTo)
+        router.push(`${pathname}?${params.toString()}`)
+    }
 
     const kpiCards = [
         {
@@ -68,10 +114,10 @@ export function DashboardClient({ stats }: DashboardClientProps) {
             bg: 'bg-cyan-500/10',
         },
         {
-            label: 'ROI Campañas',
-            value: '3.2x',
-            change: '-0.3x vs mes ant.',
-            positive: false,
+            label: 'Facturas por Cobrar',
+            value: formatCurrency(stats.receivables.totalPendingAmount),
+            change: `${stats.receivables.overdueCount} vencidas / ${stats.receivables.dueSoonCount} próximas`,
+            positive: stats.receivables.overdueCount === 0,
             icon: Megaphone,
             color: 'text-emerald-600',
             bg: 'bg-emerald-500/10',
@@ -89,11 +135,49 @@ export function DashboardClient({ stats }: DashboardClientProps) {
                     <p className="text-muted-foreground mt-1.5 text-base sm:text-lg">
                         Aquí tienes el resumen de tu empresa hoy.
                     </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                        Periodo analizado: {stats.filters.label}
+                    </p>
                 </div>
-                <div className="flex gap-2.5">
-                    <Button variant="outline">
-                        <span className="text-xs">📅 Últimos 30 días</span>
-                    </Button>
+                <div className="flex flex-col items-stretch gap-2.5">
+                    <div className="flex gap-2.5 flex-wrap">
+                        {[
+                            { key: '7d', label: '7 días' },
+                            { key: '30d', label: '30 días' },
+                            { key: '90d', label: '90 días' },
+                            { key: 'custom', label: 'Personalizado' }
+                        ].map((preset) => (
+                            <Button
+                                key={preset.key}
+                                variant={stats.filters.range === preset.key ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => applyRange(preset.key as '7d' | '30d' | '90d' | 'custom')}
+                            >
+                                {preset.label}
+                            </Button>
+                        ))}
+                    </div>
+
+                    {stats.filters.range === 'custom' && (
+                        <div className="flex gap-2.5 flex-wrap">
+                            <input
+                                type="date"
+                                value={customFrom}
+                                onChange={(e) => setCustomFrom(e.target.value)}
+                                className="form-input h-9 w-[160px]"
+                            />
+                            <input
+                                type="date"
+                                value={customTo}
+                                onChange={(e) => setCustomTo(e.target.value)}
+                                className="form-input h-9 w-[160px]"
+                            />
+                            <Button size="sm" variant="outline" onClick={applyCustomRange}>
+                                Aplicar
+                            </Button>
+                        </div>
+                    )}
+
                     <Button>
                         <TrendingUp className="w-4 h-4" />
                         Generar Reporte
@@ -150,9 +234,9 @@ export function DashboardClient({ stats }: DashboardClientProps) {
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <h2 className="text-lg font-bold text-foreground">Análisis Financiero</h2>
-                            <p className="text-xs text-muted-foreground">Ingresos vs Gastos (Últimos 6 meses)</p>
+                            <p className="text-xs text-muted-foreground">Ingresos vs Gastos ({stats.filters.label})</p>
                         </div>
-                        <Badge variant="secondary">Semestral</Badge>
+                        <Badge variant="secondary">{stats.filters.range.toUpperCase()}</Badge>
                     </div>
                     <ResponsiveContainer width="100%" height={340}>
                         <AreaChart data={stats.revenueSeries} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>

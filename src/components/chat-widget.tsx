@@ -1,14 +1,14 @@
 'use client'
 
-import { useChat } from '@ai-sdk/react'
 import { useState, useRef, useEffect } from 'react'
 import { MessageSquare, X, Send, Bot, User, Loader2, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useSharedChat } from '@/lib/use-shared-chat'
 
 export function ChatWidget() {
     const [isOpen, setIsOpen] = useState(false)
     const [input, setInput] = useState('')
-    const { messages, sendMessage, status } = useChat()
+    const { messages, sendMessage, status } = useSharedChat()
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const isLoading = status === 'submitted' || status === 'streaming'
 

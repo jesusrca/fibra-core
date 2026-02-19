@@ -24,6 +24,11 @@ export async function createUser(data: {
     email: string
     role: Role
     specialty?: string
+    phone?: string
+    country?: string
+    birthday?: Date
+    timezone?: string
+    schedule?: string
     password?: string
 }) {
     try {
@@ -34,7 +39,12 @@ export async function createUser(data: {
                 name: data.name,
                 email: data.email,
                 role: data.role,
-                specialty: data.specialty,
+                specialty: data.specialty || null,
+                phone: data.phone || null,
+                country: data.country || null,
+                birthday: data.birthday || null,
+                timezone: data.timezone || null,
+                schedule: data.schedule || null,
                 passwordHash: hashPassword(password),
             }
         }))
@@ -51,6 +61,11 @@ export async function updateUser(id: string, data: {
     email: string
     role: Role
     specialty?: string
+    phone?: string
+    country?: string
+    birthday?: Date
+    timezone?: string
+    schedule?: string
     password?: string
 }) {
     try {
@@ -61,7 +76,12 @@ export async function updateUser(id: string, data: {
                 name: data.name,
                 email: data.email,
                 role: data.role,
-                specialty: data.specialty,
+                specialty: data.specialty || null,
+                phone: data.phone || null,
+                country: data.country || null,
+                birthday: data.birthday || null,
+                timezone: data.timezone || null,
+                schedule: data.schedule || null,
                 ...(data.password ? { passwordHash: hashPassword(data.password) } : {})
             }
         }))

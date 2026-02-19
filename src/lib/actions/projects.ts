@@ -34,7 +34,7 @@ export async function createProject(data: {
     status: any
     budget: number
     serviceType: string
-    deadline?: Date
+    endDate?: Date
     startDate?: Date
 }) {
     try {
@@ -48,6 +48,7 @@ export async function createProject(data: {
                 budget: data.budget,
                 serviceType: data.serviceType,
                 startDate: data.startDate || new Date(),
+                endDate: data.endDate || null,
                 // milestonesCount: 0 
             },
         }))
@@ -101,6 +102,25 @@ export async function getUsers() {
     }
 }
 
+export async function getSuppliersCatalog() {
+    try {
+        await requireModuleAccess('proyectos')
+        return await withPrismaRetry(() => prisma.supplier.findMany({
+            select: {
+                id: true,
+                name: true,
+                category: true,
+                city: true
+            },
+            orderBy: { name: 'asc' },
+            take: 200
+        }))
+    } catch (error) {
+        console.error('Error fetching suppliers catalog:', error)
+        return []
+    }
+}
+
 export async function getProjectById(id: string) {
     try {
         await requireModuleAccess('proyectos')
@@ -118,6 +138,24 @@ export async function getProjectById(id: string) {
                     orderBy: { createdAt: 'desc' }
                 },
                 transactions: true,
+                invoices: {
+                    select: {
+                        id: true,
+                        amount: true,
+                        status: true,
+                        createdAt: true
+                    },
+                    orderBy: { createdAt: 'desc' }
+                },
+                suppliers: {
+                    include: {
+                        supplier: true,
+                        payments: {
+                            orderBy: [{ paymentDate: 'desc' }, { issueDate: 'desc' }]
+                        }
+                    },
+                    orderBy: { createdAt: 'desc' }
+                }
             }
         }))
         return project
@@ -154,11 +192,46 @@ export async function createMilestone(data: {
 export async function updateMilestoneStatus(id: string, status: string, projectId: string) {
     try {
         await requireModuleAccess('proyectos')
-        await withPrismaRetry(() => prisma.milestone.update({
+        const [previousMilestone, project] = await withPrismaRetry(() => Promise.all([
+            prisma.milestone.findUnique({
+                where: { id },
+                select: { id: true, name: true, status: true, projectId: true }
+            }),
+            prisma.project.findUnique({
+                where: { id: projectId },
+                select: {
+                    id: true,
+                    name: true,
+                    budget: true,
+                    milestones: { select: { id: true } }
+                }
+            })
+        ]))
+
+        const updatedMilestone = await withPrismaRetry(() => prisma.milestone.update({
             where: { id },
             data: { status }
         }))
+
+        const shouldNotifyBilling =
+            previousMilestone?.status !== 'COMPLETED' &&
+            updatedMilestone.status === 'COMPLETED' &&
+            !!project
+
+        if (shouldNotifyBilling) {
+            const milestonesCount = Math.max(project.milestones.length, 1)
+            const suggestedInstallment = Math.round((project.budget / milestonesCount) * 100) / 100
+            await createNotificationForRoles({
+                roles: [Role.ADMIN, Role.GERENCIA, Role.CONTABILIDAD, Role.FINANZAS],
+                type: 'milestone_billing_due',
+                message: `Hito completado en ${project.name}: "${updatedMilestone.name}". Cuota sugerida a cobrar: $${suggestedInstallment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            })
+        }
+
+        revalidatePath('/proyectos')
         revalidatePath(`/proyectos/${projectId}`)
+        revalidatePath('/dashboard')
+        revalidatePath('/contabilidad')
         return { success: true }
     } catch (error) {
         console.error('Error updating milestone:', error)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -32,20 +32,34 @@ interface NavItem {
     href: string
     icon: React.ComponentType<{ className?: string }>
     module: Module
+    notifyKey: NotificationModuleKey
 }
 
+type NotificationModuleKey =
+    | 'dashboard'
+    | 'comercial'
+    | 'proyectos'
+    | 'equipo'
+    | 'proveedores'
+    | 'contabilidad'
+    | 'finanzas'
+    | 'marketing'
+    | 'reportes'
+    | 'chatbot'
+    | 'configuracion'
+
 const navItems: NavItem[] = [
-    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: 'dashboard' },
-    { label: 'Comercial (CRM)', href: '/comercial', icon: Handshake, module: 'comercial' },
-    { label: 'Proyectos', href: '/proyectos', icon: FolderKanban, module: 'proyectos' },
-    { label: 'Equipo', href: '/equipo', icon: UsersIcon, module: 'dashboard' }, // Using dashboard module for now for access
-    { label: 'Proveedores', href: '/proveedores', icon: Truck, module: 'dashboard' },
-    { label: 'Contabilidad', href: '/contabilidad', icon: Calculator, module: 'contabilidad' },
-    { label: 'Finanzas', href: '/finanzas', icon: TrendingUp, module: 'finanzas' },
-    { label: 'Marketing', href: '/marketing', icon: Megaphone, module: 'marketing' },
-    { label: 'Reportes', href: '/reportes', icon: FileBarChart, module: 'reportes' },
-    { label: 'Chatbot IA', href: '/chatbot', icon: MessageSquare, module: 'chatbot' },
-    { label: 'Configuración', href: '/configuracion', icon: Settings, module: 'configuracion' },
+    { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: 'dashboard', notifyKey: 'dashboard' },
+    { label: 'Comercial (CRM)', href: '/comercial', icon: Handshake, module: 'comercial', notifyKey: 'comercial' },
+    { label: 'Proyectos', href: '/proyectos', icon: FolderKanban, module: 'proyectos', notifyKey: 'proyectos' },
+    { label: 'Equipo', href: '/equipo', icon: UsersIcon, module: 'dashboard', notifyKey: 'equipo' }, // Using dashboard module for now for access
+    { label: 'Proveedores', href: '/proveedores', icon: Truck, module: 'dashboard', notifyKey: 'proveedores' },
+    { label: 'Contabilidad', href: '/contabilidad', icon: Calculator, module: 'contabilidad', notifyKey: 'contabilidad' },
+    { label: 'Finanzas', href: '/finanzas', icon: TrendingUp, module: 'finanzas', notifyKey: 'finanzas' },
+    { label: 'Marketing', href: '/marketing', icon: Megaphone, module: 'marketing', notifyKey: 'marketing' },
+    { label: 'Reportes', href: '/reportes', icon: FileBarChart, module: 'reportes', notifyKey: 'reportes' },
+    { label: 'Chatbot IA', href: '/chatbot', icon: MessageSquare, module: 'chatbot', notifyKey: 'chatbot' },
+    { label: 'Configuración', href: '/configuracion', icon: Settings, module: 'configuracion', notifyKey: 'configuracion' },
 ]
 
 interface SidebarProps {
@@ -55,9 +69,50 @@ interface SidebarProps {
 export function Sidebar({ userRole }: SidebarProps) {
     const { sidebarOpen, setSidebarOpen } = useApp()
     const [collapsed, setCollapsed] = useState(false)
+    const [unreadByModule, setUnreadByModule] = useState<Record<NotificationModuleKey, number>>({
+        dashboard: 0,
+        comercial: 0,
+        proyectos: 0,
+        equipo: 0,
+        proveedores: 0,
+        contabilidad: 0,
+        finanzas: 0,
+        marketing: 0,
+        reportes: 0,
+        chatbot: 0,
+        configuracion: 0,
+    })
     const pathname = usePathname()
 
-    const accessibleItems = navItems.filter((item) => canAccess(userRole, item.module))
+    const accessibleItems = useMemo(
+        () => navItems.filter((item) => canAccess(userRole, item.module)),
+        [userRole]
+    )
+
+    useEffect(() => {
+        let cancelled = false
+
+        const loadSummary = async () => {
+            try {
+                const res = await fetch('/api/notifications/summary', { cache: 'no-store' })
+                if (!res.ok) return
+                const data = await res.json()
+                if (!cancelled && data?.byModule) {
+                    setUnreadByModule((prev) => ({ ...prev, ...data.byModule }))
+                }
+            } catch {
+                // ignore in UI and keep default counters
+            }
+        }
+
+        loadSummary()
+        const intervalId = window.setInterval(loadSummary, 30000)
+
+        return () => {
+            cancelled = true
+            window.clearInterval(intervalId)
+        }
+    }, [])
 
     return (
         <>
@@ -107,7 +162,7 @@ export function Sidebar({ userRole }: SidebarProps) {
                                 href={item.href}
                                 onClick={() => setSidebarOpen(false)}
                                 className={cn(
-                                    'nav-item',
+                                    'nav-item relative',
                                     isActive && 'active',
                                     collapsed ? 'lg:justify-center lg:px-2' : ''
                                 )}
@@ -117,6 +172,16 @@ export function Sidebar({ userRole }: SidebarProps) {
                                 <span className={cn(collapsed ? 'lg:hidden' : 'block')}>
                                     {item.label}
                                 </span>
+                                {unreadByModule[item.notifyKey] > 0 && (
+                                    <span
+                                        className={cn(
+                                            'inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground',
+                                            collapsed ? 'lg:absolute lg:-top-1 lg:-right-1 lg:min-w-4 lg:h-4 lg:px-0.5 lg:text-[9px]' : 'ml-auto'
+                                        )}
+                                    >
+                                        {unreadByModule[item.notifyKey] > 9 ? '9+' : unreadByModule[item.notifyKey]}
+                                    </span>
+                                )}
                             </Link>
                         )
                     })}

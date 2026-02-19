@@ -5,9 +5,8 @@
 1. [~] Seguridad de autenticación incompleta: login solo por email (sin password/OTP).
    Estado: Implementado login con contraseña (`passwordHash` + verificación). OTP aún pendiente.
    Archivo relacionado: `src/lib/auth.ts`
-2. [] Secretos expuestos o sensibles en entorno local: rotar credenciales y llaves.
    Archivos relacionados: `.env`, `.env.local`
-3. [~] Endurecer autorización backend: aplicar validación de usuario/rol en todas las server actions y APIs.
+2. [~] Endurecer autorización backend: aplicar validación de usuario/rol en todas las server actions y APIs.
    Estado: Aplicado en acciones críticas (`users`, `projects`, `crm`, `accounting`, `finance`, `suppliers`). Falta auditoría completa de APIs no cubiertas.
    Archivos relacionados:
    - `src/lib/actions/users.ts`
@@ -16,7 +15,7 @@
    - `src/lib/actions/accounting.ts`
    - `src/lib/actions/finance.ts`
    - `src/lib/actions/suppliers.ts`
-4. [~] Robustez de conexión a BD: estrategia global de retry/errores para evitar caídas por pool.
+3. [~] Robustez de conexión a BD: estrategia global de retry/errores para evitar caídas por pool.
    Estado: Implementado retry y mejoras en módulos principales; falta estandarizar en todo acceso a DB del proyecto.
    Archivos relacionados:
    - `src/app/(app)/dashboard/page.tsx`
@@ -31,9 +30,11 @@
    - `src/components/layout/Header.tsx` (notificaciones mock)
 2. [x] Implementar sistema real de notificaciones (persistencia + API + UI de lectura).
        Estado: Modelo `Notification`, API (`GET`, `PATCH`, `PATCH [id]/read`) y UI con “marcar como leída/todas”.
-3. [ ] Completar reportes end-to-end (generación, historial, descarga, persistencia).
+3. [x] Completar reportes end-to-end (generación, historial, descarga, persistencia).
+       Estado: Implementado flujo real con persistencia, historial y descarga por usuario.
        Archivo principal: `src/app/(app)/reportes/page.tsx`
-4. [ ] Endurecer chatbot IA para operaciones de escritura: permisos por rol y auditoría.
+4. [x] Endurecer chatbot IA para operaciones de escritura: permisos por rol y auditoría.
+       Estado: Implementado en tools de escritura y auditoría en `ToolAuditLog`.
        Archivos relacionados:
    - `src/app/api/chat/route.ts`
    - `src/lib/ai/tools.ts`
@@ -58,18 +59,76 @@
    - flujo de migraciones Prisma
    - pipeline de build/test/lint en CI
 
+## Brechas detectadas vs `datos-necesario.md`
+
+### Frontend pendiente
+
+1. [x] CRM: crear formularios propios para `Contacto` y `Empresa` (hoy el botón "Nuevo" en tabs usa flujo de lead).
+   Archivos relacionados:
+   - `src/components/crm/comercial-client.tsx`
+   - `src/components/crm/lead-form.tsx`
+2. [x] Implementar módulo UI de Cotizaciones (crear/listar/editar/estados).
+   Estado: Implementado crear/listar/editar y actualización de estado.
+3. [~] Implementar módulo UI de Facturas (emitidas/pagadas/por emitir, por cliente/proyecto).
+   Estado: Implementado crear/listar/editar y actualización de estado + proyección de “por emitir” por hitos en proyecto. Falta “por emitir” automático end-to-end.
+4. [x] Alinear fechas de proyecto en UI (`endDate`/fecha fin) para no depender de campo ambiguo `deadline`.
+   Archivos relacionados:
+   - `src/components/projects/project-form.tsx`
+   - `src/lib/actions/projects.ts`
+5. [x] Equipo: exponer y editar campos faltantes (teléfono, país, cumpleaños, horario, huso horario).
+   Archivo relacionado: `src/components/equipo/equipo-client.tsx`
+6. [x] Contabilidad: ampliar formulario con moneda, banco, factura relacionada y comprobante.
+   Archivo relacionado: `src/components/contabilidad/contabilidad-client.tsx`
+7. [x] Proyecto-Proveedores: UI para presupuesto por proyecto con proveedor, cuotas y recibos/facturas de pago.
+   Archivos relacionados:
+   - `src/components/projects/project-detail-client.tsx`
+   - `src/components/proveedores/proveedores-client.tsx`
+
+### Backend pendiente
+
+1. [~] CRUD formal para `Client` y `Contact` (hoy creación es parcial/indirecta en lead/chatbot).
+   Estado: Implementado create/update para cliente y contacto + deduplicación. Falta cerrar CRUD completo (delete/listado/API formal).
+   Archivos relacionados:
+   - `src/lib/actions/crm.ts`
+   - `src/lib/ai/tools.ts`
+2. [~] Implementar acciones/API para `Quote` y `Invoice` con reglas de negocio completas.
+   Estado: Implementadas acciones de creación y cambio de estado con UI conectada. Falta completar reglas avanzadas de facturación por cuota/hito.
+   Archivo base: `prisma/schema.prisma`
+3. [~] Implementar lógica de "facturas por emitir" por hitos/cuotas de proyecto (no solo facturas registradas).
+   Estado: Implementada notificación al completar hitos para habilitar cobranza. Falta generación/pipeline automático de “por emitir”.
+4. [ ] Definir contacto principal de empresa de forma explícita (`mainContactId` o `isPrimary`) y su flujo.
+5. [~] Validaciones anti-duplicidad consistentes (cliente/contacto/lead) para evitar registros repetidos.
+   Estado: Cubierto en create/update de cliente/contacto y en creación de leads. Falta estandarizar en todos los módulos y casos borde.
+6. [ ] Completar flujo UI+backend de actividades/notas del lead (`Activity`: llamada, mail, reunión, chat).
+
+### No necesario / evitar duplicación
+
+1. [x] No guardar "proyectos activos/cerrados" como campo fijo en cliente: se calcula por `Project.status`.
+2. [x] No guardar "facturas emitidas/pagadas/por emitir" como campos fijos en cliente/proyecto: se calcula por agregados.
+3. [x] No guardar "número de hitos" manual si ya existe relación `Milestone`: debe derivarse por conteo.
+4. [x] Evitar duplicar presupuesto entre lead y cotización final: lead = estimado inicial, quote = valor formal.
+5. [x] Remover duplicados funcionales del documento (por ejemplo "Tareas" repetido en proyecto).
+
 ## Funcionalidades
 
-- Filtro por rango de fechas para el dashboard
-- Alerta de facturas por cobrar
-- Notificación en contabilidad cuando un proyecto alcance el hito para cobrar una cuota
-- Deben aparecer notificaciones al costado de cada seccion en el siderbar si hay algo que hacer en cada rubro
-- El chatbot debe almacenar la conversación de la sesión y no borrarse al cambiar de página. EL mismo chat que se ve en la pagina /chatbot es el mismo que debe salir en el widget
-- Las personas de contacto de un lead, cotización, empresa, etc. Debe buscar de la lista de contactos que existe, y si no hay debe agregarse desde cualquier bloque, todo debe estar relacionado para evitar duplicidad.
-- En marketing se debe mostrar la cantidad de seguidores e interacción que se tiene en cada red social
-- Debe haber la opcion de vincular el gmail o correo de cada usuario, y poder ver los mails recibidos por cada contacto cuando se vea el perfil del contacto.
-- Se debe poder ver los mails recibidos de cada proyecto en base al nombre del proyecto y el asunto del mail. Se debe crear un mail con cada nombre del proyecto para que se reenvien los mails a ese correo y se almacene la información.
-- En equipo se debe poner el horario de trabajo de cada miembro, su horario actual segun la zona en que se encuentran, su cumpleaños. En el dashboard debe haber un espacio para indicar de quien es el próximo cumpleaños.
+- [x] Filtro por rango de fechas para el dashboard.
+- [x] Alerta de facturas por cobrar.
+- [x] Notificación en contabilidad cuando un proyecto alcance el hito para cobrar una cuota.
+- [x] Notificaciones al costado de cada sección en el sidebar cuando hay pendientes.
+- [x] El chatbot mantiene la conversación de la sesión entre `/chatbot` y el widget.
+- [~] Relación de contactos en lead/cotización/empresa evitando duplicidad.
+  Estado: Implementado en flujo de lead (selección de contacto existente + creación si no existe). Falta completar el mismo patrón en todos los bloques.
+- [ ] En marketing mostrar cantidad de seguidores e interacción por red social.
+- [ ] Vincular Gmail/correo por usuario y ver mails recibidos por contacto.
+- [ ] Ver mails por proyecto (buzón por proyecto con reenvío y almacenamiento).
+- [ ] Equipo: horario de trabajo, zona horaria actual, cumpleaños y próximo cumpleaños en dashboard.
+- [~] Espacio para deudas por pagar y por cobrar.
+  Estado: Implementado “por cobrar” con alertas de vencimiento. Falta “por pagar”.
+- [~] Espacio para facturas emitidas/pendientes/por emitir por proyecto y por hito.
+  Estado: Implementado emitidas/pendientes con estados y alertas. Falta “por emitir” automático por hito/cuota y proyección de siguiente factura.
+- [~] El bot debe ingresar contactos, empresas, leads y proyectos con datos básicos.
+  Estado: Implementado para contactos/empresas/leads. Falta creación de proyectos vía bot.
+- [ ] Notificaciones por contactos/proyectos con datos faltantes.
 
 ## Integraciones externas pendientes
 

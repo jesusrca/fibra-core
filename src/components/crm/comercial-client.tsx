@@ -1,17 +1,69 @@
 'use client'
 
-import { useState, useOptimistic, startTransition } from 'react'
-import { Plus, Building2, MoreHorizontal, Rocket, Loader2, Handshake, Target, Users, Briefcase, Mail, Phone, MapPin, Globe } from 'lucide-react'
+import { useState, useOptimistic, startTransition, useEffect } from 'react'
+import { Plus, Building2, MoreHorizontal, Rocket, Loader2, Target, Users, Briefcase, Mail, MapPin, FileText, Receipt } from 'lucide-react'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { LeadForm } from './lead-form'
-import { Lead, LeadStatus, User, Client, Contact } from '@prisma/client'
-import { convertLeadToProject, updateLeadStatus } from '@/lib/actions/crm'
+import { ContactForm } from './contact-form'
+import { CompanyForm } from './company-form'
+import { QuoteForm } from './quote-form'
+import { InvoiceForm } from './invoice-form'
+import { InvoiceStatus, Lead, LeadStatus, User, Client, Contact } from '@prisma/client'
+import { convertLeadToProject, updateInvoiceStatus, updateLeadStatus, updateQuoteStatus } from '@/lib/actions/crm'
+
+type QuoteStatus = 'PENDING' | 'SENT' | 'ACCEPTED' | 'REJECTED'
+
+interface QuoteItem {
+    id: string
+    leadId: string
+    proposalDetail: string | null
+    servicesOffered: string | null
+    budget: number
+    paymentMethod: string | null
+    paymentCountry: string | null
+    status: QuoteStatus
+    installmentsCount: number
+    createdAt: Date
+    sentDate: Date | null
+    acceptedDate: Date | null
+    rejectedDate: Date | null
+    lead: {
+        id: string
+        companyName: string | null
+        serviceRequested: string | null
+    }
+}
+
+interface InvoiceItem {
+    id: string
+    invoiceNumber: string
+    quoteId: string | null
+    clientId: string
+    projectId: string | null
+    amount: number
+    status: InvoiceStatus
+    issueDate: Date
+    dueDate: Date | null
+    paymentMethod: string | null
+    paymentCountry: string | null
+    client: { id: string; name: string } | null
+    project: { id: string; name: string } | null
+    quote: { id: string; lead: { companyName: string | null } } | null
+}
+
+interface ProjectItem {
+    id: string
+    name: string
+}
 
 interface ComercialClientProps {
-    initialLeads: (Lead & { client: any; contact: any })[]
+    initialLeads: (Lead & { client: { id: string; name: string } | null; contact: { id: string; firstName: string; lastName: string; email: string } | null })[]
     users: User[]
     clients: Client[]
-    contacts: (Contact & { client: any })[]
+    contacts: (Contact & { client: { id: string; name: string } })[]
+    quotes: QuoteItem[]
+    invoices: InvoiceItem[]
+    projects: ProjectItem[]
 }
 
 const pipelineStages = [
@@ -22,97 +74,106 @@ const pipelineStages = [
     { key: LeadStatus.WON, label: 'Ganado', color: 'border-[hsl(var(--success-text))]/40', dot: 'bg-[hsl(var(--success-text))]' },
 ] as const
 
-export function ComercialClient({ initialLeads, users, clients, contacts }: ComercialClientProps) {
-    const [activeTab, setActiveTab] = useState<'leads' | 'contacts' | 'companies'>('leads')
+export function ComercialClient({ initialLeads, users, clients, contacts, quotes, invoices, projects }: ComercialClientProps) {
+    const [activeTab, setActiveTab] = useState<'leads' | 'contacts' | 'companies' | 'quotes' | 'invoices'>('leads')
     const [view, setView] = useState<'pipeline' | 'list'>('pipeline')
-    const [showForm, setShowForm] = useState(false)
+    const [selectedLead, setSelectedLead] = useState<(Lead & { client: { id: string; name: string } | null; contact: { id: string; firstName: string; lastName: string; email: string } | null }) | null>(null)
     const [convertingId, setConvertingId] = useState<string | null>(null)
-    const [selectedLead, setSelectedLead] = useState<(Lead & { client: any; contact: any }) | null>(null)
-    const [showEditForm, setShowEditForm] = useState(false)
-    const [draggingId, setDraggingId] = useState<string | null>(null)
 
-    // Optimistic UI for Leads
+    const [showLeadForm, setShowLeadForm] = useState(false)
+    const [showLeadEditForm, setShowLeadEditForm] = useState(false)
+    const [showContactForm, setShowContactForm] = useState(false)
+    const [showCompanyForm, setShowCompanyForm] = useState(false)
+    const [showQuoteForm, setShowQuoteForm] = useState(false)
+    const [showInvoiceForm, setShowInvoiceForm] = useState(false)
+
+    const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+    const [selectedCompany, setSelectedCompany] = useState<Client | null>(null)
+    const [selectedQuote, setSelectedQuote] = useState<QuoteItem | null>(null)
+    const [selectedInvoice, setSelectedInvoice] = useState<InvoiceItem | null>(null)
+
+    const [quoteRows, setQuoteRows] = useState(quotes)
+    const [invoiceRows, setInvoiceRows] = useState(invoices)
+
     const [optimisticLeads, addOptimisticLead] = useOptimistic(
         initialLeads,
-        (state, newLeadOrUpdate: any) => {
-            // Find if existing
-            const index = state.findIndex(l => l.id === newLeadOrUpdate.id)
-            if (index !== -1) {
-                // Update
-                const newState = [...state]
-                newState[index] = { ...newState[index], ...newLeadOrUpdate }
-                return newState
-            } else {
-                // Add new (not fully implemented in this simplistic view but good for future)
-                return [...state, newLeadOrUpdate]
-            }
+        (state, update: { id: string; status: LeadStatus }) => {
+            const idx = state.findIndex((lead) => lead.id === update.id)
+            if (idx === -1) return state
+            const cloned = [...state]
+            cloned[idx] = { ...cloned[idx], status: update.status }
+            return cloned
         }
     )
 
-    const onDragStart = (e: React.DragEvent, leadId: string) => {
-        setDraggingId(leadId)
-        e.dataTransfer.setData('leadId', leadId)
-    }
+    useEffect(() => {
+        setQuoteRows(quotes)
+    }, [quotes])
 
-    const onDragOver = (e: React.DragEvent) => {
-        e.preventDefault()
-    }
+    useEffect(() => {
+        setInvoiceRows(invoices)
+    }, [invoices])
 
-    const onDrop = async (e: React.DragEvent, status: LeadStatus) => {
-        e.preventDefault()
-        const leadId = e.dataTransfer.getData('leadId')
-        setDraggingId(null)
-
-        if (leadId) {
-            const lead = optimisticLeads.find(l => l.id === leadId)
-            if (lead && lead.status !== status) {
-                // Optimistic Update
-                startTransition(() => {
-                    addOptimisticLead({ id: leadId, status })
-                })
-
-                // Server Action
-                const result = await updateLeadStatus(leadId, status)
-                if (!result.success) {
-                    alert('Error al actualizar: ' + result.error)
-                }
-            }
+    const openCreateModal = () => {
+        if (activeTab === 'leads') setShowLeadForm(true)
+        if (activeTab === 'contacts') {
+            setSelectedContact(null)
+            setShowContactForm(true)
+        }
+        if (activeTab === 'companies') {
+            setSelectedCompany(null)
+            setShowCompanyForm(true)
+        }
+        if (activeTab === 'quotes') {
+            setSelectedQuote(null)
+            setShowQuoteForm(true)
+        }
+        if (activeTab === 'invoices') {
+            setSelectedInvoice(null)
+            setShowInvoiceForm(true)
         }
     }
 
+    const createButtonLabel = activeTab === 'leads'
+        ? 'Lead'
+        : activeTab === 'contacts'
+            ? 'Contacto'
+            : activeTab === 'companies'
+                ? 'Empresa'
+                : activeTab === 'quotes'
+                    ? 'Cotización'
+                    : 'Factura'
+
     const handleChangeStatus = async (leadId: string, status: LeadStatus) => {
-        // Optimistic Update
         startTransition(() => {
             addOptimisticLead({ id: leadId, status })
         })
-
-        if (selectedLead?.id === leadId) {
-            const updatedLead = optimisticLeads.find(l => l.id === leadId)
-            if (updatedLead) {
-                setSelectedLead({ ...updatedLead, status })
-            }
-        }
-
-        // Server Action
         const result = await updateLeadStatus(leadId, status)
-        if (!result.success) {
-            alert('Error al actualizar: ' + result.error)
-        }
+        if (!result.success) alert(result.error)
     }
 
-    async function handleConvert(leadId: string) {
+    const handleQuoteStatus = async (quoteId: string, status: QuoteStatus) => {
+        setQuoteRows((rows) => rows.map((row) => row.id === quoteId ? { ...row, status } : row))
+        const result = await updateQuoteStatus(quoteId, status)
+        if (!result.success) alert(result.error)
+    }
+
+    const handleInvoiceStatus = async (invoiceId: string, status: InvoiceStatus) => {
+        setInvoiceRows((rows) => rows.map((row) => row.id === invoiceId ? { ...row, status } : row))
+        const result = await updateInvoiceStatus(invoiceId, status)
+        if (!result.success) alert(result.error)
+    }
+
+    const handleConvert = async (leadId: string) => {
         setConvertingId(leadId)
-        const defaultDirector = users.find(u => u.role === 'ADMIN' || u.role === 'PROYECTOS') || users[0]
+        const defaultDirector = users.find((user) => user.role === 'ADMIN' || user.role === 'PROYECTOS') || users[0]
         if (!defaultDirector) {
             alert('No hay directores disponibles')
             setConvertingId(null)
             return
         }
-
         const result = await convertLeadToProject(leadId, defaultDirector.id)
-        if (!result.success) {
-            alert(result.error)
-        }
+        if (!result.success) alert(result.error)
         setConvertingId(null)
     }
 
@@ -121,30 +182,29 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
             <div className="page-header">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground font-display">Hub Comercial</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">CRM, Pipeline de ventas y gestión de relaciones</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">CRM, cotizaciones y facturación comercial</p>
                 </div>
-                <div className="flex gap-2">
-                    <button className="btn-primary" onClick={() => setShowForm(true)}>
-                        <Plus className="w-4 h-4" /> Nuevo {activeTab === 'leads' ? 'Lead' : activeTab === 'contacts' ? 'Contacto' : 'Cliente'}
-                    </button>
-                </div>
+                <button className="btn-primary" onClick={openCreateModal}>
+                    <Plus className="w-4 h-4" /> Nuevo {createButtonLabel}
+                </button>
             </div>
 
-            {/* CRM Tabs */}
-            <div className="flex border-b border-border/40 gap-6">
+            <div className="flex border-b border-border/40 gap-6 overflow-x-auto no-scrollbar">
                 {[
                     { id: 'leads', label: 'Pipeline / Leads', icon: Target },
                     { id: 'contacts', label: 'Contactos', icon: Users },
-                    { id: 'companies', label: 'Empresas / Clientes', icon: Briefcase },
+                    { id: 'companies', label: 'Empresas', icon: Briefcase },
+                    { id: 'quotes', label: 'Cotizaciones', icon: FileText },
+                    { id: 'invoices', label: 'Facturas', icon: Receipt },
                 ].map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
                         className={cn(
-                            "flex items-center gap-2 px-1 py-4 text-sm font-medium transition-all relative border-b-2",
+                            'flex items-center gap-2 px-1 py-4 text-sm font-medium transition-all relative border-b-2 whitespace-nowrap',
                             activeTab === tab.id
-                                ? "text-primary border-primary"
-                                : "text-muted-foreground border-transparent hover:text-foreground"
+                                ? 'text-primary border-primary'
+                                : 'text-muted-foreground border-transparent hover:text-foreground'
                         )}
                     >
                         <tab.icon className="w-4 h-4" />
@@ -156,25 +216,24 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
             {activeTab === 'leads' && (
                 <>
                     <div className="flex justify-end gap-3 items-center">
-                        {/* Summary Stats Minimal */}
                         <div className="flex gap-4 mr-auto">
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Total Pipeline:</span>
-                                <span className="text-sm font-bold">{formatCurrency(optimisticLeads.reduce((s, l) => s + (l.status !== 'WON' ? l.estimatedValue : 0), 0))}</span>
+                                <span className="text-sm font-bold">{formatCurrency(optimisticLeads.reduce((sum, lead) => sum + (lead.status !== 'WON' ? lead.estimatedValue : 0), 0))}</span>
                             </div>
                         </div>
 
                         <div className="flex border border-border rounded-lg overflow-hidden bg-card">
-                            {(['pipeline', 'list'] as const).map((v) => (
+                            {(['pipeline', 'list'] as const).map((option) => (
                                 <button
-                                    key={v}
-                                    onClick={() => setView(v)}
+                                    key={option}
+                                    onClick={() => setView(option)}
                                     className={cn(
                                         'px-3 py-1.5 text-xs font-medium transition-all',
-                                        view === v ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'
+                                        view === option ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'
                                     )}
                                 >
-                                    {v === 'pipeline' ? '⬛ Pipeline' : '☰ Lista'}
+                                    {option === 'pipeline' ? '⬛ Pipeline' : '☰ Lista'}
                                 </button>
                             ))}
                         </div>
@@ -183,15 +242,10 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
                     {view === 'pipeline' ? (
                         <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
                             {pipelineStages.map((stage) => {
-                                const stageLeads = optimisticLeads.filter((l) => l.status === stage.key)
-                                const stageValue = stageLeads.reduce((s, l) => s + l.estimatedValue, 0)
+                                const stageLeads = optimisticLeads.filter((lead) => lead.status === stage.key)
+                                const stageValue = stageLeads.reduce((sum, lead) => sum + lead.estimatedValue, 0)
                                 return (
-                                    <div
-                                        key={stage.key}
-                                        className="flex-shrink-0 w-80"
-                                        onDragOver={onDragOver}
-                                        onDrop={(e) => onDrop(e, stage.key)}
-                                    >
+                                    <div key={stage.key} className="flex-shrink-0 w-80">
                                         <div className={cn('glass-card p-3 mb-3 border-t-2', stage.color)}>
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
@@ -202,60 +256,43 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
                                             </div>
                                             <p className="text-[10px] text-muted-foreground mt-1">{formatCurrency(stageValue)}</p>
                                         </div>
+
                                         <div className="space-y-3">
                                             {stageLeads.map((lead) => (
-                                                <div
-                                                    key={lead.id}
-                                                    draggable
-                                                    onDragStart={(e) => onDragStart(e, lead.id)}
-                                                    onClick={() => setSelectedLead(lead)}
-                                                    className={cn(
-                                                        "glass-card p-4 hover:border-primary/40 transition-all cursor-pointer group",
-                                                        draggingId === lead.id && "opacity-40 grayscale"
-                                                    )}
-                                                >
+                                                <div key={lead.id} className="glass-card p-4 hover:border-primary/40 transition-all cursor-pointer group" onClick={() => setSelectedLead(lead)}>
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div className="flex flex-col">
-                                                            <h3 className="text-sm font-medium group-hover:text-primary transition-colors">
-                                                                {lead.companyName || 'Sin Empresa'}
-                                                            </h3>
-                                                            {lead.clientId && (
-                                                                <span className="text-[9px] text-success font-bold uppercase tracking-wider">Cliente Existente</span>
-                                                            )}
+                                                            <h3 className="text-sm font-medium group-hover:text-primary transition-colors">{lead.companyName || 'Sin Empresa'}</h3>
                                                             <div className="mt-2">
                                                                 <select
                                                                     value={lead.status}
-                                                                    onChange={(e) => { e.stopPropagation(); handleChangeStatus(lead.id, e.target.value as LeadStatus); }}
+                                                                    onChange={(e) => {
+                                                                        e.stopPropagation()
+                                                                        handleChangeStatus(lead.id, e.target.value as LeadStatus)
+                                                                    }}
                                                                     onClick={(e) => e.stopPropagation()}
-                                                                    className={cn(
-                                                                        "text-[10px] bg-muted/50 border-none rounded px-1.5 py-0.5 font-bold uppercase tracking-tighter cursor-pointer hover:bg-muted transition-colors focus:ring-0",
-                                                                        lead.status === 'WON' ? 'text-success' :
-                                                                            lead.status === 'LOST' ? 'text-danger' :
-                                                                                'text-muted-foreground'
-                                                                    )}
+                                                                    className="text-[10px] bg-muted/50 border-none rounded px-1.5 py-0.5 font-bold uppercase tracking-tighter cursor-pointer hover:bg-muted transition-colors focus:ring-0"
                                                                 >
-                                                                    {pipelineStages.map(s => (
-                                                                        <option key={s.key} value={s.key}>{s.label}</option>
+                                                                    {pipelineStages.map((statusOption) => (
+                                                                        <option key={statusOption.key} value={statusOption.key}>{statusOption.label}</option>
                                                                     ))}
                                                                     <option value={LeadStatus.LOST}>Perdido</option>
                                                                 </select>
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center gap-1">
-                                                            {(lead.status === 'PROPOSAL' || lead.status === 'QUALIFIED') && (
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleConvert(lead.id); }}
-                                                                    disabled={convertingId === lead.id}
-                                                                    className="p-1 hover:bg-success/10 text-success rounded transition-colors"
-                                                                    title="Convertir a Proyecto"
-                                                                >
-                                                                    {convertingId === lead.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Rocket className="w-3 h-3" />}
-                                                                </button>
-                                                            )}
-                                                            <button className="text-muted-foreground hover:text-foreground">
-                                                                <MoreHorizontal className="w-4 h-4" />
+                                                        {(lead.status === 'PROPOSAL' || lead.status === 'QUALIFIED') && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    handleConvert(lead.id)
+                                                                }}
+                                                                disabled={convertingId === lead.id}
+                                                                className="p-1 hover:bg-success/10 text-success rounded transition-colors"
+                                                                title="Convertir a Proyecto"
+                                                            >
+                                                                {convertingId === lead.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Rocket className="w-3 h-3" />}
                                                             </button>
-                                                        </div>
+                                                        )}
                                                     </div>
                                                     <div className="space-y-2">
                                                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -290,22 +327,16 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
                                 <tbody>
                                     {optimisticLeads.map((lead) => (
                                         <tr key={lead.id}>
-                                            <td className="text-sm font-medium whitespace-nowrap">{lead.companyName}</td>
-                                            <td className="text-sm text-muted-foreground whitespace-nowrap">{lead.serviceRequested}</td>
+                                            <td className="text-sm font-medium whitespace-nowrap">{lead.companyName || '-'}</td>
+                                            <td className="text-sm text-muted-foreground whitespace-nowrap">{lead.serviceRequested || '-'}</td>
                                             <td className="whitespace-nowrap">
                                                 <select
                                                     value={lead.status}
                                                     onChange={(e) => handleChangeStatus(lead.id, e.target.value as LeadStatus)}
-                                                    className={cn(
-                                                        'bg-transparent border-none text-xs font-semibold focus:ring-0 cursor-pointer rounded-full px-2 py-0.5',
-                                                        lead.status === 'WON' ? 'text-success bg-success/10' :
-                                                            lead.status === 'LOST' ? 'text-danger bg-danger/10' :
-                                                                lead.status === 'PROPOSAL' ? 'text-info bg-info/10' : 'text-primary bg-primary/10'
-                                                    )}
-                                                    disabled={false}
+                                                    className="bg-transparent border-none text-xs font-semibold focus:ring-0 cursor-pointer rounded-full px-2 py-0.5"
                                                 >
-                                                    {pipelineStages.map(s => (
-                                                        <option key={s.key} value={s.key} className="bg-card text-foreground">{s.label}</option>
+                                                    {pipelineStages.map((statusOption) => (
+                                                        <option key={statusOption.key} value={statusOption.key} className="bg-card text-foreground">{statusOption.label}</option>
                                                     ))}
                                                     <option value={LeadStatus.LOST} className="bg-card text-foreground">Perdido</option>
                                                 </select>
@@ -323,7 +354,9 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
                                                             {convertingId === lead.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Rocket className="w-3 h-3" />}
                                                         </button>
                                                     )}
-                                                    <button className="btn-ghost p-1.5"><MoreHorizontal className="w-4 h-4" /></button>
+                                                    <button className="btn-ghost p-1.5" onClick={() => setSelectedLead(lead)}>
+                                                        <MoreHorizontal className="w-4 h-4" />
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -350,7 +383,7 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
                         </thead>
                         <tbody>
                             {contacts.map((contact) => (
-                                <tr key={contact.id} className="hover:bg-primary/5 transition-colors cursor-pointer">
+                                <tr key={contact.id} className="hover:bg-primary/5 transition-colors">
                                     <td className="whitespace-nowrap">
                                         <div className="flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
@@ -371,7 +404,15 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
                                         <span className="badge badge-neutral">{contact.specialty || 'General'}</span>
                                     </td>
                                     <td className="text-right">
-                                        <button className="btn-ghost p-1.5"><MoreHorizontal className="w-4 h-4" /></button>
+                                        <button
+                                            className="btn-ghost p-1.5"
+                                            onClick={() => {
+                                                setSelectedContact(contact)
+                                                setShowContactForm(true)
+                                            }}
+                                        >
+                                            <MoreHorizontal className="w-4 h-4" />
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -395,7 +436,7 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
                         </thead>
                         <tbody>
                             {clients.map((client) => (
-                                <tr key={client.id} className="hover:bg-primary/5 transition-colors cursor-pointer">
+                                <tr key={client.id} className="hover:bg-primary/5 transition-colors">
                                     <td className="whitespace-nowrap">
                                         <div className="flex items-center gap-3">
                                             <div className="w-8 h-8 rounded bg-gold-500/10 flex items-center justify-center text-gold-500">
@@ -414,7 +455,15 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
                                     </td>
                                     <td className="text-sm text-muted-foreground whitespace-nowrap">{client.mainEmail || '-'}</td>
                                     <td className="text-right">
-                                        <button className="btn-ghost p-1.5"><MoreHorizontal className="w-4 h-4" /></button>
+                                        <button
+                                            className="btn-ghost p-1.5"
+                                            onClick={() => {
+                                                setSelectedCompany(client)
+                                                setShowCompanyForm(true)
+                                            }}
+                                        >
+                                            <MoreHorizontal className="w-4 h-4" />
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
@@ -423,19 +472,206 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
                 </div>
             )}
 
-            {showForm && <LeadForm clients={clients} onClose={() => setShowForm(false)} />}
-            {showEditForm && selectedLead && (
+            {activeTab === 'quotes' && (
+                <div className="glass-card table-container">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Empresa</th>
+                                <th>Servicio</th>
+                                <th>Presupuesto</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th className="text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {quoteRows.map((quote) => (
+                                <tr key={quote.id}>
+                                    <td className="text-xs font-mono">{quote.id.slice(0, 8)}</td>
+                                    <td className="text-sm">{quote.lead?.companyName || '-'}</td>
+                                    <td className="text-sm text-muted-foreground">{quote.lead?.serviceRequested || '-'}</td>
+                                    <td className="text-sm font-semibold">{formatCurrency(quote.budget)}</td>
+                                    <td>
+                                        <select
+                                            value={quote.status}
+                                            onChange={(e) => handleQuoteStatus(quote.id, e.target.value as QuoteStatus)}
+                                            className="form-input py-1 text-xs"
+                                        >
+                                            <option value="PENDING">PENDING</option>
+                                            <option value="SENT">SENT</option>
+                                            <option value="ACCEPTED">ACCEPTED</option>
+                                            <option value="REJECTED">REJECTED</option>
+                                        </select>
+                                    </td>
+                                    <td className="text-xs text-muted-foreground">{formatDate(quote.createdAt)}</td>
+                                    <td className="text-right">
+                                        <button
+                                            className="btn-ghost p-1.5"
+                                            onClick={() => {
+                                                setSelectedQuote(quote)
+                                                setShowQuoteForm(true)
+                                            }}
+                                        >
+                                            <MoreHorizontal className="w-4 h-4" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                            {quoteRows.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className="text-center py-8 text-sm text-muted-foreground">No hay cotizaciones registradas.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {activeTab === 'invoices' && (
+                <div className="glass-card table-container">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Número</th>
+                                <th>Cliente</th>
+                                <th>Proyecto</th>
+                                <th>Monto</th>
+                                <th>Vencimiento</th>
+                                <th>Estado</th>
+                                <th className="text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {invoiceRows.map((invoice) => (
+                                <tr key={invoice.id}>
+                                    <td className="text-sm font-medium">{invoice.invoiceNumber}</td>
+                                    <td className="text-sm text-muted-foreground">{invoice.client?.name || '-'}</td>
+                                    <td className="text-sm text-muted-foreground">{invoice.project?.name || '-'}</td>
+                                    <td className="text-sm font-semibold">{formatCurrency(invoice.amount)}</td>
+                                    <td className="text-xs text-muted-foreground">{invoice.dueDate ? formatDate(invoice.dueDate) : '-'}</td>
+                                    <td>
+                                        <select
+                                            value={invoice.status}
+                                            onChange={(e) => handleInvoiceStatus(invoice.id, e.target.value as InvoiceStatus)}
+                                            className="form-input py-1 text-xs"
+                                        >
+                                            <option value={InvoiceStatus.DRAFT}>DRAFT</option>
+                                            <option value={InvoiceStatus.SENT}>SENT</option>
+                                            <option value={InvoiceStatus.PAID}>PAID</option>
+                                            <option value={InvoiceStatus.OVERDUE}>OVERDUE</option>
+                                            <option value={InvoiceStatus.CANCELLED}>CANCELLED</option>
+                                        </select>
+                                    </td>
+                                    <td className="text-right">
+                                        <button
+                                            className="btn-ghost p-1.5"
+                                            onClick={() => {
+                                                setSelectedInvoice(invoice)
+                                                setShowInvoiceForm(true)
+                                            }}
+                                        >
+                                            <MoreHorizontal className="w-4 h-4" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                            {invoiceRows.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className="text-center py-8 text-sm text-muted-foreground">No hay facturas registradas.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {showLeadForm && (
                 <LeadForm
                     clients={clients}
+                    contacts={contacts.map((contact) => ({
+                        id: contact.id,
+                        firstName: contact.firstName,
+                        lastName: contact.lastName,
+                        email: contact.email,
+                        clientId: contact.clientId
+                    }))}
+                    onClose={() => setShowLeadForm(false)}
+                />
+            )}
+
+            {showLeadEditForm && selectedLead && (
+                <LeadForm
+                    clients={clients}
+                    contacts={contacts.map((contact) => ({
+                        id: contact.id,
+                        firstName: contact.firstName,
+                        lastName: contact.lastName,
+                        email: contact.email,
+                        clientId: contact.clientId
+                    }))}
                     initialData={selectedLead}
                     onClose={() => {
-                        setShowEditForm(false)
+                        setShowLeadEditForm(false)
                         setSelectedLead(null)
                     }}
                 />
             )}
 
-            {/* Lead Detail Modal */}
+            {showContactForm && (
+                <ContactForm
+                    clients={clients}
+                    initialData={selectedContact}
+                    onClose={() => {
+                        setShowContactForm(false)
+                        setSelectedContact(null)
+                    }}
+                />
+            )}
+
+            {showCompanyForm && (
+                <CompanyForm
+                    initialData={selectedCompany}
+                    onClose={() => {
+                        setShowCompanyForm(false)
+                        setSelectedCompany(null)
+                    }}
+                />
+            )}
+
+            {showQuoteForm && (
+                <QuoteForm
+                    leads={initialLeads.map((lead) => ({
+                        id: lead.id,
+                        companyName: lead.companyName,
+                        serviceRequested: lead.serviceRequested
+                    }))}
+                    initialData={selectedQuote}
+                    onClose={() => {
+                        setShowQuoteForm(false)
+                        setSelectedQuote(null)
+                    }}
+                />
+            )}
+
+            {showInvoiceForm && (
+                <InvoiceForm
+                    clients={clients.map((client) => ({ id: client.id, name: client.name }))}
+                    projects={projects}
+                    quotes={quoteRows.map((quote) => ({
+                        id: quote.id,
+                        budget: quote.budget,
+                        lead: { companyName: quote.lead?.companyName || null }
+                    }))}
+                    initialData={selectedInvoice}
+                    onClose={() => {
+                        setShowInvoiceForm(false)
+                        setSelectedInvoice(null)
+                    }}
+                />
+            )}
+
             {selectedLead && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={() => setSelectedLead(null)}>
                     <div className="glass-card p-8 w-full max-w-2xl mx-4 relative" onClick={(e) => e.stopPropagation()}>
@@ -451,17 +687,12 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
                                     <select
                                         value={selectedLead.status}
                                         onChange={(e) => handleChangeStatus(selectedLead.id, e.target.value as LeadStatus)}
-                                        className={cn(
-                                            'bg-transparent border border-border/60 text-xs font-bold uppercase tracking-wider focus:ring-2 focus:ring-primary/40 cursor-pointer rounded-lg px-3 py-1.5',
-                                            selectedLead.status === 'WON' ? 'text-success border-success/40' :
-                                                selectedLead.status === 'LOST' ? 'text-danger border-danger/40' :
-                                                    selectedLead.status === 'PROPOSAL' ? 'text-info border-info/40' : 'text-primary border-primary/40'
-                                        )}
+                                        className="bg-transparent border border-border/60 text-xs font-bold uppercase tracking-wider focus:ring-2 focus:ring-primary/40 cursor-pointer rounded-lg px-3 py-1.5"
                                     >
-                                        {pipelineStages.map(s => (
-                                            <option key={s.key} value={s.key} className="bg-card text-foreground">{s.label}</option>
+                                        {pipelineStages.map((statusOption) => (
+                                            <option key={statusOption.key} value={statusOption.key} className="bg-card text-foreground">{statusOption.label}</option>
                                         ))}
-                                        <option value={LeadStatus.LOST} className="bg-card text-foreground text-danger">Lead Perdido</option>
+                                        <option value={LeadStatus.LOST} className="bg-card text-foreground">Lead Perdido</option>
                                     </select>
                                     <span className="text-xs text-muted-foreground ml-2">ID: {selectedLead.id.substring(0, 8)}</span>
                                 </div>
@@ -486,13 +717,8 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
                             <div className="space-y-4">
                                 <div>
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Contacto Principal</p>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold">
-                                            {selectedLead.contact?.firstName?.[0] || 'C'}
-                                        </div>
-                                        <span className="text-sm font-medium">{selectedLead.contact?.firstName} {selectedLead.contact?.lastName || ''}</span>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1 ml-8">{selectedLead.contact?.email || 'Sin email'}</p>
+                                    <p className="text-sm">{selectedLead.contact ? `${selectedLead.contact.firstName} ${selectedLead.contact.lastName}` : 'Sin contacto'}</p>
+                                    <p className="text-xs text-muted-foreground">{selectedLead.contact?.email || ''}</p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Requerimientos Detallados</p>
@@ -507,17 +733,11 @@ export function ComercialClient({ initialLeads, users, clients, contacts }: Come
 
                         <div className="flex gap-3 pt-6 border-t border-border/40">
                             {(selectedLead.status === 'PROPOSAL' || selectedLead.status === 'QUALIFIED') && (
-                                <button
-                                    className="btn-primary flex-1 justify-center gap-2"
-                                    onClick={() => handleConvert(selectedLead.id)}
-                                >
+                                <button className="btn-primary flex-1 justify-center gap-2" onClick={() => handleConvert(selectedLead.id)}>
                                     <Rocket className="w-4 h-4" /> Convertir a Proyecto
                                 </button>
                             )}
-                            <button
-                                className="btn-secondary flex-1 justify-center"
-                                onClick={() => setShowEditForm(true)}
-                            >
+                            <button className="btn-secondary flex-1 justify-center" onClick={() => setShowLeadEditForm(true)}>
                                 Editar Información
                             </button>
                         </div>

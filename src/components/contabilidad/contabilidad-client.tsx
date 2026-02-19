@@ -4,15 +4,42 @@ import { useState } from 'react'
 import { Plus, Download, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { createTransaction, deleteTransaction } from '@/lib/actions/accounting'
-import { TransactionCategory } from '@prisma/client'
+import { InvoiceStatus, TransactionCategory } from '@prisma/client'
 
 const categories = ['Todos', 'Servicios de Branding', 'Consultoría', 'Diseño Web', 'Software & Herramientas', 'Nómina', 'Marketing', 'Oficina']
 
 interface ContabilidadClientProps {
-    initialTransactions: any[]
+    initialTransactions: Array<{
+        id: string
+        category: TransactionCategory
+        subcategory: string | null
+        amount: number
+        description: string | null
+        date: Date | string
+        currency: string
+        bank: string | null
+        receiptUrl: string | null
+        invoice: { id: string; invoiceNumber: string } | null
+    }>
+    pendingInvoices: Array<{
+        id: string
+        invoiceNumber: string
+        amount: number
+        dueDate: Date | null
+        status: InvoiceStatus
+        client: { name: string } | null
+        project: { name: string } | null
+    }>
+    invoices: Array<{
+        id: string
+        invoiceNumber: string
+        amount: number
+        client: { name: string } | null
+        project: { name: string } | null
+    }>
 }
 
-export function ContabilidadClient({ initialTransactions }: ContabilidadClientProps) {
+export function ContabilidadClient({ initialTransactions, pendingInvoices, invoices }: ContabilidadClientProps) {
     const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all')
     const [showForm, setShowForm] = useState(false)
     const [transactionType, setTransactionType] = useState<TransactionCategory>('INCOME')
@@ -35,6 +62,24 @@ export function ContabilidadClient({ initialTransactions }: ContabilidadClientPr
         .reduce((s, t) => s + t.amount, 0)
 
     const balance = totalIncome - totalExpense
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const next7Days = new Date(today)
+    next7Days.setDate(next7Days.getDate() + 7)
+
+    const receivablesTotal = pendingInvoices.reduce((sum, invoice) => sum + invoice.amount, 0)
+    const overdueInvoices = pendingInvoices.filter((invoice) => {
+        if (!invoice.dueDate) return invoice.status === InvoiceStatus.OVERDUE
+        const due = new Date(invoice.dueDate)
+        due.setHours(0, 0, 0, 0)
+        return invoice.status === InvoiceStatus.OVERDUE || due < today
+    })
+    const dueSoonInvoices = pendingInvoices.filter((invoice) => {
+        if (!invoice.dueDate) return false
+        const due = new Date(invoice.dueDate)
+        due.setHours(0, 0, 0, 0)
+        return due >= today && due <= next7Days
+    })
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -47,6 +92,10 @@ export function ContabilidadClient({ initialTransactions }: ContabilidadClientPr
             subcategory: formData.get('subcategory') as string,
             description: formData.get('description') as string,
             date: new Date(formData.get('date') as string),
+            currency: (formData.get('currency') as string) || 'PEN',
+            bank: ((formData.get('bank') as string) || '').trim() || undefined,
+            invoiceId: ((formData.get('invoiceId') as string) || '').trim() || undefined,
+            receiptUrl: ((formData.get('receiptUrl') as string) || '').trim() || undefined,
         })
 
         setLoading(false)
@@ -103,6 +152,88 @@ export function ContabilidadClient({ initialTransactions }: ContabilidadClientPr
                 </div>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="kpi-card border border-amber-500/20">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 font-bold">
+                            !
+                        </div>
+                        <span className="text-xs text-muted-foreground font-medium">Total por cobrar</span>
+                    </div>
+                    <p className="text-2xl font-bold text-amber-500">{formatCurrency(receivablesTotal)}</p>
+                </div>
+                <div className="kpi-card border border-red-500/20">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-[hsl(var(--danger-text))] font-bold">
+                            !
+                        </div>
+                        <span className="text-xs text-muted-foreground font-medium">Facturas vencidas</span>
+                    </div>
+                    <p className="text-2xl font-bold text-[hsl(var(--danger-text))]">{overdueInvoices.length}</p>
+                </div>
+                <div className="kpi-card border border-blue-500/20">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 font-bold">
+                            7d
+                        </div>
+                        <span className="text-xs text-muted-foreground font-medium">Vencen en 7 días</span>
+                    </div>
+                    <p className="text-2xl font-bold text-blue-500">{dueSoonInvoices.length}</p>
+                </div>
+            </div>
+
+            <div className="glass-card p-5">
+                <div className="flex items-center justify-between mb-5">
+                    <h2 className="section-title">Alertas de Cobranza</h2>
+                    <span className="badge badge-neutral">{pendingInvoices.length} por cobrar</span>
+                </div>
+                <div className="table-container">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Factura</th>
+                                <th>Cliente</th>
+                                <th>Proyecto</th>
+                                <th>Vence</th>
+                                <th className="text-right">Monto</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {pendingInvoices.map((invoice) => {
+                                const due = invoice.dueDate ? new Date(invoice.dueDate) : null
+                                const isOverdue = !!due && (invoice.status === InvoiceStatus.OVERDUE || due < today)
+                                const dueSoon = !!due && due >= today && due <= next7Days
+                                return (
+                                    <tr key={invoice.id}>
+                                        <td className="font-medium whitespace-nowrap">{invoice.invoiceNumber}</td>
+                                        <td className="text-muted-foreground whitespace-nowrap">{invoice.client?.name || '-'}</td>
+                                        <td className="text-muted-foreground whitespace-nowrap">{invoice.project?.name || '-'}</td>
+                                        <td className={cn('whitespace-nowrap', isOverdue ? 'text-[hsl(var(--danger-text))] font-semibold' : dueSoon ? 'text-amber-500 font-semibold' : 'text-muted-foreground')}>
+                                            {invoice.dueDate ? formatDate(invoice.dueDate) : 'Sin fecha'}
+                                        </td>
+                                        <td className="text-right font-bold whitespace-nowrap">{formatCurrency(invoice.amount)}</td>
+                                        <td>
+                                            <span className={cn(
+                                                'badge',
+                                                isOverdue ? 'badge-danger' : dueSoon ? 'badge-warning' : 'badge-info'
+                                            )}>
+                                                {isOverdue ? 'Vencida' : dueSoon ? 'Próxima' : invoice.status}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                )
+                            })}
+                            {pendingInvoices.length === 0 && (
+                                <tr>
+                                    <td colSpan={6} className="text-center py-8 text-muted-foreground">No hay facturas por cobrar activas.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             {/* Transactions table */}
             <div className="glass-card p-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
@@ -125,6 +256,8 @@ export function ContabilidadClient({ initialTransactions }: ContabilidadClientPr
                             <tr>
                                 <th>Descripción</th>
                                 <th>Categoría</th>
+                                <th>Banco / Moneda</th>
+                                <th>Factura / Comprobante</th>
                                 <th>Fecha</th>
                                 <th className="text-right">Monto</th>
                                 <th className="text-right"></th>
@@ -140,9 +273,32 @@ export function ContabilidadClient({ initialTransactions }: ContabilidadClientPr
                                         </div>
                                     </td>
                                     <td className="whitespace-nowrap"><span className="badge badge-neutral">{t.subcategory || 'General'}</span></td>
+                                    <td className="text-muted-foreground whitespace-nowrap">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-xs font-medium">{t.bank || 'Sin banco'}</span>
+                                            <span className="badge badge-neutral w-fit">{t.currency || 'PEN'}</span>
+                                        </div>
+                                    </td>
+                                    <td className="text-muted-foreground whitespace-nowrap">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-xs">{t.invoice?.invoiceNumber || 'Sin factura'}</span>
+                                            {t.receiptUrl ? (
+                                                <a
+                                                    href={t.receiptUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-xs text-primary hover:underline"
+                                                >
+                                                    Ver comprobante
+                                                </a>
+                                            ) : (
+                                                <span className="text-xs">Sin comprobante</span>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className="text-muted-foreground whitespace-nowrap">{formatDate(t.date)}</td>
                                     <td className={cn('text-right font-bold whitespace-nowrap', t.category === 'INCOME' ? 'text-[hsl(var(--success-text))]' : 'text-[hsl(var(--danger-text))]')}>
-                                        {t.category === 'INCOME' ? '+' : '-'}{formatCurrency(t.amount)}
+                                        {t.category === 'INCOME' ? '+' : '-'}{formatCurrency(t.amount, t.currency || 'PEN')}
                                     </td>
                                     <td className="text-right w-10">
                                         <button
@@ -156,7 +312,7 @@ export function ContabilidadClient({ initialTransactions }: ContabilidadClientPr
                             ))}
                             {filtered.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="text-center py-8 text-muted-foreground">No hay transacciones registradas</td>
+                                    <td colSpan={7} className="text-center py-8 text-muted-foreground">No hay transacciones registradas</td>
                                 </tr>
                             )}
                         </tbody>
@@ -208,6 +364,35 @@ export function ContabilidadClient({ initialTransactions }: ContabilidadClientPr
                                 <select name="subcategory" className="form-input">
                                     {categories.slice(1).map((c) => <option key={c} value={c}>{c}</option>)}
                                 </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="form-label">Moneda</label>
+                                    <select name="currency" className="form-input" defaultValue="PEN">
+                                        <option value="PEN">PEN (S/)</option>
+                                        <option value="USD">USD ($)</option>
+                                        <option value="EUR">EUR (€)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="form-label">Banco</label>
+                                    <input name="bank" type="text" placeholder="BCP, Interbank, etc." className="form-input" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="form-label">Factura relacionada (opcional)</label>
+                                <select name="invoiceId" className="form-input" defaultValue="">
+                                    <option value="">Sin factura</option>
+                                    {invoices.map((invoice) => (
+                                        <option key={invoice.id} value={invoice.id}>
+                                            {invoice.invoiceNumber} - {invoice.client?.name || 'Sin cliente'} - {formatCurrency(invoice.amount)}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="form-label">Comprobante (URL)</label>
+                                <input name="receiptUrl" type="url" placeholder="https://..." className="form-input" />
                             </div>
                             <div>
                                 <label className="form-label">Descripción</label>

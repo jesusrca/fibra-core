@@ -1,27 +1,42 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Building2, Search } from 'lucide-react'
+import { Building2, Search } from 'lucide-react'
 import { createLead, updateLead } from '@/lib/actions/crm'
 import { LeadStatus, Client, Lead, Contact } from '@prisma/client'
+
+type ClientOption = Pick<Client, 'id' | 'name'>
+type ContactOption = Pick<Contact, 'id' | 'firstName' | 'lastName' | 'email'>
+type ContactSelectOption = Pick<Contact, 'id' | 'firstName' | 'lastName' | 'email' | 'clientId'>
 
 interface LeadFormProps {
     onClose: () => void
     clients: Client[]
-    initialData?: Lead & { client?: Client | null; contact?: Contact | null }
+    contacts: ContactSelectOption[]
+    initialData?: Lead & { client?: ClientOption | null; contact?: ContactOption | null }
 }
 
-export function LeadForm({ onClose, clients, initialData }: LeadFormProps) {
+export function LeadForm({ onClose, clients, contacts, initialData }: LeadFormProps) {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState(initialData?.companyName || '')
-    const [selectedClient, setSelectedClient] = useState<Client | null>(initialData?.client || null)
+    const [selectedClient, setSelectedClient] = useState<ClientOption | null>(initialData?.client || null)
+    const [contactSearch, setContactSearch] = useState('')
+    const [selectedContact, setSelectedContact] = useState<ContactSelectOption | null>(null)
 
     const isEditing = !!initialData
 
     const filteredClients = clients.filter(c =>
         c.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
+    const availableContacts = selectedClient
+        ? contacts.filter((c) => c.clientId === selectedClient.id)
+        : contacts
+    const filteredContacts = availableContacts.filter((c) => {
+        const fullName = `${c.firstName} ${c.lastName}`.toLowerCase()
+        const query = contactSearch.toLowerCase()
+        return fullName.includes(query) || c.email.toLowerCase().includes(query)
+    }).slice(0, 8)
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -84,12 +99,15 @@ export function LeadForm({ onClose, clients, initialData }: LeadFormProps) {
                                             <button
                                                 key={c.id}
                                                 type="button"
-                                                onClick={() => {
-                                                    setSelectedClient(c)
-                                                    setSearchTerm(c.name)
-                                                }}
-                                                className="w-full px-4 py-2 text-left text-sm hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-2"
-                                            >
+                                            onClick={() => {
+                                                setSelectedClient(c)
+                                                setSearchTerm(c.name)
+                                                if (selectedContact && selectedContact.clientId !== c.id) {
+                                                    setSelectedContact(null)
+                                                }
+                                            }}
+                                            className="w-full px-4 py-2 text-left text-sm hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-2"
+                                        >
                                                 <Building2 className="w-3 h-3" />
                                                 {c.name}
                                             </button>
@@ -105,7 +123,10 @@ export function LeadForm({ onClose, clients, initialData }: LeadFormProps) {
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => setSelectedClient(null)}
+                                    onClick={() => {
+                                        setSelectedClient(null)
+                                        setSelectedContact(null)
+                                    }}
                                     className="text-muted-foreground hover:text-foreground text-xs font-bold"
                                 >
                                     CAMBIAR
@@ -119,13 +140,72 @@ export function LeadForm({ onClose, clients, initialData }: LeadFormProps) {
                         {!isEditing && (
                             <>
                                 <div className="col-span-2">
-                                    <label className="form-label">Persona de Contacto</label>
-                                    <input name="contactName" type="text" className="form-input" placeholder="Nombre completo" />
+                                    <label className="form-label">Seleccionar contacto existente (opcional)</label>
+                                    {!selectedContact ? (
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                            <input
+                                                type="text"
+                                                value={contactSearch}
+                                                onChange={(e) => setContactSearch(e.target.value)}
+                                                className="form-input pl-9"
+                                                placeholder={selectedClient ? 'Buscar por nombre o email...' : 'Primero selecciona empresa para filtrar'}
+                                            />
+                                            {contactSearch && filteredContacts.length > 0 && (
+                                                <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-[70] py-1 max-h-48 overflow-y-auto custom-scrollbar">
+                                                    {filteredContacts.map((contact) => (
+                                                        <button
+                                                            key={contact.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedContact(contact)
+                                                                setContactSearch('')
+                                                                if (!selectedClient || selectedClient.id !== contact.clientId) {
+                                                                    const relatedClient = clients.find((client) => client.id === contact.clientId)
+                                                                    if (relatedClient) {
+                                                                        setSelectedClient({ id: relatedClient.id, name: relatedClient.name })
+                                                                        setSearchTerm(relatedClient.name)
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className="w-full px-4 py-2 text-left text-sm hover:bg-primary/10 hover:text-primary transition-colors"
+                                                        >
+                                                            <div className="font-medium">{contact.firstName} {contact.lastName}</div>
+                                                            <div className="text-xs opacity-80">{contact.email}</div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between p-2.5 bg-primary/5 border border-primary/20 rounded-lg">
+                                            <div className="text-sm">
+                                                <p className="font-semibold text-primary">{selectedContact.firstName} {selectedContact.lastName}</p>
+                                                <p className="text-xs text-muted-foreground">{selectedContact.email}</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedContact(null)}
+                                                className="text-muted-foreground hover:text-foreground text-xs font-bold"
+                                            >
+                                                CAMBIAR
+                                            </button>
+                                        </div>
+                                    )}
+                                    <input type="hidden" name="contactId" value={selectedContact?.id || ''} />
                                 </div>
-                                <div className="col-span-2">
-                                    <label className="form-label">Correo de Contacto</label>
-                                    <input name="contactEmail" type="email" className="form-input" placeholder="ejemplo@correo.com" />
-                                </div>
+                                {!selectedContact && (
+                                    <>
+                                        <div className="col-span-2">
+                                            <label className="form-label">Persona de Contacto (nuevo)</label>
+                                            <input name="contactName" type="text" className="form-input" placeholder="Nombre completo" />
+                                        </div>
+                                        <div className="col-span-2">
+                                            <label className="form-label">Correo de Contacto</label>
+                                            <input name="contactEmail" type="email" className="form-input" placeholder="ejemplo@correo.com" />
+                                        </div>
+                                    </>
+                                )}
                             </>
                         )}
                         <div className="col-span-2">

@@ -1,24 +1,44 @@
 'use client'
 
-import { Plus, Search, Mail, Users, Edit2, UserCheck, Star, Shield, MoreHorizontal, Phone } from 'lucide-react'
+import { Plus, Search, Mail, Edit2, Phone, MapPin, CalendarDays, Clock3 } from 'lucide-react'
 import { useState } from 'react'
-import { cn } from '@/lib/utils'
-import { createUser, updateUser, deleteUser } from '@/lib/actions/users'
+import { formatDate } from '@/lib/utils'
+import { createUser, updateUser } from '@/lib/actions/users'
 import { Role } from '@prisma/client'
 
+interface TeamMember {
+    id: string
+    name: string
+    email: string
+    role: Role
+    specialty: string | null
+    phone: string | null
+    country: string | null
+    birthday: Date | null
+    timezone: string | null
+    schedule: string | null
+}
+
 interface EquipoClientProps {
-    initialUsers: any[]
+    initialUsers: TeamMember[]
+}
+
+function toInputDate(value: Date | string | null | undefined) {
+    if (!value) return ''
+    return new Date(value).toISOString().slice(0, 10)
 }
 
 export function EquipoClient({ initialUsers }: EquipoClientProps) {
     const [searchTerm, setSearchTerm] = useState('')
     const [showForm, setShowForm] = useState(false)
-    const [selectedMember, setSelectedMember] = useState<any | null>(null)
+    const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
     const [loading, setLoading] = useState(false)
 
     const filteredTeam = initialUsers.filter(member =>
         member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        member.role.toLowerCase().includes(searchTerm.toLowerCase())
+        member.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (member.specialty || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (member.country || '').toLowerCase().includes(searchTerm.toLowerCase())
     )
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -30,7 +50,12 @@ export function EquipoClient({ initialUsers }: EquipoClientProps) {
             name: formData.get('name') as string,
             email: formData.get('email') as string,
             role: formData.get('role') as Role,
-            specialty: formData.get('specialty') as string,
+            specialty: ((formData.get('specialty') as string) || '').trim() || undefined,
+            phone: ((formData.get('phone') as string) || '').trim() || undefined,
+            country: ((formData.get('country') as string) || '').trim() || undefined,
+            birthday: formData.get('birthday') ? new Date(formData.get('birthday') as string) : undefined,
+            timezone: ((formData.get('timezone') as string) || '').trim() || undefined,
+            schedule: ((formData.get('schedule') as string) || '').trim() || undefined,
         }
 
         if (selectedMember) {
@@ -84,7 +109,7 @@ export function EquipoClient({ initialUsers }: EquipoClientProps) {
                         </button>
                         <div className="flex items-center gap-4 mb-6">
                             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-electric-500 to-gold-500 flex items-center justify-center text-xl font-bold text-white shadow-lg shadow-primary/20">
-                                {member.name.split(' ').map((n: string) => n[0]).join('')}
+                                {member.name.split(' ').map((n) => n[0]).join('')}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <h3 className="text-sm font-bold text-foreground truncate">{member.name}</h3>
@@ -97,30 +122,28 @@ export function EquipoClient({ initialUsers }: EquipoClientProps) {
                                 <Mail className="w-3.5 h-3.5" />
                                 {member.email}
                             </div>
-                            <div className="space-y-1.5">
-                                <div className="flex justify-between items-end">
-                                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Carga de Trabajo</span>
-                                    <span className="text-xs font-medium">{member.intensity || 0}%</span>
-                                </div>
-                                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                                    <div
-                                        className={cn(
-                                            "h-full transition-all duration-1000",
-                                            (member.intensity || 0) > 80 ? "bg-red-500" : (member.intensity || 0) > 50 ? "bg-warning" : "bg-success"
-                                        )}
-                                        style={{ width: `${member.intensity || 0}%` }}
-                                    />
-                                </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Phone className="w-3.5 h-3.5" />
+                                {member.phone || 'Sin teléfono'}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <MapPin className="w-3.5 h-3.5" />
+                                {member.country || 'Sin país'}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock3 className="w-3.5 h-3.5" />
+                                {member.schedule || 'Sin horario'} {member.timezone ? `· ${member.timezone}` : ''}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <CalendarDays className="w-3.5 h-3.5" />
+                                {member.birthday ? formatDate(member.birthday) : 'Sin cumpleaños'}
                             </div>
                         </div>
 
                         <div className="mt-4 pt-4 border-t border-border/40 flex items-center justify-between">
                             <span className="badge badge-neutral">{member.specialty || 'General'}</span>
-                            <span className={cn(
-                                "text-[10px] font-bold uppercase tracking-wider",
-                                member.status === 'Active' ? "text-success" : "text-muted-foreground"
-                            )}>
-                                {member.status || 'Active'}
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-success">
+                                Activo
                             </span>
                         </div>
                     </div>
@@ -155,16 +178,36 @@ export function EquipoClient({ initialUsers }: EquipoClientProps) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="form-label">Especialidad</label>
-                                    <input name="specialty" type="text" className="form-input" placeholder="Ej: Branding" defaultValue={selectedMember?.specialty} />
+                                    <input name="specialty" type="text" className="form-input" placeholder="Ej: Branding" defaultValue={selectedMember?.specialty || ''} />
                                 </div>
                                 <div>
-                                    <label className="form-label">Carga Inicial (%)</label>
-                                    <input name="intensity" type="number" className="form-input" placeholder="0" defaultValue={selectedMember?.intensity || 0} />
+                                    <label className="form-label">Teléfono</label>
+                                    <input name="phone" type="text" className="form-input" placeholder="+51 999 999 999" defaultValue={selectedMember?.phone || ''} />
                                 </div>
                             </div>
                             <div>
                                 <label className="form-label">Correo Corporativo</label>
                                 <input name="email" type="email" className="form-input" placeholder="usuario@fibra.studio" required defaultValue={selectedMember?.email} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="form-label">País</label>
+                                    <input name="country" type="text" className="form-input" placeholder="Perú" defaultValue={selectedMember?.country || ''} />
+                                </div>
+                                <div>
+                                    <label className="form-label">Cumpleaños</label>
+                                    <input name="birthday" type="date" className="form-input" defaultValue={toInputDate(selectedMember?.birthday)} />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="form-label">Zona Horaria</label>
+                                    <input name="timezone" type="text" className="form-input" placeholder="America/Lima" defaultValue={selectedMember?.timezone || ''} />
+                                </div>
+                                <div>
+                                    <label className="form-label">Horario</label>
+                                    <input name="schedule" type="text" className="form-input" placeholder="Lun-Vie 9:00-18:00" defaultValue={selectedMember?.schedule || ''} />
+                                </div>
                             </div>
                             <div className="pt-4 flex gap-3">
                                 <button type="button" className="flex-1 btn-secondary" onClick={() => { setShowForm(false); setSelectedMember(null); }}>Cancelar</button>

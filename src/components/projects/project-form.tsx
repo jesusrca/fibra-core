@@ -27,7 +27,7 @@ export function ProjectForm({ onClose, clients, users }: ProjectFormProps) {
             status: 'PLANNING' as any,
             budget: parseFloat(formData.get('budget') as string) || 0,
             serviceType: formData.get('serviceType') as string,
-            deadline: formData.get('deadline') ? new Date(formData.get('deadline') as string) : undefined,
+            endDate: formData.get('endDate') ? new Date(formData.get('endDate') as string) : undefined,
         }
 
         const result = await createProject(data)
@@ -110,9 +110,9 @@ export function ProjectForm({ onClose, clients, users }: ProjectFormProps) {
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="form-label">Fecha de Entrega</label>
+                            <label className="form-label">Fecha de Fin</label>
                             <input
-                                name="deadline"
+                                name="endDate"
                                 type="date"
                                 className="form-input"
                             />

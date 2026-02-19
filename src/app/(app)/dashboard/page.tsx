@@ -1,43 +1,109 @@
 import { DashboardClient } from '@/components/dashboard/dashboard-client'
 import prisma from '@/lib/prisma'
-import { LeadStatus, ProjectStatus } from '@prisma/client'
+import { InvoiceStatus, LeadStatus, ProjectStatus } from '@prisma/client'
 import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
+import { unstable_cache } from 'next/cache'
 
 export const dynamic = 'force-dynamic'
 
-export default async function DashboardPage() {
-    await requireModuleAccess('dashboard')
+type DateRangePreset = '7d' | '30d' | '90d' | 'custom'
+type PageSearchParams = Record<string, string | string[] | undefined>
 
-    let pipelineAgg: { _sum: { estimatedValue: number | null } } = { _sum: { estimatedValue: 0 } }
-    let opportunitiesCount = 0
-    let wonRevenueAgg: { _sum: { estimatedValue: number | null } } = { _sum: { estimatedValue: 0 } }
-    let groupedProjects: any[] = []
-    let activeProjects: any[] = []
-    let recentTransactions: any[] = []
-    let recentLeads: any[] = []
-    let recentTasks: any[] = []
+function firstParam(value: string | string[] | undefined) {
+    if (Array.isArray(value)) return value[0]
+    return value
+}
 
-    try {
-        const data = await withPrismaRetry(() =>
-            prisma.$transaction([
+function parseInputDate(dateStr: string, endOfDay = false) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null
+    const time = endOfDay ? 'T23:59:59.999Z' : 'T00:00:00.000Z'
+    const parsed = new Date(`${dateStr}${time}`)
+    if (Number.isNaN(parsed.getTime())) return null
+    return parsed
+}
+
+function toInputDate(date: Date) {
+    return date.toISOString().slice(0, 10)
+}
+
+function resolveRange(searchParams?: PageSearchParams) {
+    const rawRange = firstParam(searchParams?.range)
+    const range = rawRange === '7d' || rawRange === '30d' || rawRange === '90d' || rawRange === 'custom'
+        ? rawRange
+        : '30d'
+
+    const today = new Date()
+    const to = new Date(today)
+    to.setUTCHours(23, 59, 59, 999)
+
+    if (range === 'custom') {
+        const fromInput = firstParam(searchParams?.from)
+        const toInput = firstParam(searchParams?.to)
+        const fromDate = fromInput ? parseInputDate(fromInput) : null
+        const toDate = toInput ? parseInputDate(toInput, true) : null
+
+        if (fromDate && toDate && fromDate <= toDate) {
+            return {
+                range: 'custom' as DateRangePreset,
+                from: fromDate,
+                to: toDate,
+                fromInput: toInputDate(fromDate),
+                toInput: toInputDate(toDate)
+            }
+        }
+    }
+
+    const days = range === '7d' ? 7 : range === '90d' ? 90 : 30
+    const from = new Date(today)
+    from.setUTCDate(from.getUTCDate() - (days - 1))
+    from.setUTCHours(0, 0, 0, 0)
+
+    return {
+        range: (range === 'custom' ? '30d' : range) as DateRangePreset,
+        from,
+        to,
+        fromInput: toInputDate(from),
+        toInput: toInputDate(to)
+    }
+}
+
+const getDashboardData = unstable_cache(
+    async (fromIso: string, toIso: string) => {
+        const fromDate = new Date(fromIso)
+        const toDate = new Date(toIso)
+        const now = new Date()
+        const startOfToday = new Date(now)
+        startOfToday.setHours(0, 0, 0, 0)
+        const next7Days = new Date(startOfToday)
+        next7Days.setDate(next7Days.getDate() + 7)
+        const leadDateRange = { createdAt: { gte: fromDate, lte: toDate } }
+        const projectDateRange = { updatedAt: { gte: fromDate, lte: toDate } }
+        const transactionDateRange = { date: { gte: fromDate, lte: toDate } }
+        const taskDateRange = { createdAt: { gte: fromDate, lte: toDate } }
+
+        return withPrismaRetry(() =>
+            Promise.all([
                 prisma.lead.aggregate({
                     where: {
-                        status: { notIn: [LeadStatus.WON, LeadStatus.LOST] }
+                        status: { notIn: [LeadStatus.WON, LeadStatus.LOST] },
+                        ...leadDateRange
                     },
                     _sum: { estimatedValue: true }
                 }),
                 prisma.lead.count({
                     where: {
-                        status: { notIn: [LeadStatus.WON, LeadStatus.LOST] }
+                        status: { notIn: [LeadStatus.WON, LeadStatus.LOST] },
+                        ...leadDateRange
                     }
                 }),
                 prisma.lead.aggregate({
-                    where: { status: LeadStatus.WON },
+                    where: { status: LeadStatus.WON, ...leadDateRange },
                     _sum: { estimatedValue: true }
                 }),
                 prisma.project.groupBy({
                     by: ['status'],
+                    where: projectDateRange,
                     orderBy: {
                         status: 'asc'
                     },
@@ -45,7 +111,8 @@ export default async function DashboardPage() {
                 }),
                 prisma.project.findMany({
                     where: {
-                        status: { in: [ProjectStatus.ACTIVE, ProjectStatus.REVIEW] }
+                        status: { in: [ProjectStatus.ACTIVE, ProjectStatus.REVIEW] },
+                        ...projectDateRange
                     },
                     select: {
                         id: true,
@@ -65,6 +132,7 @@ export default async function DashboardPage() {
                     orderBy: { updatedAt: 'desc' }
                 }),
                 prisma.transaction.findMany({
+                    where: transactionDateRange,
                     select: {
                         id: true,
                         category: true,
@@ -74,9 +142,10 @@ export default async function DashboardPage() {
                         date: true
                     },
                     orderBy: { date: 'desc' },
-                    take: 5
+                    take: 120
                 }),
                 prisma.lead.findMany({
+                    where: leadDateRange,
                     select: {
                         id: true,
                         companyName: true,
@@ -94,13 +163,58 @@ export default async function DashboardPage() {
                         createdAt: true
                     },
                     where: {
-                        status: { not: 'DONE' }
+                        status: { not: 'DONE' },
+                        ...taskDateRange
                     },
                     orderBy: { createdAt: 'desc' },
                     take: 3
+                }),
+                prisma.invoice.aggregate({
+                    where: {
+                        status: { in: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE] }
+                    },
+                    _sum: { amount: true }
+                }),
+                prisma.invoice.findMany({
+                    where: {
+                        status: { in: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE] },
+                        dueDate: { not: null, lte: next7Days }
+                    },
+                    select: {
+                        id: true,
+                        invoiceNumber: true,
+                        amount: true,
+                        dueDate: true,
+                        status: true,
+                        client: { select: { name: true } }
+                    },
+                    orderBy: { dueDate: 'asc' },
+                    take: 12
                 })
             ])
         )
+    },
+    ['dashboard-data-v2'],
+    { revalidate: 20 }
+)
+
+export default async function DashboardPage({ searchParams }: { searchParams?: PageSearchParams }) {
+    await requireModuleAccess('dashboard')
+    const resolvedRange = resolveRange(searchParams)
+
+    let pipelineAgg: { _sum: { estimatedValue: number | null } } = { _sum: { estimatedValue: 0 } }
+    let opportunitiesCount = 0
+    let wonRevenueAgg: { _sum: { estimatedValue: number | null } } = { _sum: { estimatedValue: 0 } }
+    let groupedProjects: any[] = []
+    let activeProjects: any[] = []
+    let transactionsInRange: any[] = []
+    let recentLeads: any[] = []
+    let recentTasks: any[] = []
+    let receivablesAgg: { _sum: { amount: number | null } } = { _sum: { amount: 0 } }
+    let receivableAlerts: any[] = []
+
+    try {
+        const data = await getDashboardData(resolvedRange.from.toISOString(), resolvedRange.to.toISOString())
 
         ;[
             pipelineAgg,
@@ -108,9 +222,11 @@ export default async function DashboardPage() {
             wonRevenueAgg,
             groupedProjects,
             activeProjects,
-            recentTransactions,
+            transactionsInRange,
             recentLeads,
-            recentTasks
+            recentTasks,
+            receivablesAgg,
+            receivableAlerts
         ] = data as typeof data
     } catch (error) {
         console.error('Dashboard data fetch failed:', error)
@@ -129,7 +245,7 @@ export default async function DashboardPage() {
     ]
 
     const revenueByMonth = new Map<string, { month: string; ingresos: number; gastos: number }>()
-    recentTransactions.forEach((t: any) => {
+    transactionsInRange.forEach((t: any) => {
         const date = new Date(t.date)
         const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
         const monthLabel = date.toLocaleString('es-PE', { month: 'short' })
@@ -141,8 +257,36 @@ export default async function DashboardPage() {
         if (t.category === 'EXPENSE') bucket.gastos += t.amount
     })
     const revenueSeries = Array.from(revenueByMonth.values()).reverse()
+    const recentTransactions = transactionsInRange.slice(0, 5)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const receivablesSummary = receivableAlerts.reduce(
+        (acc, invoice) => {
+            if (!invoice.dueDate) return acc
+            const dueDate = new Date(invoice.dueDate)
+            dueDate.setHours(0, 0, 0, 0)
+            if (dueDate < today || invoice.status === InvoiceStatus.OVERDUE) acc.overdueCount += 1
+            else acc.dueSoonCount += 1
+            return acc
+        },
+        { overdueCount: 0, dueSoonCount: 0 }
+    )
+
+    const receivableNotifications = receivableAlerts.map((invoice) => {
+        const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null
+        const isOverdue = !!dueDate && (invoice.status === InvoiceStatus.OVERDUE || dueDate < today)
+        const suffix = dueDate ? dueDate.toLocaleDateString('es-PE') : 'sin fecha'
+        return {
+            id: `invoice-${invoice.id}`,
+            message: isOverdue
+                ? `Factura vencida ${invoice.invoiceNumber} (${invoice.client?.name || 'Sin cliente'})`
+                : `Factura por cobrar ${invoice.invoiceNumber} vence ${suffix}`,
+            createdAt: dueDate || new Date()
+        }
+    })
 
     const recentNotifications = [
+        ...receivableNotifications,
         ...recentLeads.map((lead: any) => ({
             id: `lead-${lead.id}`,
             message: `Nuevo lead: ${lead.companyName || 'Sin empresa'}`,
@@ -167,6 +311,18 @@ export default async function DashboardPage() {
         activeProjects,
         recentNotifications,
         revenueSeries,
+        receivables: {
+            totalPendingAmount: receivablesAgg._sum.amount || 0,
+            overdueCount: receivablesSummary.overdueCount,
+            dueSoonCount: receivablesSummary.dueSoonCount,
+            items: receivableAlerts
+        },
+        filters: {
+            range: resolvedRange.range,
+            from: resolvedRange.fromInput,
+            to: resolvedRange.toInput,
+            label: `${resolvedRange.from.toLocaleDateString('es-PE')} - ${resolvedRange.to.toLocaleDateString('es-PE')}`
+        }
     }
 
     return <DashboardClient stats={stats as any} />

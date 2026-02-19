@@ -2,22 +2,68 @@
 
 import prisma from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { LeadStatus, Role } from '@prisma/client'
+import { InvoiceStatus, LeadStatus, Role } from '@prisma/client'
 import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { createNotificationForRoles } from '@/lib/notifications'
 
+type QuoteStatus = 'PENDING' | 'SENT' | 'ACCEPTED' | 'REJECTED'
+
+function normalizeText(input: string) {
+    return input.trim().replace(/\s+/g, ' ')
+}
+
+function buildContactName(firstName: string, lastName: string) {
+    return `${normalizeText(firstName)} ${normalizeText(lastName)}`.trim()
+}
+
+async function ensureClientByName(name: string) {
+    const normalized = normalizeText(name)
+    const existing = await withPrismaRetry(() => prisma.client.findFirst({
+        where: { name: { equals: normalized, mode: 'insensitive' } },
+        select: { id: true }
+    }))
+    if (existing) return existing.id
+
+    const created = await withPrismaRetry(() => prisma.client.create({
+        data: { name: normalized },
+        select: { id: true }
+    }))
+    return created.id
+}
+
+function shouldMarkLeadAsWon(status: QuoteStatus) {
+    return status === 'ACCEPTED'
+}
+
+function shouldMarkLeadAsLost(status: QuoteStatus) {
+    return status === 'REJECTED'
+}
+
+async function generateInvoiceNumber() {
+    const year = new Date().getFullYear()
+    for (let i = 0; i < 5; i += 1) {
+        const random = Math.floor(10000 + Math.random() * 90000)
+        const number = `INV-${year}-${random}`
+        const exists = await withPrismaRetry(() => prisma.invoice.findUnique({
+            where: { invoiceNumber: number },
+            select: { id: true }
+        }))
+        if (!exists) return number
+    }
+    return `INV-${year}-${Date.now()}`
+}
+
 export async function getLeads() {
     try {
         await requireModuleAccess('comercial')
-        const leads = await withPrismaRetry(() => prisma.lead.findMany({
+        return await withPrismaRetry(() => prisma.lead.findMany({
             orderBy: { createdAt: 'desc' },
             include: {
                 client: true,
-                contact: true,
-            },
+                contact: true
+            }
         }))
-        return leads
     } catch (error) {
         console.error('Error fetching leads:', error)
         return []
@@ -37,15 +83,214 @@ export async function getContacts() {
     }
 }
 
+export async function getClients() {
+    try {
+        await requireModuleAccess('comercial')
+        return await withPrismaRetry(() => prisma.client.findMany({
+            orderBy: { name: 'asc' }
+        }))
+    } catch (error) {
+        console.error('Error fetching clients:', error)
+        return []
+    }
+}
+
+export async function createClient(data: {
+    name: string
+    country?: string
+    industry?: string
+    taxId?: string
+    address?: string
+    referredBy?: string
+    mainEmail?: string
+}) {
+    try {
+        await requireModuleAccess('comercial')
+        const name = normalizeText(data.name)
+        if (!name) return { success: false, error: 'El nombre de la empresa es obligatorio' }
+
+        const duplicate = await withPrismaRetry(() => prisma.client.findFirst({
+            where: { name: { equals: name, mode: 'insensitive' } },
+            select: { id: true }
+        }))
+        if (duplicate) {
+            return { success: false, error: 'Ya existe una empresa con ese nombre' }
+        }
+
+        const client = await withPrismaRetry(() => prisma.client.create({
+            data: {
+                name,
+                country: data.country || null,
+                industry: data.industry || null,
+                taxId: data.taxId || null,
+                address: data.address || null,
+                referredBy: data.referredBy || null,
+                mainEmail: data.mainEmail || null
+            }
+        }))
+
+        revalidatePath('/comercial')
+        return { success: true, client }
+    } catch (error) {
+        console.error('Error creating client:', error)
+        return { success: false, error: 'Error al crear la empresa' }
+    }
+}
+
+export async function updateClient(id: string, data: {
+    name: string
+    country?: string
+    industry?: string
+    taxId?: string
+    address?: string
+    referredBy?: string
+    mainEmail?: string
+}) {
+    try {
+        await requireModuleAccess('comercial')
+        const name = normalizeText(data.name)
+        if (!name) return { success: false, error: 'El nombre de la empresa es obligatorio' }
+
+        const duplicate = await withPrismaRetry(() => prisma.client.findFirst({
+            where: {
+                id: { not: id },
+                name: { equals: name, mode: 'insensitive' }
+            },
+            select: { id: true }
+        }))
+        if (duplicate) {
+            return { success: false, error: 'Ya existe otra empresa con ese nombre' }
+        }
+
+        const client = await withPrismaRetry(() => prisma.client.update({
+            where: { id },
+            data: {
+                name,
+                country: data.country || null,
+                industry: data.industry || null,
+                taxId: data.taxId || null,
+                address: data.address || null,
+                referredBy: data.referredBy || null,
+                mainEmail: data.mainEmail || null
+            }
+        }))
+
+        revalidatePath('/comercial')
+        return { success: true, client }
+    } catch (error) {
+        console.error('Error updating client:', error)
+        return { success: false, error: 'Error al actualizar la empresa' }
+    }
+}
+
+export async function createContact(data: {
+    firstName: string
+    lastName: string
+    email: string
+    phone?: string
+    contactMethod?: string
+    country?: string
+    specialty?: string
+    clientId: string
+}) {
+    try {
+        await requireModuleAccess('comercial')
+        const email = data.email.trim().toLowerCase()
+        if (!email) return { success: false, error: 'El correo es obligatorio' }
+        if (!data.clientId) return { success: false, error: 'Debes seleccionar una empresa' }
+
+        const duplicate = await withPrismaRetry(() => prisma.contact.findFirst({
+            where: {
+                clientId: data.clientId,
+                email: { equals: email, mode: 'insensitive' }
+            },
+            select: { id: true }
+        }))
+        if (duplicate) {
+            return { success: false, error: 'Ya existe un contacto con ese correo en esta empresa' }
+        }
+
+        const contact = await withPrismaRetry(() => prisma.contact.create({
+            data: {
+                firstName: normalizeText(data.firstName),
+                lastName: normalizeText(data.lastName),
+                email,
+                phone: data.phone || null,
+                contactMethod: data.contactMethod || null,
+                country: data.country || null,
+                specialty: data.specialty || null,
+                clientId: data.clientId
+            }
+        }))
+
+        revalidatePath('/comercial')
+        return { success: true, contact }
+    } catch (error) {
+        console.error('Error creating contact:', error)
+        return { success: false, error: 'Error al crear el contacto' }
+    }
+}
+
+export async function updateContact(id: string, data: {
+    firstName: string
+    lastName: string
+    email: string
+    phone?: string
+    contactMethod?: string
+    country?: string
+    specialty?: string
+    clientId: string
+}) {
+    try {
+        await requireModuleAccess('comercial')
+        const email = data.email.trim().toLowerCase()
+        if (!email) return { success: false, error: 'El correo es obligatorio' }
+        if (!data.clientId) return { success: false, error: 'Debes seleccionar una empresa' }
+
+        const duplicate = await withPrismaRetry(() => prisma.contact.findFirst({
+            where: {
+                id: { not: id },
+                clientId: data.clientId,
+                email: { equals: email, mode: 'insensitive' }
+            },
+            select: { id: true }
+        }))
+        if (duplicate) {
+            return { success: false, error: 'Ya existe otro contacto con ese correo en esta empresa' }
+        }
+
+        const contact = await withPrismaRetry(() => prisma.contact.update({
+            where: { id },
+            data: {
+                firstName: normalizeText(data.firstName),
+                lastName: normalizeText(data.lastName),
+                email,
+                phone: data.phone || null,
+                contactMethod: data.contactMethod || null,
+                country: data.country || null,
+                specialty: data.specialty || null,
+                clientId: data.clientId
+            }
+        }))
+
+        revalidatePath('/comercial')
+        return { success: true, contact }
+    } catch (error) {
+        console.error('Error updating contact:', error)
+        return { success: false, error: 'Error al actualizar el contacto' }
+    }
+}
+
 export async function createLead(formData: FormData) {
-    const companyName = formData.get('companyName') as string
+    const companyName = (formData.get('companyName') as string || '').trim()
     const serviceRequested = formData.get('serviceRequested') as string
     const requirementDetail = formData.get('requirementDetail') as string
     const estimatedValue = parseFloat(formData.get('estimatedValue') as string || '0')
     const status = (formData.get('status') as LeadStatus) || LeadStatus.NEW
     const clientId = formData.get('clientId') as string
-    const contactName = formData.get('contactName') as string
-    const contactEmail = formData.get('contactEmail') as string
+    const selectedContactId = (formData.get('contactId') as string || '').trim()
+    const contactName = (formData.get('contactName') as string || '').trim()
+    const contactEmail = (formData.get('contactEmail') as string || '').trim().toLowerCase()
 
     if (!companyName && !clientId) {
         throw new Error('El nombre de la empresa o cliente es obligatorio')
@@ -55,55 +300,87 @@ export async function createLead(formData: FormData) {
         await requireModuleAccess('comercial')
         let finalClientId = clientId
 
-        // 1. Handle Client logic
-        if (!finalClientId) {
-            // Find existing by name to avoid duplicates
-            const existingClient = await withPrismaRetry(() => prisma.client.findFirst({
-                where: { name: { equals: companyName, mode: 'insensitive' } }
+        if (!finalClientId && companyName) {
+            finalClientId = await ensureClientByName(companyName)
+        }
+
+        let contactId: string | null = null
+
+        if (selectedContactId) {
+            const selectedContact = await withPrismaRetry(() => prisma.contact.findUnique({
+                where: { id: selectedContactId },
+                select: { id: true, clientId: true }
             }))
 
-            if (existingClient) {
-                finalClientId = existingClient.id
-            } else {
-                // We create the client only if we want all leads to be linked to a Client record immediately
-                // For now, let's keep it optional but linked if found.
-                // The user wants "related to a list of companies", so let's create it.
-                const newClient = await withPrismaRetry(() => prisma.client.create({
-                    data: { name: companyName }
+            if (!selectedContact) {
+                throw new Error('El contacto seleccionado no existe')
+            }
+
+            if (!finalClientId) {
+                finalClientId = selectedContact.clientId
+            } else if (selectedContact.clientId !== finalClientId) {
+                throw new Error('El contacto seleccionado no pertenece a la empresa elegida')
+            }
+
+            contactId = selectedContact.id
+        }
+
+        if (!contactId && contactName && finalClientId) {
+            const names = contactName.split(' ').filter(Boolean)
+            const firstName = names[0] || contactName
+            const lastName = names.slice(1).join(' ') || '-'
+
+            if (contactEmail) {
+                const existingContact = await withPrismaRetry(() => prisma.contact.findFirst({
+                    where: {
+                        clientId: finalClientId,
+                        email: { equals: contactEmail, mode: 'insensitive' }
+                    },
+                    select: { id: true }
                 }))
-                finalClientId = newClient.id
+                if (existingContact) {
+                    contactId = existingContact.id
+                }
+            }
+
+            if (!contactId) {
+                const existingByName = await withPrismaRetry(() => prisma.contact.findFirst({
+                    where: {
+                        clientId: finalClientId,
+                        firstName: { equals: normalizeText(firstName), mode: 'insensitive' },
+                        lastName: { equals: normalizeText(lastName), mode: 'insensitive' }
+                    },
+                    select: { id: true }
+                }))
+                if (existingByName) {
+                    contactId = existingByName.id
+                }
+            }
+
+            if (!contactId) {
+                const fallbackEmail = contactEmail || `${normalizeText(firstName).toLowerCase().replace(/\s+/g, '')}.${Date.now()}@example.com`
+                const contact = await withPrismaRetry(() => prisma.contact.create({
+                    data: {
+                        firstName: normalizeText(firstName),
+                        lastName: normalizeText(lastName),
+                        email: fallbackEmail,
+                        clientId: finalClientId
+                    }
+                }))
+                contactId = contact.id
             }
         }
 
-        // 2. Handle Contact logic
-        let contactId = null
-        if (contactName && finalClientId) {
-            const names = contactName.split(' ')
-            const firstName = names[0]
-            const lastName = names.slice(1).join(' ') || '-'
-
-            const contact = await withPrismaRetry(() => prisma.contact.create({
-                data: {
-                    firstName,
-                    lastName,
-                    email: contactEmail || `${firstName.toLowerCase()}@${companyName.toLowerCase().replace(/\s/g, '')}.com`,
-                    clientId: finalClientId
-                }
-            }))
-            contactId = contact.id
-        }
-
-        // 3. Create Lead
         const lead = await withPrismaRetry(() => prisma.lead.create({
             data: {
-                companyName: companyName,
+                companyName: companyName || null,
                 serviceRequested,
                 requirementDetail,
                 estimatedValue,
                 status,
-                clientId: finalClientId,
-                contactId: contactId
-            },
+                clientId: finalClientId || null,
+                contactId
+            }
         }))
 
         await createNotificationForRoles({
@@ -130,37 +407,28 @@ export async function convertLeadToProject(leadId: string, directorId: string) {
 
         if (!lead) throw new Error('Lead no encontrado')
 
-        // 1. Ensure Client exists
         let clientId = lead.clientId
         if (!clientId && lead.companyName) {
-            const client = await withPrismaRetry(() => prisma.client.create({
-                data: {
-                    name: lead.companyName || 'Cliente sin nombre',
-                }
-            }))
-            clientId = client.id
+            clientId = await ensureClientByName(lead.companyName)
         }
-
         if (!clientId) throw new Error('No se pudo determinar el cliente')
 
-        // 2. Create Project
         const project = await withPrismaRetry(() => prisma.project.create({
             data: {
                 name: lead.serviceRequested || `Proyecto ${lead.companyName}`,
-                clientId: clientId,
-                directorId: directorId,
+                clientId,
+                directorId,
                 budget: lead.estimatedValue,
                 serviceType: lead.serviceRequested || 'Servicio General',
-                status: 'PLANNING',
+                status: 'PLANNING'
             }
         }))
 
-        // 3. Mark Lead as WON
         await withPrismaRetry(() => prisma.lead.update({
             where: { id: leadId },
             data: {
                 status: LeadStatus.WON,
-                clientId: clientId
+                clientId
             }
         }))
 
@@ -207,12 +475,12 @@ export async function updateLead(leadId: string, formData: FormData) {
         await withPrismaRetry(() => prisma.lead.update({
             where: { id: leadId },
             data: {
-                companyName,
+                companyName: companyName || null,
                 serviceRequested,
                 requirementDetail,
                 estimatedValue,
                 status,
-                clientId: clientId || null,
+                clientId: clientId || null
             }
         }))
 
@@ -221,5 +489,310 @@ export async function updateLead(leadId: string, formData: FormData) {
     } catch (error) {
         console.error('Error updating lead:', error)
         throw new Error('Error al actualizar el lead')
+    }
+}
+
+export async function createQuote(data: {
+    leadId: string
+    proposalDetail?: string
+    servicesOffered?: string
+    budget: number
+    paymentMethod?: string
+    paymentCountry?: string
+    sentDate?: Date
+    status?: QuoteStatus
+    installmentsCount?: number
+}) {
+    try {
+        await requireModuleAccess('comercial')
+        const lead = await withPrismaRetry(() => prisma.lead.findUnique({
+            where: { id: data.leadId },
+            select: { id: true, companyName: true }
+        }))
+        if (!lead) return { success: false, error: 'Lead no encontrado' }
+
+        const status = data.status || 'PENDING'
+        const quote = await withPrismaRetry(() => prisma.quote.create({
+            data: {
+                leadId: data.leadId,
+                proposalDetail: data.proposalDetail || null,
+                servicesOffered: data.servicesOffered || null,
+                budget: data.budget,
+                paymentMethod: data.paymentMethod || null,
+                paymentCountry: data.paymentCountry || null,
+                sentDate: data.sentDate || (status === 'SENT' ? new Date() : null),
+                acceptedDate: status === 'ACCEPTED' ? new Date() : null,
+                rejectedDate: status === 'REJECTED' ? new Date() : null,
+                status,
+                installmentsCount: data.installmentsCount || 1
+            }
+        }))
+
+        await withPrismaRetry(() => prisma.lead.update({
+            where: { id: data.leadId },
+            data: {
+                status: shouldMarkLeadAsWon(status) ? LeadStatus.WON : shouldMarkLeadAsLost(status) ? LeadStatus.LOST : LeadStatus.PROPOSAL
+            }
+        }))
+
+        await createNotificationForRoles({
+            roles: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
+            type: 'quote_update',
+            message: `Nueva cotización creada para ${lead.companyName || 'lead sin empresa'}`
+        })
+
+        revalidatePath('/comercial')
+        return { success: true, quote }
+    } catch (error) {
+        console.error('Error creating quote:', error)
+        return { success: false, error: 'Error al crear la cotización' }
+    }
+}
+
+export async function updateQuoteStatus(quoteId: string, status: QuoteStatus) {
+    try {
+        await requireModuleAccess('comercial')
+        const quote = await withPrismaRetry(() => prisma.quote.update({
+            where: { id: quoteId },
+            data: {
+                status,
+                sentDate: status === 'SENT' ? new Date() : undefined,
+                acceptedDate: status === 'ACCEPTED' ? new Date() : null,
+                rejectedDate: status === 'REJECTED' ? new Date() : null
+            },
+            select: { leadId: true }
+        }))
+
+        await withPrismaRetry(() => prisma.lead.update({
+            where: { id: quote.leadId },
+            data: {
+                status: shouldMarkLeadAsWon(status) ? LeadStatus.WON : shouldMarkLeadAsLost(status) ? LeadStatus.LOST : LeadStatus.PROPOSAL
+            }
+        }))
+
+        revalidatePath('/comercial')
+        return { success: true }
+    } catch (error) {
+        console.error('Error updating quote status:', error)
+        return { success: false, error: 'Error al actualizar la cotización' }
+    }
+}
+
+export async function updateQuote(quoteId: string, data: {
+    proposalDetail?: string
+    servicesOffered?: string
+    budget: number
+    paymentMethod?: string
+    paymentCountry?: string
+    sentDate?: Date
+    status?: QuoteStatus
+    installmentsCount?: number
+}) {
+    try {
+        await requireModuleAccess('comercial')
+
+        const existing = await withPrismaRetry(() => prisma.quote.findUnique({
+            where: { id: quoteId },
+            select: {
+                id: true,
+                leadId: true,
+                status: true
+            }
+        }))
+        if (!existing) return { success: false, error: 'Cotización no encontrada' }
+
+        const status = data.status || existing.status as QuoteStatus
+        const sentDate = status === 'SENT'
+            ? (data.sentDate || new Date())
+            : data.sentDate || null
+        const acceptedDate = status === 'ACCEPTED' ? new Date() : null
+        const rejectedDate = status === 'REJECTED' ? new Date() : null
+
+        const quote = await withPrismaRetry(() => prisma.quote.update({
+            where: { id: quoteId },
+            data: {
+                proposalDetail: data.proposalDetail || null,
+                servicesOffered: data.servicesOffered || null,
+                budget: data.budget,
+                paymentMethod: data.paymentMethod || null,
+                paymentCountry: data.paymentCountry || null,
+                sentDate,
+                acceptedDate,
+                rejectedDate,
+                status,
+                installmentsCount: data.installmentsCount || 1
+            }
+        }))
+
+        await withPrismaRetry(() => prisma.lead.update({
+            where: { id: existing.leadId },
+            data: {
+                status: shouldMarkLeadAsWon(status) ? LeadStatus.WON : shouldMarkLeadAsLost(status) ? LeadStatus.LOST : LeadStatus.PROPOSAL
+            }
+        }))
+
+        await createNotificationForRoles({
+            roles: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
+            type: 'quote_update',
+            message: `Cotización actualizada (${quote.id.slice(0, 8)})`
+        })
+
+        revalidatePath('/comercial')
+        return { success: true, quote }
+    } catch (error) {
+        console.error('Error updating quote:', error)
+        return { success: false, error: 'Error al actualizar la cotización' }
+    }
+}
+
+export async function createInvoice(data: {
+    invoiceNumber?: string
+    quoteId?: string
+    clientId?: string
+    projectId?: string
+    issueDate?: Date
+    dueDate?: Date
+    amount: number
+    status?: InvoiceStatus
+    paymentMethod?: string
+    paymentCountry?: string
+}) {
+    try {
+        await requireModuleAccess('comercial')
+        let clientId = data.clientId || null
+
+        if (!clientId && data.quoteId) {
+            const quote = await withPrismaRetry(() => prisma.quote.findUnique({
+                where: { id: data.quoteId },
+                select: { lead: { select: { clientId: true } } }
+            }))
+            clientId = quote?.lead.clientId || null
+        }
+
+        if (!clientId) {
+            return { success: false, error: 'Debes seleccionar cliente o cotización asociada' }
+        }
+
+        const invoiceNumber = data.invoiceNumber?.trim() || await generateInvoiceNumber()
+        const duplicate = await withPrismaRetry(() => prisma.invoice.findUnique({
+            where: { invoiceNumber },
+            select: { id: true }
+        }))
+        if (duplicate) return { success: false, error: 'El número de factura ya existe' }
+
+        const invoice = await withPrismaRetry(() => prisma.invoice.create({
+            data: {
+                invoiceNumber,
+                quoteId: data.quoteId || null,
+                clientId,
+                projectId: data.projectId || null,
+                issueDate: data.issueDate || new Date(),
+                dueDate: data.dueDate || null,
+                amount: data.amount,
+                status: data.status || InvoiceStatus.DRAFT,
+                paymentMethod: data.paymentMethod || null,
+                paymentCountry: data.paymentCountry || null
+            }
+        }))
+
+        await createNotificationForRoles({
+            roles: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL, Role.CONTABILIDAD],
+            type: 'invoice_update',
+            message: `Factura creada: ${invoice.invoiceNumber}`
+        })
+
+        revalidatePath('/comercial')
+        revalidatePath('/contabilidad')
+        return { success: true, invoice }
+    } catch (error) {
+        console.error('Error creating invoice:', error)
+        return { success: false, error: 'Error al crear la factura' }
+    }
+}
+
+export async function updateInvoiceStatus(invoiceId: string, status: InvoiceStatus) {
+    try {
+        await requireModuleAccess('comercial')
+        await withPrismaRetry(() => prisma.invoice.update({
+            where: { id: invoiceId },
+            data: { status }
+        }))
+        revalidatePath('/comercial')
+        revalidatePath('/contabilidad')
+        return { success: true }
+    } catch (error) {
+        console.error('Error updating invoice status:', error)
+        return { success: false, error: 'Error al actualizar la factura' }
+    }
+}
+
+export async function updateInvoice(invoiceId: string, data: {
+    invoiceNumber?: string
+    quoteId?: string
+    clientId?: string
+    projectId?: string
+    issueDate?: Date
+    dueDate?: Date
+    amount: number
+    status?: InvoiceStatus
+    paymentMethod?: string
+    paymentCountry?: string
+}) {
+    try {
+        await requireModuleAccess('comercial')
+        const existing = await withPrismaRetry(() => prisma.invoice.findUnique({
+            where: { id: invoiceId },
+            select: { id: true, invoiceNumber: true }
+        }))
+        if (!existing) return { success: false, error: 'Factura no encontrada' }
+
+        let clientId = data.clientId || null
+        if (!clientId && data.quoteId) {
+            const quote = await withPrismaRetry(() => prisma.quote.findUnique({
+                where: { id: data.quoteId },
+                select: { lead: { select: { clientId: true } } }
+            }))
+            clientId = quote?.lead.clientId || null
+        }
+        if (!clientId) return { success: false, error: 'Debes seleccionar cliente o cotización asociada' }
+
+        const invoiceNumber = data.invoiceNumber?.trim() || existing.invoiceNumber
+        const duplicate = await withPrismaRetry(() => prisma.invoice.findFirst({
+            where: {
+                id: { not: invoiceId },
+                invoiceNumber
+            },
+            select: { id: true }
+        }))
+        if (duplicate) return { success: false, error: 'El número de factura ya existe' }
+
+        const invoice = await withPrismaRetry(() => prisma.invoice.update({
+            where: { id: invoiceId },
+            data: {
+                invoiceNumber,
+                quoteId: data.quoteId || null,
+                clientId,
+                projectId: data.projectId || null,
+                issueDate: data.issueDate || new Date(),
+                dueDate: data.dueDate || null,
+                amount: data.amount,
+                status: data.status || InvoiceStatus.DRAFT,
+                paymentMethod: data.paymentMethod || null,
+                paymentCountry: data.paymentCountry || null
+            }
+        }))
+
+        await createNotificationForRoles({
+            roles: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL, Role.CONTABILIDAD],
+            type: 'invoice_update',
+            message: `Factura actualizada: ${invoice.invoiceNumber}`
+        })
+
+        revalidatePath('/comercial')
+        revalidatePath('/contabilidad')
+        return { success: true, invoice }
+    } catch (error) {
+        console.error('Error updating invoice:', error)
+        return { success: false, error: 'Error al actualizar la factura' }
     }
 }
