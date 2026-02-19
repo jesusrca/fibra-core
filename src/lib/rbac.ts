@@ -10,6 +10,7 @@ export interface Permission {
 export type Module =
     | 'dashboard'
     | 'contabilidad'
+    | 'facturas'
     | 'finanzas'
     | 'proyectos'
     | 'marketing'
@@ -25,6 +26,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
     ADMIN: {
         dashboard: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         contabilidad: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        facturas: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         finanzas: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         proyectos: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         marketing: { canView: true, canCreate: true, canEdit: true, canDelete: true },
@@ -39,6 +41,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
     GERENCIA: {
         dashboard: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         contabilidad: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        facturas: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         finanzas: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         proyectos: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         marketing: { canView: true, canCreate: true, canEdit: true, canDelete: true },
@@ -53,6 +56,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
     CONTABILIDAD: {
         dashboard: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         contabilidad: { canView: true, canCreate: true, canEdit: true, canDelete: false },
+        facturas: { canView: true, canCreate: true, canEdit: true, canDelete: false },
         finanzas: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         proyectos: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         marketing: { canView: false, canCreate: false, canEdit: false, canDelete: false },
@@ -67,6 +71,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
     FINANZAS: {
         dashboard: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         contabilidad: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+        facturas: { canView: true, canCreate: false, canEdit: true, canDelete: false },
         finanzas: { canView: true, canCreate: true, canEdit: true, canDelete: false },
         proyectos: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         marketing: { canView: false, canCreate: false, canEdit: false, canDelete: false },
@@ -81,6 +86,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
     PROYECTOS: {
         dashboard: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         contabilidad: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        facturas: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         finanzas: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         proyectos: { canView: true, canCreate: true, canEdit: true, canDelete: false },
         marketing: { canView: false, canCreate: false, canEdit: false, canDelete: false },
@@ -95,6 +101,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
     MARKETING: {
         dashboard: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         contabilidad: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        facturas: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         finanzas: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         proyectos: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         marketing: { canView: true, canCreate: true, canEdit: true, canDelete: false },
@@ -109,6 +116,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
     COMERCIAL: {
         dashboard: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         contabilidad: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        facturas: { canView: true, canCreate: true, canEdit: true, canDelete: false },
         finanzas: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         proyectos: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         marketing: { canView: true, canCreate: false, canEdit: false, canDelete: false },

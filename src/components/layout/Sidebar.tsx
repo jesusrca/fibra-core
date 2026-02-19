@@ -16,6 +16,7 @@ import {
     Megaphone,
     Handshake,
     FileBarChart,
+    Receipt,
     MessageSquare,
     Settings,
     ChevronLeft,
@@ -42,6 +43,7 @@ type NotificationModuleKey =
     | 'equipo'
     | 'proveedores'
     | 'contabilidad'
+    | 'facturas'
     | 'finanzas'
     | 'marketing'
     | 'reportes'
@@ -52,9 +54,10 @@ const navItems: NavItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: 'dashboard', notifyKey: 'dashboard' },
     { label: 'Comercial (CRM)', href: '/comercial', icon: Handshake, module: 'comercial', notifyKey: 'comercial' },
     { label: 'Proyectos', href: '/proyectos', icon: FolderKanban, module: 'proyectos', notifyKey: 'proyectos' },
-    { label: 'Equipo', href: '/equipo', icon: UsersIcon, module: 'dashboard', notifyKey: 'equipo' }, // Using dashboard module for now for access
-    { label: 'Proveedores', href: '/proveedores', icon: Truck, module: 'dashboard', notifyKey: 'proveedores' },
+    { label: 'Equipo', href: '/equipo', icon: UsersIcon, module: 'equipo', notifyKey: 'equipo' },
+    { label: 'Proveedores', href: '/proveedores', icon: Truck, module: 'proveedores', notifyKey: 'proveedores' },
     { label: 'Contabilidad', href: '/contabilidad', icon: Calculator, module: 'contabilidad', notifyKey: 'contabilidad' },
+    { label: 'Facturas', href: '/facturas', icon: Receipt, module: 'facturas', notifyKey: 'facturas' },
     { label: 'Finanzas', href: '/finanzas', icon: TrendingUp, module: 'finanzas', notifyKey: 'finanzas' },
     { label: 'Marketing', href: '/marketing', icon: Megaphone, module: 'marketing', notifyKey: 'marketing' },
     { label: 'Reportes', href: '/reportes', icon: FileBarChart, module: 'reportes', notifyKey: 'reportes' },
@@ -76,6 +79,7 @@ export function Sidebar({ userRole }: SidebarProps) {
         equipo: 0,
         proveedores: 0,
         contabilidad: 0,
+        facturas: 0,
         finanzas: 0,
         marketing: 0,
         reportes: 0,

@@ -10,6 +10,7 @@ type NotificationModule =
     | 'equipo'
     | 'proveedores'
     | 'contabilidad'
+    | 'facturas'
     | 'finanzas'
     | 'marketing'
     | 'reportes'
@@ -29,7 +30,7 @@ function mapTypeToModules(type: string): NotificationModule[] {
             return ['proyectos', 'equipo', 'dashboard']
         case 'invoice_update':
         case 'invoice_overdue':
-            return ['contabilidad', 'finanzas', 'dashboard']
+            return ['contabilidad', 'facturas', 'finanzas', 'dashboard']
         case 'finance_update':
             return ['finanzas', 'contabilidad', 'dashboard']
         case 'milestone_billing_due':
@@ -59,6 +60,7 @@ export async function GET() {
             equipo: 0,
             proveedores: 0,
             contabilidad: 0,
+            facturas: 0,
             finanzas: 0,
             marketing: 0,
             reportes: 0,
@@ -87,6 +89,7 @@ export async function GET() {
                 equipo: 0,
                 proveedores: 0,
                 contabilidad: 0,
+                facturas: 0,
                 finanzas: 0,
                 marketing: 0,
                 reportes: 0,

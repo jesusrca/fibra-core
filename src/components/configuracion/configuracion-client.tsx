@@ -10,6 +10,7 @@ import type { Role } from '@prisma/client'
 import { useRouter } from 'next/navigation'
 import { createAccountingBank, deleteAccountingBank, updateAccountingBank } from '@/lib/actions/accounting-settings'
 import { disconnectEmailIntegration, syncGmailEmails, upsertGmailIntegration } from '@/lib/actions/email'
+import { createUser, deleteUser, updateUser } from '@/lib/actions/users'
 
 interface ConfigUser {
     id: string
@@ -49,8 +50,12 @@ export function ConfiguracionClient({
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<'usuarios' | 'integraciones' | 'notificaciones' | 'contabilidad'>('usuarios')
     const [showBankForm, setShowBankForm] = useState(false)
+    const [showUserForm, setShowUserForm] = useState(false)
+    const [editingUser, setEditingUser] = useState<ConfigUser | null>(null)
     const [editingBank, setEditingBank] = useState<AccountingBank | null>(null)
     const [savingBank, setSavingBank] = useState(false)
+    const [savingUser, setSavingUser] = useState(false)
+    const [userError, setUserError] = useState<string | null>(null)
     const [bankError, setBankError] = useState<string | null>(null)
     const [gmailError, setGmailError] = useState<string | null>(null)
     const [gmailSaving, setGmailSaving] = useState(false)
@@ -100,6 +105,54 @@ export function ConfiguracionClient({
         const result = await deleteAccountingBank(bankId)
         if (!result.success) {
             alert(result.error || 'No se pudo eliminar el banco')
+            return
+        }
+        router.refresh()
+    }
+
+    const openCreateUser = () => {
+        setEditingUser(null)
+        setUserError(null)
+        setShowUserForm(true)
+    }
+
+    const openEditUser = (user: ConfigUser) => {
+        setEditingUser(user)
+        setUserError(null)
+        setShowUserForm(true)
+    }
+
+    const handleSaveUser = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setSavingUser(true)
+        setUserError(null)
+        const formData = new FormData(e.currentTarget)
+        const payload = {
+            name: (formData.get('name') as string || '').trim(),
+            email: (formData.get('email') as string || '').trim().toLowerCase(),
+            role: (formData.get('role') as Role) || 'COMERCIAL',
+            password: ((formData.get('password') as string) || '').trim() || undefined
+        }
+
+        const result = editingUser
+            ? await updateUser(editingUser.id, payload)
+            : await createUser(payload)
+
+        setSavingUser(false)
+        if (!result.success) {
+            setUserError(result.error || 'No se pudo guardar el usuario')
+            return
+        }
+        setShowUserForm(false)
+        setEditingUser(null)
+        router.refresh()
+    }
+
+    const handleDeleteUser = async (userId: string) => {
+        if (!confirm('¿Eliminar este usuario?')) return
+        const result = await deleteUser(userId)
+        if (!result.success) {
+            alert(result.error || 'No se pudo eliminar el usuario')
             return
         }
         router.refresh()
@@ -186,7 +239,7 @@ export function ConfiguracionClient({
                 <div className="space-y-6">
                     <div className="flex justify-between items-center">
                         <h2 className="section-title text-base font-bold">Gestión de Usuarios</h2>
-                        <button className="btn-primary"><Plus className="w-4 h-4" /> Invitar Usuario</button>
+                        <button className="btn-primary" onClick={openCreateUser}><Plus className="w-4 h-4" /> Invitar Usuario</button>
                     </div>
                     <div className="glass-card overflow-hidden">
                         <table className="data-table">
@@ -218,8 +271,8 @@ export function ConfiguracionClient({
                                         <td className="text-xs text-muted-foreground">Activo</td>
                                         <td className="text-right">
                                             <div className="flex justify-end gap-1">
-                                                <button className="btn-ghost p-1.5"><Edit2 className="w-3.5 h-3.5" /></button>
-                                                <button className="btn-ghost p-1.5 text-[hsl(var(--danger-text))] hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                <button className="btn-ghost p-1.5" onClick={() => openEditUser(u)}><Edit2 className="w-3.5 h-3.5" /></button>
+                                                <button className="btn-ghost p-1.5 text-[hsl(var(--danger-text))] hover:bg-red-500/10" onClick={() => handleDeleteUser(u.id)}><Trash2 className="w-3.5 h-3.5" /></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -478,6 +531,47 @@ export function ConfiguracionClient({
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {showUserForm && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowUserForm(false)}>
+                    <div className="modal-form-card p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-lg font-semibold text-foreground mb-4">{editingUser ? 'Editar usuario' : 'Invitar usuario'}</h3>
+                        <form className="space-y-4" onSubmit={handleSaveUser}>
+                            {userError && (
+                                <div className="bg-destructive/10 border border-destructive/20 text-destructive text-sm p-3 rounded-lg">
+                                    {userError}
+                                </div>
+                            )}
+                            <div>
+                                <label className="form-label">Nombre</label>
+                                <input name="name" required className="form-input" defaultValue={editingUser?.name || ''} placeholder="Nombre y apellido" />
+                            </div>
+                            <div>
+                                <label className="form-label">Correo</label>
+                                <input name="email" type="email" required className="form-input" defaultValue={editingUser?.email || ''} placeholder="usuario@fibra.studio" />
+                            </div>
+                            <div>
+                                <label className="form-label">Rol</label>
+                                <select name="role" className="form-input" defaultValue={editingUser?.role || 'COMERCIAL'}>
+                                    {(Object.keys(roleLabels) as Role[]).map((role) => (
+                                        <option key={role} value={role}>{roleLabels[role]}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="form-label">Contraseña {editingUser ? '(opcional)' : ''}</label>
+                                <input name="password" type="password" className="form-input" placeholder={editingUser ? 'Dejar vacío para no cambiar' : 'Temporal (opcional)'} />
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                                <button type="button" className="flex-1 btn-secondary" onClick={() => setShowUserForm(false)}>Cancelar</button>
+                                <button type="submit" className="flex-1 btn-primary justify-center" disabled={savingUser}>
+                                    {savingUser ? 'Guardando...' : 'Guardar'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

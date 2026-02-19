@@ -224,7 +224,7 @@ export function DashboardClient({ stats }: DashboardClientProps) {
                         </div>
                     )}
 
-                    <Button>
+                    <Button onClick={() => router.push('/reportes')}>
                         <TrendingUp className="w-4 h-4" />
                         Generar Reporte
                     </Button>

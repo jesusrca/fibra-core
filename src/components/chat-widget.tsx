@@ -344,8 +344,6 @@ export function ChatWidget() {
                     <div className="absolute inset-0 rounded-full bg-white/20 animate-ping opacity-20" />
                     <MessageSquare className="w-6 h-6 text-white relative z-10" />
 
-                    {/* Notification Badge (Fake for now) */}
-                    <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full border-2 border-background" />
                 </button>
             )}
         </div>

@@ -173,6 +173,33 @@ export function ContabilidadClient({
         }
     }
 
+    const exportTransactionsCsv = () => {
+        const headers = ['Fecha', 'Categoría', 'Subcategoría', 'Moneda', 'Banco', 'Monto', 'Descripción', 'Factura']
+        const rows = filtered.map((t) => [
+            formatDate(t.date),
+            t.category,
+            t.subcategory || '',
+            t.currency || 'PEN',
+            t.bank || '',
+            String(t.amount ?? 0),
+            (t.description || '').replace(/\n/g, ' ').trim(),
+            t.invoice?.invoiceNumber || ''
+        ])
+        const csv = [headers, ...rows]
+            .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+            .join('\n')
+
+        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `contabilidad-${new Date().toISOString().slice(0, 10)}.csv`
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(url)
+    }
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="page-header">
@@ -181,7 +208,7 @@ export function ContabilidadClient({
                     <p className="text-sm text-muted-foreground mt-0.5">Gestión de ingresos, gastos y facturas</p>
                 </div>
                 <div className="flex gap-2">
-                    <button className="btn-secondary"><Download className="w-4 h-4" /> Exportar</button>
+                    <button className="btn-secondary" onClick={exportTransactionsCsv}><Download className="w-4 h-4" /> Exportar</button>
                     <button className="btn-primary" onClick={() => { setSelectedCurrency('PEN'); setShowForm(true) }}><Plus className="w-4 h-4" /> Nueva Transacción</button>
                 </div>
             </div>
