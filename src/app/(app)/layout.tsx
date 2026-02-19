@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { Header } from '@/components/layout/Header'
 import { useApp } from '@/lib/app-context'
@@ -13,6 +14,7 @@ const ChatWidget = dynamic(
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
     const { currentUser, sessionLoading } = useApp()
+    const router = useRouter()
     const [chatEnabled, setChatEnabled] = useState(false)
 
     useEffect(() => {
@@ -20,10 +22,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         return () => window.clearTimeout(id)
     }, [])
 
-    if (sessionLoading || !currentUser) {
+    useEffect(() => {
+        if (!sessionLoading && !currentUser) {
+            router.replace('/login')
+        }
+    }, [sessionLoading, currentUser, router])
+
+    if (sessionLoading) {
         return (
             <div className="h-screen flex items-center justify-center bg-background text-muted-foreground">
                 Cargando sesión...
+            </div>
+        )
+    }
+
+    if (!currentUser) {
+        return (
+            <div className="h-screen flex items-center justify-center bg-background text-muted-foreground">
+                Redirigiendo al login...
             </div>
         )
     }
