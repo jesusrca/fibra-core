@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { MessageSquare, X, Send, Bot, User, Loader2, Sparkles, File as FileIcon, Mic } from 'lucide-react'
+import { MessageSquare, X, Send, Bot, User, Loader2, Sparkles, File as FileIcon, Mic, Pause, Square } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSharedChat } from '@/lib/use-shared-chat'
 import { RichTextMessage } from '@/components/chat/rich-text-message'
@@ -36,6 +36,8 @@ export function ChatWidget() {
     const [input, setInput] = useState('')
     const [attachments, setAttachments] = useState<File[]>([])
     const [isRecording, setIsRecording] = useState(false)
+    const [isRecordingPaused, setIsRecordingPaused] = useState(false)
+    const [isTranscribingAudio, setIsTranscribingAudio] = useState(false)
     const [recordError, setRecordError] = useState<string | null>(null)
     const [isSending, setIsSending] = useState(false)
     const { messages, sendMessage, status } = useSharedChat()
@@ -44,7 +46,7 @@ export function ChatWidget() {
     const mediaStreamRef = useRef<MediaStream | null>(null)
     const audioChunksRef = useRef<Blob[]>([])
     const isLoading = status === 'submitted' || status === 'streaming'
-    const isBusy = isLoading || isSending
+    const isBusy = isLoading || isSending || isTranscribingAudio
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -77,11 +79,21 @@ export function ChatWidget() {
             mediaStreamRef.current = null
         }
         setIsRecording(false)
+        setIsRecordingPaused(false)
     }
 
     const handleRecordToggle = async () => {
         if (isRecording) {
-            stopRecording()
+            const recorder = mediaRecorderRef.current
+            if (!recorder) return
+
+            if (recorder.state === 'recording') {
+                recorder.pause()
+                setIsRecordingPaused(true)
+            } else if (recorder.state === 'paused') {
+                recorder.resume()
+                setIsRecordingPaused(false)
+            }
             return
         }
 
@@ -96,6 +108,7 @@ export function ChatWidget() {
             const recorder = new MediaRecorder(stream)
             mediaRecorderRef.current = recorder
             audioChunksRef.current = []
+            setIsRecordingPaused(false)
 
             recorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
@@ -104,19 +117,40 @@ export function ChatWidget() {
             }
 
             recorder.onstop = () => {
-                const mimeType = recorder.mimeType || 'audio/webm'
-                const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'm4a' : 'webm'
-                const blob = new Blob(audioChunksRef.current, { type: mimeType })
-                if (blob.size > 0) {
-                    const file = new File([blob], `audio-widget-${Date.now()}.${ext}`, { type: mimeType })
-                    setAttachments([file])
-                }
+                void (async () => {
+                    const mimeType = recorder.mimeType || 'audio/webm'
+                    const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'm4a' : 'webm'
+                    const blob = new Blob(audioChunksRef.current, { type: mimeType })
+                    if (blob.size > 0) {
+                        const file = new File([blob], `audio-widget-${Date.now()}.${ext}`, { type: mimeType })
+                        const formData = new FormData()
+                        formData.append('audio', file)
+                        setIsTranscribingAudio(true)
+                        try {
+                            const response = await fetch('/api/chat/transcribe-audio', {
+                                method: 'POST',
+                                body: formData
+                            })
+                            const result = await response.json()
+                            if (!response.ok || !result?.text) {
+                                throw new Error(result?.error || 'No se pudo transcribir el audio')
+                            }
+                            setInput((prev) => (prev ? `${prev}\n${String(result.text).trim()}` : String(result.text).trim()))
+                            setRecordError(null)
+                        } catch (error) {
+                            setRecordError(error instanceof Error ? error.message : 'No se pudo transcribir el audio')
+                        } finally {
+                            setIsTranscribingAudio(false)
+                        }
+                    }
+                })()
                 audioChunksRef.current = []
                 if (mediaStreamRef.current) {
                     mediaStreamRef.current.getTracks().forEach((track) => track.stop())
                     mediaStreamRef.current = null
                 }
                 setIsRecording(false)
+                setIsRecordingPaused(false)
             }
 
             recorder.start()
@@ -125,12 +159,13 @@ export function ChatWidget() {
         } catch (error) {
             setRecordError(error instanceof Error ? error.message : 'No se pudo iniciar la grabación')
             setIsRecording(false)
+            setIsRecordingPaused(false)
         }
     }
 
     const handleSend = async () => {
         const text = input.trim()
-        if ((!text && attachments.length === 0) || isBusy) return
+        if ((!text && attachments.length === 0) || isBusy || isRecording || isTranscribingAudio) return
 
         setIsSending(true)
         const previousInput = input
@@ -313,23 +348,40 @@ export function ChatWidget() {
                             <button
                                 type="button"
                                 onClick={handleRecordToggle}
-                                title={isRecording ? 'Detener grabación' : 'Grabar audio'}
+                                title={isRecording ? (isRecordingPaused ? 'Reanudar grabación' : 'Pausar grabación') : 'Grabar audio'}
                                 disabled={isBusy && !isRecording}
                                 className={cn(
                                     "p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center",
                                     isRecording
-                                        ? "bg-red-500 text-white"
+                                        ? isRecordingPaused
+                                            ? "bg-amber-500 text-white"
+                                            : "bg-red-500 text-white animate-pulse"
                                         : "bg-secondary text-muted-foreground hover:text-foreground"
                                 )}
                             >
-                                <Mic className="w-4 h-4" />
+                                {isRecording
+                                    ? isRecordingPaused
+                                        ? <Mic className="w-4 h-4" />
+                                        : <Pause className="w-4 h-4" />
+                                    : <Mic className="w-4 h-4" />}
                             </button>
+                            {isRecording && (
+                                <button
+                                    type="button"
+                                    onClick={stopRecording}
+                                    title="Detener y transcribir"
+                                    disabled={isTranscribingAudio}
+                                    className="p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center bg-secondary text-red-500 hover:text-red-600"
+                                >
+                                    <Square className="w-4 h-4" />
+                                </button>
+                            )}
                             <button
                                 type="submit"
-                                disabled={isBusy || (input.trim() === '' && attachments.length === 0)}
+                                disabled={isBusy || isRecording || (input.trim() === '' && attachments.length === 0)}
                                 className={cn(
                                     "p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center",
-                                    input.trim() === '' && attachments.length === 0
+                                    isBusy || isRecording || isTranscribingAudio || (input.trim() === '' && attachments.length === 0)
                                         ? "bg-secondary text-muted-foreground cursor-not-allowed"
                                         : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20"
                                 )}
@@ -338,7 +390,21 @@ export function ChatWidget() {
                             </button>
                         </form>
                         <p className="mt-2 text-[10px] text-muted-foreground">Enter: salto de línea · Ctrl+Enter: enviar</p>
-                        {isRecording && <p className="mt-2 text-[11px] text-red-500">Grabando audio... toca el mic para detener.</p>}
+                        {isRecording && (
+                            <div className="mt-2 flex items-center gap-2 text-[11px]">
+                                <div className="flex items-end gap-1 h-3">
+                                    <span className={cn('w-1 rounded-full bg-red-500', isRecordingPaused ? 'h-1.5 opacity-60' : 'h-3 animate-pulse')} />
+                                    <span className={cn('w-1 rounded-full bg-red-500', isRecordingPaused ? 'h-2 opacity-60' : 'h-2.5 animate-pulse [animation-delay:120ms]')} />
+                                    <span className={cn('w-1 rounded-full bg-red-500', isRecordingPaused ? 'h-1 opacity-60' : 'h-2 animate-pulse [animation-delay:220ms]')} />
+                                </div>
+                                <span className={isRecordingPaused ? 'text-amber-600' : 'text-red-500'}>
+                                    {isRecordingPaused
+                                        ? 'Grabación en pausa. Reanuda o presiona Stop para transcribir.'
+                                        : 'Grabando audio... puedes pausar o detener para transcribir.'}
+                                </span>
+                            </div>
+                        )}
+                        {isTranscribingAudio && <p className="mt-2 text-[11px] text-muted-foreground">Transcribiendo audio con Whisper...</p>}
                         {recordError && <p className="mt-2 text-[11px] text-red-500">{recordError}</p>}
                     </div>
                 </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { User, Mail, MapPin, Calendar, Camera, Shield, Zap, Target } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { roleLabels } from '@/lib/rbac'
@@ -15,6 +15,7 @@ interface PerfilClientProps {
         name: string
         email: string
         role: string
+        avatarUrl: string | null
         phone: string | null
         country: string | null
         timezone: string | null
@@ -29,6 +30,7 @@ export function PerfilClient({ profile }: PerfilClientProps) {
     const router = useRouter()
     const [form, setForm] = useState({
         name: profile.name || '',
+        avatarUrl: profile.avatarUrl || '',
         specialty: profile.specialty || '',
         phone: profile.phone || '',
         country: profile.country || '',
@@ -36,7 +38,9 @@ export function PerfilClient({ profile }: PerfilClientProps) {
         birthday: profile.birthday ? profile.birthday.slice(0, 10) : ''
     })
     const [saving, setSaving] = useState(false)
+    const [uploadingAvatar, setUploadingAvatar] = useState(false)
     const [message, setMessage] = useState<string | null>(null)
+    const avatarInputRef = useRef<HTMLInputElement>(null)
     const [showPasswordForm, setShowPasswordForm] = useState(false)
     const [passwordForm, setPasswordForm] = useState({
         currentPassword: '',
@@ -60,7 +64,8 @@ export function PerfilClient({ profile }: PerfilClientProps) {
             phone: form.phone || undefined,
             country: form.country || undefined,
             timezone: form.timezone || undefined,
-            birthday: form.birthday ? new Date(`${form.birthday}T00:00:00`) : undefined
+            birthday: form.birthday ? new Date(`${form.birthday}T00:00:00`) : undefined,
+            avatarUrl: form.avatarUrl || undefined
         })
         setSaving(false)
         if (!result.success) {
@@ -102,6 +107,36 @@ export function PerfilClient({ profile }: PerfilClientProps) {
         setShowPasswordForm(false)
     }
 
+    const handleAvatarUpload = async (file: File) => {
+        setUploadingAvatar(true)
+        setMessage(null)
+        try {
+            const data = new FormData()
+            data.append('file', file)
+            const response = await fetch('/api/uploads/profile-photo', {
+                method: 'POST',
+                body: data
+            })
+            const result = await response.json()
+            if (!response.ok || !result?.avatarUrl) {
+                throw new Error(result?.error || 'No se pudo subir la foto de perfil')
+            }
+            setForm((prev) => ({ ...prev, avatarUrl: result.avatarUrl }))
+            await update({
+                name: form.name,
+                user: {
+                    name: form.name
+                }
+            } as any)
+            router.refresh()
+            setMessage('Foto de perfil actualizada')
+        } catch (error) {
+            setMessage(error instanceof Error ? error.message : 'No se pudo subir la foto de perfil')
+        } finally {
+            setUploadingAvatar(false)
+        }
+    }
+
     return (
         <div className="space-y-6 animate-fade-in max-w-5xl mx-auto">
             <div className="page-header">
@@ -115,10 +150,34 @@ export function PerfilClient({ profile }: PerfilClientProps) {
                 <div className="space-y-6">
                     <div className="glass-card p-8 flex flex-col items-center text-center">
                         <div className="relative group">
-                            <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-electric-500 to-gold-500 flex items-center justify-center text-4xl font-bold text-white shadow-xl shadow-primary/20">
-                                {initials}
-                            </div>
-                            <button className="absolute -right-2 -bottom-2 w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-primary transition-colors shadow-lg">
+                            {form.avatarUrl ? (
+                                <img
+                                    src={form.avatarUrl}
+                                    alt={form.name || 'Foto de perfil'}
+                                    className="w-32 h-32 rounded-3xl object-cover shadow-xl shadow-primary/20"
+                                />
+                            ) : (
+                                <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-electric-500 to-gold-500 flex items-center justify-center text-4xl font-bold text-white shadow-xl shadow-primary/20">
+                                    {initials}
+                                </div>
+                            )}
+                            <input
+                                ref={avatarInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) void handleAvatarUpload(file)
+                                    e.currentTarget.value = ''
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => !uploadingAvatar && avatarInputRef.current?.click()}
+                                className="absolute -right-2 -bottom-2 w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-primary transition-colors shadow-lg disabled:opacity-50"
+                                disabled={uploadingAvatar}
+                            >
                                 <Camera className="w-5 h-5" />
                             </button>
                         </div>

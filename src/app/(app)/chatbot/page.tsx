@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, Sparkles, Paperclip, Mic, Zap, Info, X, File as FileIcon, Loader2 } from 'lucide-react'
+import { Send, Bot, User, Sparkles, Paperclip, Mic, Pause, Square, Zap, Info, X, File as FileIcon, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSharedChat } from '@/lib/use-shared-chat'
 import type { UIMessage } from 'ai'
@@ -51,6 +51,8 @@ export default function ChatbotPage() {
     const [isSending, setIsSending] = useState(false)
     const [uploadError, setUploadError] = useState<string | null>(null)
     const [isRecording, setIsRecording] = useState(false)
+    const [isRecordingPaused, setIsRecordingPaused] = useState(false)
+    const [isTranscribingAudio, setIsTranscribingAudio] = useState(false)
     const scrollRef = useRef<HTMLDivElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -58,7 +60,7 @@ export default function ChatbotPage() {
     const audioChunksRef = useRef<Blob[]>([])
     const { messages, sendMessage, status, error } = useSharedChat()
     const isTyping = status === 'submitted' || status === 'streaming'
-    const isBusy = isTyping || isSending
+    const isBusy = isTyping || isSending || isTranscribingAudio
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -112,11 +114,21 @@ export default function ChatbotPage() {
             mediaStreamRef.current = null
         }
         setIsRecording(false)
+        setIsRecordingPaused(false)
     }
 
     const handleRecordToggle = async () => {
         if (isRecording) {
-            stopRecording()
+            const recorder = mediaRecorderRef.current
+            if (!recorder) return
+
+            if (recorder.state === 'recording') {
+                recorder.pause()
+                setIsRecordingPaused(true)
+            } else if (recorder.state === 'paused') {
+                recorder.resume()
+                setIsRecordingPaused(false)
+            }
             return
         }
 
@@ -131,6 +143,7 @@ export default function ChatbotPage() {
             const recorder = new MediaRecorder(stream)
             mediaRecorderRef.current = recorder
             audioChunksRef.current = []
+            setIsRecordingPaused(false)
 
             recorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
@@ -139,19 +152,40 @@ export default function ChatbotPage() {
             }
 
             recorder.onstop = () => {
-                const mimeType = recorder.mimeType || 'audio/webm'
-                const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'm4a' : 'webm'
-                const blob = new Blob(audioChunksRef.current, { type: mimeType })
-                if (blob.size > 0) {
-                    const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: mimeType })
-                    addFiles([file])
-                }
+                void (async () => {
+                    const mimeType = recorder.mimeType || 'audio/webm'
+                    const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'm4a' : 'webm'
+                    const blob = new Blob(audioChunksRef.current, { type: mimeType })
+                    if (blob.size > 0) {
+                        const file = new File([blob], `audio-${Date.now()}.${ext}`, { type: mimeType })
+                        const formData = new FormData()
+                        formData.append('audio', file)
+                        setIsTranscribingAudio(true)
+                        try {
+                            const response = await fetch('/api/chat/transcribe-audio', {
+                                method: 'POST',
+                                body: formData
+                            })
+                            const result = await response.json()
+                            if (!response.ok || !result?.text) {
+                                throw new Error(result?.error || 'No se pudo transcribir el audio')
+                            }
+                            setInput((prev) => (prev ? `${prev}\n${String(result.text).trim()}` : String(result.text).trim()))
+                            setUploadError(null)
+                        } catch (error) {
+                            setUploadError(error instanceof Error ? error.message : 'No se pudo transcribir el audio')
+                        } finally {
+                            setIsTranscribingAudio(false)
+                        }
+                    }
+                })()
                 audioChunksRef.current = []
                 if (mediaStreamRef.current) {
                     mediaStreamRef.current.getTracks().forEach((track) => track.stop())
                     mediaStreamRef.current = null
                 }
                 setIsRecording(false)
+                setIsRecordingPaused(false)
             }
 
             recorder.start()
@@ -160,12 +194,13 @@ export default function ChatbotPage() {
         } catch (recordError) {
             setUploadError(recordError instanceof Error ? recordError.message : 'No se pudo iniciar la grabación')
             setIsRecording(false)
+            setIsRecordingPaused(false)
         }
     }
 
     const handleSend = async () => {
         const text = input.trim()
-        if ((!text && attachments.length === 0) || isBusy) return
+        if ((!text && attachments.length === 0) || isBusy || isRecording || isTranscribingAudio) return
 
         setIsSending(true)
         setUploadError(null)
@@ -398,19 +433,38 @@ export default function ChatbotPage() {
                         onClick={handleRecordToggle}
                         className={cn(
                             'btn-ghost p-2',
-                            isRecording ? 'text-red-500 hover:text-red-600' : 'text-muted-foreground'
+                            isRecording
+                                ? isRecordingPaused
+                                    ? 'text-amber-500 hover:text-amber-600'
+                                    : 'text-red-500 hover:text-red-600 animate-pulse'
+                                : 'text-muted-foreground'
                         )}
-                        title={isRecording ? 'Detener grabación' : 'Grabar audio'}
+                        title={isRecording ? (isRecordingPaused ? 'Reanudar grabación' : 'Pausar grabación') : 'Grabar audio'}
                         disabled={isBusy && !isRecording}
                     >
-                        <Mic className="w-5 h-5" />
+                        {isRecording ? (
+                            isRecordingPaused ? <Mic className="w-5 h-5" /> : <Pause className="w-5 h-5" />
+                        ) : (
+                            <Mic className="w-5 h-5" />
+                        )}
                     </button>
+                    {isRecording && (
+                        <button
+                            type="button"
+                            onClick={stopRecording}
+                            className="btn-ghost p-2 text-red-500 hover:text-red-600"
+                            title="Detener y transcribir"
+                            disabled={isTranscribingAudio}
+                        >
+                            <Square className="w-5 h-5" />
+                        </button>
+                    )}
                     <button
                         onClick={handleSend}
-                        disabled={isBusy || (!input.trim() && attachments.length === 0)}
+                        disabled={isBusy || isRecording || isTranscribingAudio || (!input.trim() && attachments.length === 0)}
                         className={cn(
                             'p-2.5 rounded-xl transition-all duration-300',
-                            !isBusy && (input.trim() || attachments.length > 0)
+                            !isBusy && !isRecording && !isTranscribingAudio && (input.trim() || attachments.length > 0)
                                 ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
                                 : 'bg-secondary text-muted-foreground opacity-50 cursor-not-allowed'
                         )}
@@ -419,7 +473,21 @@ export default function ChatbotPage() {
                     </button>
                 </div>
                 {uploadError && <p className="text-[11px] text-red-500 mt-2">{uploadError}</p>}
-                {isRecording && <p className="text-[11px] text-red-500 mt-2">Grabando audio... presiona el micrófono para detener.</p>}
+                {isRecording && (
+                    <div className="mt-2 flex items-center gap-2 text-[11px]">
+                        <div className="flex items-end gap-1 h-3">
+                            <span className={cn('w-1 rounded-full bg-red-500', isRecordingPaused ? 'h-1.5 opacity-60' : 'h-3 animate-pulse')} />
+                            <span className={cn('w-1 rounded-full bg-red-500', isRecordingPaused ? 'h-2 opacity-60' : 'h-2.5 animate-pulse [animation-delay:120ms]')} />
+                            <span className={cn('w-1 rounded-full bg-red-500', isRecordingPaused ? 'h-1 opacity-60' : 'h-2 animate-pulse [animation-delay:220ms]')} />
+                        </div>
+                        <span className={isRecordingPaused ? 'text-amber-600' : 'text-red-500'}>
+                            {isRecordingPaused
+                                ? 'Grabación en pausa. Presiona el micrófono para reanudar o Stop para transcribir.'
+                                : 'Grabando audio... Presiona Pausa o Stop para transcribir.'}
+                        </span>
+                    </div>
+                )}
+                {isTranscribingAudio && <p className="text-[11px] text-muted-foreground mt-2">Transcribiendo audio con Whisper...</p>}
                 <p className="text-[10px] text-muted-foreground mt-1">`Enter` agrega salto de línea. `Ctrl+Enter` envía.</p>
                 <p className="text-[10px] text-center text-muted-foreground mt-3 flex items-center justify-center gap-1">
                     <Sparkles className="w-3 h-3" />

@@ -26,6 +26,7 @@ interface QuoteOption {
 interface InvoiceItem {
     id: string
     invoiceNumber: string
+    fileUrl: string | null
     quoteId: string | null
     clientId: string
     projectId: string | null
@@ -193,6 +194,7 @@ export function FacturasClient({
                     <thead>
                         <tr>
                             <th>Número</th>
+                            <th>Archivo</th>
                             <th>Cliente</th>
                             <th>Proyecto</th>
                             <th>Monto</th>
@@ -207,6 +209,13 @@ export function FacturasClient({
                         {filteredRows.map((invoice) => (
                             <tr key={invoice.id}>
                                 <td className="font-medium whitespace-nowrap">{invoice.invoiceNumber}</td>
+                                <td className="text-xs whitespace-nowrap">
+                                    {invoice.fileUrl ? (
+                                        <a href={invoice.fileUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                                            Ver PDF
+                                        </a>
+                                    ) : '-'}
+                                </td>
                                 <td className="text-sm text-muted-foreground">{invoice.client?.name || '-'}</td>
                                 <td className="text-sm text-muted-foreground">{invoice.project?.name || '-'}</td>
                                 <td className="font-semibold whitespace-nowrap">{formatCurrency(invoice.amount)}</td>
@@ -241,7 +250,7 @@ export function FacturasClient({
                         ))}
                         {filteredRows.length === 0 && (
                             <tr>
-                                <td colSpan={9} className="text-center py-8 text-sm text-muted-foreground">
+                                <td colSpan={10} className="text-center py-8 text-sm text-muted-foreground">
                                     No hay facturas que coincidan con los filtros.
                                 </td>
                             </tr>

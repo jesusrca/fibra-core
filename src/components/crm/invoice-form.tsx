@@ -24,6 +24,7 @@ interface QuoteOption {
 interface InvoiceInitialData {
     id: string
     invoiceNumber: string
+    fileUrl: string | null
     quoteId: string | null
     clientId: string
     projectId: string | null
@@ -51,7 +52,9 @@ function toInputDate(value?: Date | null) {
 export function InvoiceForm({ onClose, clients, projects, quotes, initialData }: InvoiceFormProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
+    const [uploadingFile, setUploadingFile] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [fileUrl, setFileUrl] = useState(initialData?.fileUrl || '')
     const isEditing = !!initialData
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -62,6 +65,7 @@ export function InvoiceForm({ onClose, clients, projects, quotes, initialData }:
         const formData = new FormData(e.currentTarget)
         const payload = {
             invoiceNumber: (formData.get('invoiceNumber') as string || '').trim() || undefined,
+            fileUrl: fileUrl || undefined,
             quoteId: (formData.get('quoteId') as string || '').trim() || undefined,
             clientId: (formData.get('clientId') as string || '').trim() || undefined,
             projectId: (formData.get('projectId') as string || '').trim() || undefined,
@@ -85,6 +89,28 @@ export function InvoiceForm({ onClose, clients, projects, quotes, initialData }:
 
         router.refresh()
         onClose()
+    }
+
+    const handleFileUpload = async (file: File) => {
+        setUploadingFile(true)
+        setError(null)
+        try {
+            const data = new FormData()
+            data.append('file', file)
+            const response = await fetch('/api/uploads/invoice-file', {
+                method: 'POST',
+                body: data
+            })
+            const result = await response.json()
+            if (!response.ok || !result?.fileUrl) {
+                throw new Error(result?.error || 'No se pudo subir el archivo de factura')
+            }
+            setFileUrl(result.fileUrl)
+        } catch (uploadError) {
+            setError(uploadError instanceof Error ? uploadError.message : 'No se pudo subir el archivo')
+        } finally {
+            setUploadingFile(false)
+        }
     }
 
     return (
@@ -117,6 +143,28 @@ export function InvoiceForm({ onClose, clients, projects, quotes, initialData }:
                                 <option value={InvoiceStatus.CANCELLED}>CANCELLED</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="form-label">PDF / archivo de factura</label>
+                        <div className="flex items-center gap-3">
+                            <input
+                                type="file"
+                                accept="application/pdf,image/png,image/jpeg,image/webp"
+                                className="form-input"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (file) void handleFileUpload(file)
+                                    e.currentTarget.value = ''
+                                }}
+                            />
+                        </div>
+                        {uploadingFile && <p className="text-xs text-muted-foreground mt-1">Subiendo archivo...</p>}
+                        {fileUrl && (
+                            <a href={fileUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline mt-1 inline-block">
+                                Ver archivo subido
+                            </a>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -179,11 +227,11 @@ export function InvoiceForm({ onClose, clients, projects, quotes, initialData }:
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                        <button type="button" className="flex-1 btn-secondary" onClick={onClose} disabled={loading}>
+                        <button type="button" className="flex-1 btn-secondary" onClick={onClose} disabled={loading || uploadingFile}>
                             Cancelar
                         </button>
-                        <button type="submit" className="flex-1 btn-primary justify-center" disabled={loading}>
-                            {loading ? (isEditing ? 'Actualizando...' : 'Guardando...') : (isEditing ? 'Guardar cambios' : 'Crear factura')}
+                        <button type="submit" className="flex-1 btn-primary justify-center" disabled={loading || uploadingFile}>
+                            {loading || uploadingFile ? (isEditing ? 'Actualizando...' : 'Guardando...') : (isEditing ? 'Guardar cambios' : 'Crear factura')}
                         </button>
                     </div>
                 </form>

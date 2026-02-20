@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai';
-import { convertToModelMessages, experimental_transcribe, stepCountIs, streamText, tool, UIMessage } from 'ai';
+import { convertToModelMessages, stepCountIs, streamText, tool, UIMessage } from 'ai';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import {
@@ -71,38 +71,29 @@ async function transcribeAudioWithOpenAI(params: {
     mediaType: string
     data: Uint8Array
 }) {
-    const primaryModel = 'gpt-4o-mini-transcribe'
-    const fallbackModel = 'whisper-1'
+    const model = 'whisper-1'
+    const apiKey = process.env.OPENAI_API_KEY
 
-    try {
-        const transcript = await experimental_transcribe({
-            model: openai.transcription(primaryModel),
-            audio: params.data
-        })
-        return {
-            text: transcript.text,
-            language: transcript.language || undefined
-        }
-    } catch (sdkError) {
-        const apiKey = process.env.OPENAI_API_KEY
-        if (!apiKey) throw sdkError
+    if (!apiKey) {
+        throw new Error('OPENAI_API_KEY no configurada para transcripción de audio')
+    }
 
-        try {
-            const client = new OpenAI({ apiKey })
-            const file = await OpenAI.toFile(params.data, params.filename, { type: params.mediaType })
-            const fallback = await client.audio.transcriptions.create({
-                model: fallbackModel,
-                file
-            })
-            return {
-                text: fallback.text,
-                language: undefined
-            }
-        } catch (fallbackError) {
-            throw fallbackError instanceof Error
-                ? fallbackError
-                : sdkError
-        }
+    const client = new OpenAI({ apiKey })
+    const safeMediaType = params.mediaType || 'audio/webm'
+    const file = await OpenAI.toFile(params.data, params.filename, { type: safeMediaType })
+    const transcript = await client.audio.transcriptions.create({
+        model,
+        file
+    })
+
+    const text = (transcript.text || '').trim()
+    if (!text) {
+        throw new Error('Whisper no devolvió texto para el audio enviado')
+    }
+
+    return {
+        text,
+        language: undefined
     }
 }
 
@@ -198,6 +189,7 @@ async function enrichMessagesWithAttachmentContext(
                 })
                 const transcriptText = compactText(transcript.text, 2200)
                 detail.status = 'transcribed'
+                detail.transcriptionModel = 'whisper-1'
                 detail.language = transcript.language || null
                 detail.transcriptPreview = transcriptText
                 attachmentSummaries.push(

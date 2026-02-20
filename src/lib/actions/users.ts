@@ -112,23 +112,57 @@ export async function deleteUser(id: string) {
 export async function getMyProfile() {
     try {
         const user = await requireAuthUser()
-        const profile = await withPrismaRetry(() => prisma.user.findUnique({
-            where: { id: user.id },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                role: true,
-                phone: true,
-                country: true,
-                timezone: true,
-                specialty: true,
-                birthday: true,
-                createdAt: true
-            }
-        }))
+        const profile = await withPrismaRetry(() =>
+            prisma.user.findUnique({
+                where: { id: user.id },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    role: true,
+                    avatarUrl: true,
+                    phone: true,
+                    country: true,
+                    timezone: true,
+                    specialty: true,
+                    birthday: true,
+                    createdAt: true
+                }
+            })
+        )
         return profile
     } catch (error) {
+        const message = error instanceof Error ? error.message : ''
+        if (message.includes('avatarUrl')) {
+            try {
+                const user = await requireAuthUser()
+                const profile = await withPrismaRetry(() =>
+                    prisma.user.findUnique({
+                        where: { id: user.id },
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            role: true,
+                            phone: true,
+                            country: true,
+                            timezone: true,
+                            specialty: true,
+                            birthday: true,
+                            createdAt: true
+                        }
+                    })
+                )
+                if (!profile) return null
+                return {
+                    ...profile,
+                    avatarUrl: null
+                }
+            } catch (fallbackError) {
+                console.error('Error fetching my profile (fallback):', fallbackError)
+                return null
+            }
+        }
         console.error('Error fetching my profile:', error)
         return null
     }
@@ -141,6 +175,7 @@ export async function updateMyProfile(data: {
     timezone?: string
     specialty?: string
     birthday?: Date
+    avatarUrl?: string
 }) {
     try {
         const user = await requireAuthUser()
@@ -155,7 +190,8 @@ export async function updateMyProfile(data: {
                 country: (data.country || '').trim() || null,
                 timezone: (data.timezone || '').trim() || null,
                 specialty: (data.specialty || '').trim() || null,
-                birthday: data.birthday || null
+                birthday: data.birthday || null,
+                avatarUrl: (data.avatarUrl || '').trim() || null
             }
         }))
 

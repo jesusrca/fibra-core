@@ -38,6 +38,7 @@ interface QuoteItem {
 interface InvoiceItem {
     id: string
     invoiceNumber: string
+    fileUrl: string | null
     quoteId: string | null
     clientId: string
     projectId: string | null
@@ -810,6 +811,7 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
                             <thead>
                                 <tr>
                                     <th>Número</th>
+                                    <th>Archivo</th>
                                     <th>Cliente</th>
                                     <th>Proyecto</th>
                                     <th>Monto</th>
@@ -822,6 +824,13 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
                                 {invoiceRows.map((invoice) => (
                                     <tr key={invoice.id}>
                                         <td className="text-sm font-medium">{invoice.invoiceNumber}</td>
+                                        <td className="text-xs">
+                                            {invoice.fileUrl ? (
+                                                <a href={invoice.fileUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                                                    Ver PDF
+                                                </a>
+                                            ) : '-'}
+                                        </td>
                                         <td className="text-sm text-muted-foreground">{invoice.client?.name || '-'}</td>
                                         <td className="text-sm text-muted-foreground">{invoice.project?.name || '-'}</td>
                                         <td className="text-sm font-semibold">{formatCurrency(invoice.amount)}</td>
@@ -854,7 +863,7 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
                                 ))}
                                 {invoiceRows.length === 0 && (
                                     <tr>
-                                        <td colSpan={7} className="text-center py-8 text-sm text-muted-foreground">No hay facturas registradas.</td>
+                                        <td colSpan={8} className="text-center py-8 text-sm text-muted-foreground">No hay facturas registradas.</td>
                                     </tr>
                                 )}
                             </tbody>

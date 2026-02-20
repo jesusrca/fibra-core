@@ -174,4 +174,6 @@
 
 ## Errores
 
-- Valida que funcione bien el envio de audios, tanto en interaccion visual como en transcripción, usa whispper de open ai, si debes reconstruir el modulo, hazlo.
+- [~] Validar envío de audios (UX + transcripción Whisper) en chatbot.
+- [x] Subir foto de perfil y PDF/archivo de facturas a Storage (Supabase) con URL persistida en BD.
+  Estado: Implementado con APIs `POST /api/uploads/profile-photo` y `POST /api/uploads/invoice-file`, persistiendo en `User.avatarUrl` e `Invoice.fileUrl`.

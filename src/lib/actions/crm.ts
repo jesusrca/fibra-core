@@ -853,6 +853,7 @@ export async function updateQuote(quoteId: string, data: {
 
 export async function createInvoice(data: {
     invoiceNumber?: string
+    fileUrl?: string
     quoteId?: string
     clientId?: string
     projectId?: string
@@ -889,6 +890,7 @@ export async function createInvoice(data: {
         const invoice = await withPrismaRetry(() => prisma.invoice.create({
             data: {
                 invoiceNumber,
+                fileUrl: data.fileUrl || null,
                 quoteId: data.quoteId || null,
                 clientId,
                 projectId: data.projectId || null,
@@ -1031,6 +1033,7 @@ export async function updateInvoiceStatus(invoiceId: string, status: InvoiceStat
 
 export async function updateInvoice(invoiceId: string, data: {
     invoiceNumber?: string
+    fileUrl?: string
     quoteId?: string
     clientId?: string
     projectId?: string
@@ -1073,6 +1076,7 @@ export async function updateInvoice(invoiceId: string, data: {
             where: { id: invoiceId },
             data: {
                 invoiceNumber,
+                fileUrl: data.fileUrl || null,
                 quoteId: data.quoteId || null,
                 clientId,
                 projectId: data.projectId || null,

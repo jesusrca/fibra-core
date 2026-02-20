@@ -56,6 +56,7 @@ model User {
   id            String    @id @default(cuid())
   name          String
   email         String    @unique
+  avatarUrl     String?
   passwordHash  String?
   phone         String?
   role          Role      @default(COMERCIAL)
@@ -264,6 +265,7 @@ model Quote {
 model Invoice {
   id              String        @id @default(cuid())
   invoiceNumber   String        @unique
+  fileUrl         String?
   clientId        String
   client          Client        @relation(fields: [clientId], references: [id])
   projectId       String?

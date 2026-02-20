@@ -16,6 +16,7 @@ export default async function PerfilPage() {
                 name: profile.name,
                 email: profile.email,
                 role: profile.role,
+                avatarUrl: profile.avatarUrl,
                 phone: profile.phone,
                 country: profile.country,
                 timezone: profile.timezone,

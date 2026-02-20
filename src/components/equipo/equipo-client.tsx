@@ -11,6 +11,7 @@ interface TeamMember {
     id: string
     name: string
     email: string
+    avatarUrl: string | null
     role: Role
     specialty: string | null
     phone: string | null
@@ -113,9 +114,17 @@ export function EquipoClient({ initialUsers }: EquipoClientProps) {
                             <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <div className="flex items-center gap-4 mb-6">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-electric-500 to-gold-500 flex items-center justify-center text-xl font-bold text-white shadow-lg shadow-primary/20">
-                                {member.name.split(' ').map((n) => n[0]).join('')}
-                            </div>
+                            {member.avatarUrl ? (
+                                <img
+                                    src={member.avatarUrl}
+                                    alt={member.name}
+                                    className="w-14 h-14 rounded-2xl object-cover shadow-lg shadow-primary/20"
+                                />
+                            ) : (
+                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-electric-500 to-gold-500 flex items-center justify-center text-xl font-bold text-white shadow-lg shadow-primary/20">
+                                    {member.name.split(' ').map((n) => n[0]).join('')}
+                                </div>
+                            )}
                             <div className="flex-1 min-w-0">
                                 <h3 className="text-sm font-bold text-foreground truncate">{member.name}</h3>
                                 <p className="text-xs text-muted-foreground truncate">{member.role}</p>
