@@ -39,6 +39,7 @@ interface InvoiceItem {
     id: string
     invoiceNumber: string
     fileUrl: string | null
+    fileRef?: string | null
     quoteId: string | null
     clientId: string
     projectId: string | null
@@ -97,6 +98,8 @@ interface ComercialClientProps {
         installmentAmount: number
         totalAmount: number
     }>
+    initialTab?: 'leads' | 'contacts' | 'companies' | 'quotes' | 'invoices'
+    editClientId?: string
     leadFilters: { q: string; status: string; page: number; pageSize: number }
     leadPagination: { total: number; totalPages: number }
     leadInsights: {
@@ -114,9 +117,23 @@ const pipelineStages = [
     { key: LeadStatus.WON, label: 'Ganado', color: 'border-[hsl(var(--success-text))]/40', dot: 'bg-[hsl(var(--success-text))]' },
 ] as const
 
-export function ComercialClient({ initialLeads, users, clients, contacts, quotes, invoices, projects, invoicesToIssueProjection, leadFilters, leadPagination, leadInsights }: ComercialClientProps) {
+export function ComercialClient({
+    initialLeads,
+    users,
+    clients,
+    contacts,
+    quotes,
+    invoices,
+    projects,
+    invoicesToIssueProjection,
+    initialTab,
+    editClientId,
+    leadFilters,
+    leadPagination,
+    leadInsights
+}: ComercialClientProps) {
     const router = useRouter()
-    const [activeTab, setActiveTab] = useState<'leads' | 'contacts' | 'companies' | 'quotes' | 'invoices'>('leads')
+    const [activeTab, setActiveTab] = useState<'leads' | 'contacts' | 'companies' | 'quotes' | 'invoices'>(initialTab || 'leads')
     const [view, setView] = useState<'pipeline' | 'list'>('pipeline')
     const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null)
     const [activityType, setActivityType] = useState('NOTE')
@@ -162,6 +179,20 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
     useEffect(() => {
         setInvoiceRows(invoices)
     }, [invoices])
+
+    useEffect(() => {
+        if (!initialTab) return
+        setActiveTab(initialTab)
+    }, [initialTab])
+
+    useEffect(() => {
+        if (!editClientId) return
+        const clientToEdit = clients.find((client) => client.id === editClientId)
+        if (!clientToEdit) return
+        setActiveTab('companies')
+        setSelectedCompany(clientToEdit)
+        setShowCompanyForm(true)
+    }, [editClientId, clients])
 
     const openCreateModal = () => {
         if (activeTab === 'leads') setShowLeadForm(true)

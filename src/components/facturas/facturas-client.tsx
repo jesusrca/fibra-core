@@ -27,6 +27,7 @@ interface InvoiceItem {
     id: string
     invoiceNumber: string
     fileUrl: string | null
+    fileRef?: string | null
     quoteId: string | null
     clientId: string
     projectId: string | null

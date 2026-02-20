@@ -335,7 +335,7 @@ export function ChatWidget() {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
                                         e.preventDefault()
                                         handleSend()
                                     }
@@ -389,7 +389,7 @@ export function ChatWidget() {
                                 {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                             </button>
                         </form>
-                        <p className="mt-2 text-[10px] text-muted-foreground">Enter: salto de línea · Ctrl+Enter: enviar</p>
+                        <p className="mt-2 text-[10px] text-muted-foreground">Enter: enviar · Shift+Enter: salto de línea</p>
                         {isRecording && (
                             <div className="mt-2 flex items-center gap-2 text-[11px]">
                                 <div className="flex items-end gap-1 h-3">

@@ -64,8 +64,7 @@ export function PerfilClient({ profile }: PerfilClientProps) {
             phone: form.phone || undefined,
             country: form.country || undefined,
             timezone: form.timezone || undefined,
-            birthday: form.birthday ? new Date(`${form.birthday}T00:00:00`) : undefined,
-            avatarUrl: form.avatarUrl || undefined
+            birthday: form.birthday ? new Date(`${form.birthday}T00:00:00`) : undefined
         })
         setSaving(false)
         if (!result.success) {
@@ -78,6 +77,11 @@ export function PerfilClient({ profile }: PerfilClientProps) {
                 name: form.name
             }
         } as any)
+        window.dispatchEvent(new CustomEvent('profile-updated', {
+            detail: {
+                name: form.name
+            }
+        }))
         router.refresh()
         setMessage('Perfil actualizado correctamente')
     }
@@ -128,6 +132,12 @@ export function PerfilClient({ profile }: PerfilClientProps) {
                     name: form.name
                 }
             } as any)
+            window.dispatchEvent(new CustomEvent('profile-updated', {
+                detail: {
+                    name: form.name,
+                    avatarUrl: result.avatarUrl
+                }
+            }))
             router.refresh()
             setMessage('Foto de perfil actualizada')
         } catch (error) {

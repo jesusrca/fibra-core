@@ -8,6 +8,8 @@ import {
     createLeadByAI,
     createProjectByAI,
     createTaskByAI,
+    getClients,
+    getContacts,
     getFinancialSummary,
     getLeads,
     getProjects,
@@ -321,8 +323,11 @@ export async function POST(req: Request) {
       - Format monetary values with the currency symbol (S/ or $).
       - For dates, use a readable format (e.g., "DD/MM/YYYY").
       - If you can't find information, state that clearly.
+      - If a company exists but has zero active projects, explicitly say the company exists and indicate its project status/count.
+      - For questions about companies/contacts, use getClients/getContacts instead of assuming from active projects only.
       - When listing multiple items, use bullet points for readability.
       - For write operations (create lead/client/contact/project/task), indica los datos recomendados, pero permite guardado mínimo cuando solo hay nombre cuando aplique.
+      - Para crear clientes NO es obligatorio email; puede completarse después.
       - For write operations, NEVER claim "created/registered successfully" unless the corresponding tool was executed and returned success: true.
       - For relative dates in Spanish (hoy, mañana, pasado mañana), always convert using the current date reference above.
       - Do not infer old years (e.g., 2023) for new tasks unless the user explicitly asks for that year.
@@ -330,6 +335,10 @@ export async function POST(req: Request) {
       - If a write tool returns "success: false", explain the reason to the user clearly.
       - For project creation, minimum operativo: nombre del proyecto. Si falta cliente, usar cliente placeholder y luego completar.
       - If user sends attachments (images, audio, documents), process them and answer using that content.
+      - Si el usuario envía varios clientes en un solo mensaje, usa createClientsBulk para registrar todos.
+      - Al crear uno o varios clientes, devuelve links directos para editar cada uno con este formato:
+        [Nombre Cliente](/comercial?tab=companies&editClientId={clientId})
+      - Después de crear clientes, sugiere datos útiles para completar: email principal, país, industria, RUC/ID fiscal y dirección.
       - Always keep the final response clean, structured, and in Spanish.
       - If extracted/transcribed content is in another language, translate it to Spanish before final response.
     `,
@@ -362,6 +371,26 @@ export async function POST(req: Request) {
                     }),
                     execute: async ({ role }) => getUsers({ role })
                 }),
+                getClients: tool({
+                    description: 'Get companies/clients. Search by name, email, country or industry. Can filter by having active projects.',
+                    inputSchema: z.object({
+                        query: z.string().optional().describe('Search term for company'),
+                        hasActiveProjects: z.boolean().optional(),
+                        limit: z.number().int().min(1).max(30).optional()
+                    }),
+                    execute: async ({ query, hasActiveProjects, limit }) =>
+                        getClients({ userId: user.id, role: user.role }, { query, hasActiveProjects, limit })
+                }),
+                getContacts: tool({
+                    description: 'Get contacts by name/email/company and return email/phone details.',
+                    inputSchema: z.object({
+                        query: z.string().optional().describe('Search term for contact name or email'),
+                        clientName: z.string().optional().describe('Optional company name filter'),
+                        limit: z.number().int().min(1).max(30).optional()
+                    }),
+                    execute: async ({ query, clientName, limit }) =>
+                        getContacts({ userId: user.id, role: user.role }, { query, clientName, limit })
+                }),
                 getSuppliers: tool({
                     description: 'Get a list of suppliers. Filter by category, city or search query.',
                     inputSchema: z.object({
@@ -372,7 +401,7 @@ export async function POST(req: Request) {
                     execute: async ({ query, category, city }) => getSuppliers({ userId: user.id, role: user.role }, { query, category, city })
                 }),
                 createClient: tool({
-                    description: 'Create a company/client in CRM. Requires name.',
+                    description: 'Create a company/client in CRM. Requires only name. Email is optional.',
                     inputSchema: z.object({
                         name: z.string().min(2),
                         country: z.string().optional(),
@@ -382,6 +411,51 @@ export async function POST(req: Request) {
                         mainEmail: z.string().email().optional()
                     }),
                     execute: async (input) => createClientByAI({ userId: user.id, role: user.role }, input)
+                }),
+                createClientsBulk: tool({
+                    description: 'Create multiple clients in one operation. Each client requires only name.',
+                    inputSchema: z.object({
+                        clients: z.array(
+                            z.object({
+                                name: z.string().min(2),
+                                country: z.string().optional(),
+                                industry: z.string().optional(),
+                                taxId: z.string().optional(),
+                                address: z.string().optional(),
+                                mainEmail: z.string().email().optional()
+                            })
+                        ).min(1).max(20)
+                    }),
+                    execute: async ({ clients }) => {
+                        const results = await Promise.all(
+                            clients.map(async (clientInput) => {
+                                const result = await createClientByAI({ userId: user.id, role: user.role }, clientInput)
+                                if (!result.success) {
+                                    return {
+                                        success: false as const,
+                                        name: clientInput.name,
+                                        error: result.error || 'No se pudo crear el cliente'
+                                    }
+                                }
+                                return {
+                                    success: true as const,
+                                    name: result.client.name,
+                                    created: result.created,
+                                    clientId: result.client.id,
+                                    editUrl: `/comercial?tab=companies&editClientId=${result.client.id}`
+                                }
+                            })
+                        )
+                        const createdCount = results.filter(
+                            (r): r is Extract<typeof r, { success: true }> => r.success
+                        ).filter((r) => r.created).length
+                        return {
+                            success: results.some((r) => r.success),
+                            total: results.length,
+                            createdCount,
+                            results
+                        }
+                    }
                 }),
                 createContact: tool({
                     description: 'Create a contact. Can be created with minimal data (name only) and completed later.',

@@ -18,6 +18,18 @@ type UserFilters = {
     role?: Role
 }
 
+type ClientFilters = {
+    query?: string
+    hasActiveProjects?: boolean
+    limit?: number
+}
+
+type ContactFilters = {
+    query?: string
+    clientName?: string
+    limit?: number
+}
+
 type SupplierFilters = {
     query?: string
     category?: string
@@ -248,6 +260,141 @@ export async function getUsers({ role }: UserFilters) {
     } catch (error) {
         console.error('Error fetching users:', error)
         return []
+    }
+}
+
+export async function getClients(ctx: AIToolContext, { query, hasActiveProjects, limit }: ClientFilters) {
+    if (!canAccess(ctx.role, 'comercial')) {
+        return {
+            success: false as const,
+            error: `Rol ${ctx.role} sin permisos para ver empresas`
+        }
+    }
+
+    try {
+        const take = Math.min(Math.max(limit || 10, 1), 30)
+        const clients = await prisma.client.findMany({
+            where: query
+                ? {
+                    OR: [
+                        { name: { contains: query, mode: 'insensitive' } },
+                        { mainEmail: { contains: query, mode: 'insensitive' } },
+                        { country: { contains: query, mode: 'insensitive' } },
+                        { industry: { contains: query, mode: 'insensitive' } }
+                    ]
+                }
+                : undefined,
+            select: {
+                id: true,
+                name: true,
+                country: true,
+                industry: true,
+                mainEmail: true,
+                contacts: {
+                    select: { id: true }
+                },
+                projects: {
+                    select: {
+                        id: true,
+                        name: true,
+                        status: true
+                    },
+                    orderBy: { updatedAt: 'desc' },
+                    take: 20
+                }
+            },
+            orderBy: { name: 'asc' },
+            take
+        })
+
+        const rows = clients
+            .map((client) => {
+                const activeProjects = client.projects.filter((p) => p.status === ProjectStatus.ACTIVE)
+                return {
+                    id: client.id,
+                    name: client.name,
+                    country: client.country,
+                    industry: client.industry,
+                    mainEmail: client.mainEmail,
+                    contactsCount: client.contacts.length,
+                    projectsCount: client.projects.length,
+                    activeProjectsCount: activeProjects.length,
+                    projects: client.projects
+                }
+            })
+            .filter((client) => {
+                if (hasActiveProjects === undefined) return true
+                return hasActiveProjects ? client.activeProjectsCount > 0 : true
+            })
+
+        return {
+            success: true as const,
+            clients: rows
+        }
+    } catch (error) {
+        console.error('Error fetching clients for AI:', error)
+        return {
+            success: false as const,
+            error: 'No se pudo obtener la lista de empresas'
+        }
+    }
+}
+
+export async function getContacts(ctx: AIToolContext, { query, clientName, limit }: ContactFilters) {
+    if (!canAccess(ctx.role, 'comercial')) {
+        return {
+            success: false as const,
+            error: `Rol ${ctx.role} sin permisos para ver contactos`
+        }
+    }
+
+    try {
+        const take = Math.min(Math.max(limit || 10, 1), 30)
+        const contacts = await prisma.contact.findMany({
+            where: {
+                ...(query
+                    ? {
+                        OR: [
+                            { firstName: { contains: query, mode: 'insensitive' } },
+                            { lastName: { contains: query, mode: 'insensitive' } },
+                            { email: { contains: query, mode: 'insensitive' } },
+                            { client: { name: { contains: query, mode: 'insensitive' } } }
+                        ]
+                    }
+                    : {}),
+                ...(clientName
+                    ? { client: { name: { contains: clientName, mode: 'insensitive' } } }
+                    : {})
+            },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+                specialty: true,
+                country: true,
+                client: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                }
+            },
+            orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+            take
+        })
+
+        return {
+            success: true as const,
+            contacts
+        }
+    } catch (error) {
+        console.error('Error fetching contacts for AI:', error)
+        return {
+            success: false as const,
+            error: 'No se pudo obtener la lista de contactos'
+        }
     }
 }
 

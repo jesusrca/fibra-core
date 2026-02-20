@@ -7,6 +7,7 @@ import { requireAuthUser, requireModuleAccess } from '@/lib/server-auth'
 import { hashPassword } from '@/lib/password'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { verifyPassword } from '@/lib/password'
+import { toSignedStorageUrl } from '@/lib/storage'
 
 export async function getUsers() {
     try {
@@ -130,7 +131,15 @@ export async function getMyProfile() {
                 }
             })
         )
-        return profile
+        if (!profile) return null
+        const avatarUrl = await toSignedStorageUrl(profile.avatarUrl, {
+            defaultBucket: process.env.SUPABASE_PROFILE_BUCKET || 'profile-images',
+            expiresIn: 60 * 60 * 24 * 7
+        })
+        return {
+            ...profile,
+            avatarUrl
+        }
     } catch (error) {
         const message = error instanceof Error ? error.message : ''
         if (message.includes('avatarUrl')) {

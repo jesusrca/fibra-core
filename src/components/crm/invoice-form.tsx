@@ -25,6 +25,7 @@ interface InvoiceInitialData {
     id: string
     invoiceNumber: string
     fileUrl: string | null
+    fileRef?: string | null
     quoteId: string | null
     clientId: string
     projectId: string | null
@@ -55,6 +56,7 @@ export function InvoiceForm({ onClose, clients, projects, quotes, initialData }:
     const [uploadingFile, setUploadingFile] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [fileUrl, setFileUrl] = useState(initialData?.fileUrl || '')
+    const [fileRef, setFileRef] = useState(initialData?.fileRef || initialData?.fileUrl || '')
     const isEditing = !!initialData
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -65,7 +67,7 @@ export function InvoiceForm({ onClose, clients, projects, quotes, initialData }:
         const formData = new FormData(e.currentTarget)
         const payload = {
             invoiceNumber: (formData.get('invoiceNumber') as string || '').trim() || undefined,
-            fileUrl: fileUrl || undefined,
+            fileUrl: fileRef || undefined,
             quoteId: (formData.get('quoteId') as string || '').trim() || undefined,
             clientId: (formData.get('clientId') as string || '').trim() || undefined,
             projectId: (formData.get('projectId') as string || '').trim() || undefined,
@@ -102,10 +104,11 @@ export function InvoiceForm({ onClose, clients, projects, quotes, initialData }:
                 body: data
             })
             const result = await response.json()
-            if (!response.ok || !result?.fileUrl) {
+            if (!response.ok || !result?.fileUrl || !result?.fileRef) {
                 throw new Error(result?.error || 'No se pudo subir el archivo de factura')
             }
             setFileUrl(result.fileUrl)
+            setFileRef(result.fileRef)
         } catch (uploadError) {
             setError(uploadError instanceof Error ? uploadError.message : 'No se pudo subir el archivo')
         } finally {

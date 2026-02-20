@@ -1,6 +1,7 @@
 import { getSupabaseAdminClient } from '@/lib/supabase-admin'
 import { requireAnyRole } from '@/lib/server-auth'
 import { Role } from '@prisma/client'
+import { createStorageRef } from '@/lib/storage'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -55,10 +56,17 @@ export async function POST(req: Request) {
             return Response.json({ error: `No se pudo subir archivo: ${uploadError.message}` }, { status: 500 })
         }
 
-        const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+        const fileRef = createStorageRef(bucket, path)
+        const { data: signedData, error: signedError } = await supabase.storage
+            .from(bucket)
+            .createSignedUrl(path, 60 * 60 * 24 * 7)
+        if (signedError || !signedData?.signedUrl) {
+            return Response.json({ error: 'No se pudo generar URL firmada del archivo.' }, { status: 500 })
+        }
         return Response.json({
             success: true,
-            fileUrl: data.publicUrl,
+            fileUrl: signedData.signedUrl,
+            fileRef,
             bucket,
             path
         })

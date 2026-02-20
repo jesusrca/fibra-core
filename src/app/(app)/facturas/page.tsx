@@ -3,6 +3,7 @@ import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { unstable_cache } from 'next/cache'
 import { FacturasClient } from '@/components/facturas/facturas-client'
+import { toSignedStorageUrl } from '@/lib/storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,6 +67,16 @@ const getFacturasData = unstable_cache(
 export default async function FacturasPage() {
     await requireModuleAccess('facturas')
     const [invoices, clients, projects, quotes, projectMilestones] = await getFacturasData()
+    const invoicesForUi = await Promise.all(
+        invoices.map(async (invoice) => ({
+            ...invoice,
+            fileRef: invoice.fileUrl,
+            fileUrl: await toSignedStorageUrl(invoice.fileUrl, {
+                defaultBucket: process.env.SUPABASE_INVOICE_BUCKET || 'invoice-files',
+                expiresIn: 60 * 60 * 24 * 7
+            })
+        }))
+    )
 
     const invoicesToIssueProjection = projectMilestones
         .map((project) => {
@@ -99,7 +110,7 @@ export default async function FacturasPage() {
 
     return (
         <FacturasClient
-            invoices={invoices as any}
+            invoices={invoicesForUi as any}
             clients={clients}
             projects={projects}
             quotes={quotes}

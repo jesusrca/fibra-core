@@ -3,6 +3,7 @@ import { getSupabaseAdminClient } from '@/lib/supabase-admin'
 import prisma from '@/lib/prisma'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { revalidatePath } from 'next/cache'
+import { createStorageRef } from '@/lib/storage'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -46,20 +47,39 @@ export async function POST(req: Request) {
             return Response.json({ error: `No se pudo subir imagen: ${uploadError.message}` }, { status: 500 })
         }
 
-        const { data } = supabase.storage.from(bucket).getPublicUrl(path)
-        const avatarUrl = data.publicUrl
+        const avatarRef = createStorageRef(bucket, path)
+        const { data: signedData, error: signedError } = await supabase.storage
+            .from(bucket)
+            .createSignedUrl(path, 60 * 60 * 24 * 7)
+        if (signedError || !signedData?.signedUrl) {
+            return Response.json({ error: 'No se pudo generar URL firmada para el avatar.' }, { status: 500 })
+        }
+        const avatarUrl = signedData.signedUrl
 
-        await withPrismaRetry(() =>
-            prisma.user.update({
-                where: { id: user.id },
-                data: { avatarUrl }
-            })
-        )
+        try {
+            await withPrismaRetry(() =>
+                prisma.user.update({
+                    where: { id: user.id },
+                    data: { avatarUrl: avatarRef }
+                })
+            )
+        } catch (dbError) {
+            const dbMessage = dbError instanceof Error ? dbError.message : ''
+            if (dbMessage.includes('avatarUrl') || dbMessage.includes('column') || dbMessage.includes('P2022')) {
+                return Response.json(
+                    {
+                        error: 'La BD aún no tiene la columna avatarUrl. Ejecuta `npm run db:push` y reinicia el servidor.'
+                    },
+                    { status: 409 }
+                )
+            }
+            throw dbError
+        }
 
         revalidatePath('/perfil')
         revalidatePath('/equipo')
 
-        return Response.json({ success: true, avatarUrl, bucket, path })
+        return Response.json({ success: true, avatarUrl, avatarRef, bucket, path })
     } catch (error) {
         const message = error instanceof Error ? error.message : 'No se pudo subir la foto de perfil'
         return Response.json({ error: message }, { status: 500 })

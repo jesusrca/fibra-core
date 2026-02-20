@@ -13,7 +13,7 @@ import { useApp } from '@/lib/app-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -32,11 +32,13 @@ export function Header({ user }: HeaderProps) {
     const { data: session } = useSession()
     const [notifOpen, setNotifOpen] = useState(false)
     const [notifications, setNotifications] = useState<Array<{ id: string; message: string; createdAt: string; read?: boolean; type?: string }>>([])
+    const [profileSummary, setProfileSummary] = useState<{ name?: string; email?: string; avatarUrl?: string | null }>({})
     const effectiveUser = {
         ...user,
-        name: session?.user?.name || user.name,
-        email: session?.user?.email || user.email
+        name: profileSummary.name || session?.user?.name || user.name,
+        email: profileSummary.email || session?.user?.email || user.email
     }
+    const effectiveAvatarUrl = profileSummary.avatarUrl || null
 
     const unread = notifications.filter((n) => !n.read).length
 
@@ -45,6 +47,43 @@ export function Header({ user }: HeaderProps) {
             .then((res) => res.ok ? res.json() : { notifications: [] })
             .then((data) => setNotifications(Array.isArray(data.notifications) ? data.notifications : []))
             .catch(() => setNotifications([]))
+    }, [])
+
+    useEffect(() => {
+        const loadProfileSummary = async () => {
+            try {
+                const res = await fetch('/api/me/profile-summary', { cache: 'no-store' })
+                const data = await res.json()
+                if (!res.ok) return
+                setProfileSummary({
+                    name: data?.name || undefined,
+                    email: data?.email || undefined,
+                    avatarUrl: data?.avatarUrl || null
+                })
+            } catch {
+                // ignore non-critical header refresh errors
+            }
+        }
+
+        void loadProfileSummary()
+
+        const onProfileUpdated = (event: Event) => {
+            const detail = (event as CustomEvent<{ name?: string; email?: string; avatarUrl?: string | null }>).detail
+            if (detail) {
+                setProfileSummary((prev) => ({
+                    name: detail.name || prev.name,
+                    email: detail.email || prev.email,
+                    avatarUrl: detail.avatarUrl !== undefined ? detail.avatarUrl : prev.avatarUrl
+                }))
+            } else {
+                void loadProfileSummary()
+            }
+        }
+
+        window.addEventListener('profile-updated', onProfileUpdated as EventListener)
+        return () => {
+            window.removeEventListener('profile-updated', onProfileUpdated as EventListener)
+        }
     }, [])
 
     const markAllAsRead = async () => {
@@ -156,6 +195,9 @@ export function Header({ user }: HeaderProps) {
                             onClick={() => setNotifOpen(false)}
                         >
                             <Avatar className="w-7 h-7">
+                                {effectiveAvatarUrl ? (
+                                    <AvatarImage src={effectiveAvatarUrl} alt={effectiveUser.name} />
+                                ) : null}
                                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
                                     {getInitials(effectiveUser.name)}
                                 </AvatarFallback>

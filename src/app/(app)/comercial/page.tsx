@@ -7,6 +7,7 @@ import { ensureComercialDataQualityNotifications } from '@/lib/data-quality-noti
 import { syncInvoicesFromMilestones } from '@/lib/actions/crm'
 import { LeadStatus } from '@prisma/client'
 import { paginationQuerySchema } from '@/lib/validation/schemas'
+import { toSignedStorageUrl } from '@/lib/storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -165,12 +166,28 @@ export default async function ComercialPage({ searchParams }: { searchParams?: P
     const status = query.status.toUpperCase()
     const allowedStatuses = new Set(['ALL', ...Object.values(LeadStatus)])
     const safeStatus = allowedStatuses.has(status) ? status : 'ALL'
+    const tabParam = (firstParam(searchParams?.tab) || '').toLowerCase()
+    const initialTab =
+        tabParam === 'contacts' || tabParam === 'companies' || tabParam === 'quotes' || tabParam === 'invoices'
+            ? tabParam
+            : 'leads'
+    const editClientId = (firstParam(searchParams?.editClientId) || '').trim()
 
     const [leads, totalLeads, users, clients, contacts, quotes, invoices, projects, leadSeries] = await getComercialData(
         query.page,
         query.pageSize,
         query.q,
         safeStatus
+    )
+    const invoicesForUi = await Promise.all(
+        invoices.map(async (invoice) => ({
+            ...invoice,
+            fileRef: invoice.fileUrl,
+            fileUrl: await toSignedStorageUrl(invoice.fileUrl, {
+                defaultBucket: process.env.SUPABASE_INVOICE_BUCKET || 'invoice-files',
+                expiresIn: 60 * 60 * 24 * 7
+            })
+        }))
     )
     const invoicesToIssueProjection = projects
         .map((project) => {
@@ -273,9 +290,11 @@ export default async function ComercialPage({ searchParams }: { searchParams?: P
             clients={clients}
             contacts={contacts}
             quotes={quotes as any}
-            invoices={invoices as any}
+            invoices={invoicesForUi as any}
             projects={projects.map((project) => ({ id: project.id, name: project.name })) as any}
             invoicesToIssueProjection={invoicesToIssueProjection}
+            initialTab={initialTab}
+            editClientId={editClientId}
             leadFilters={{ q: query.q, status: safeStatus, page: query.page, pageSize: query.pageSize }}
             leadPagination={{ total: totalLeads, totalPages }}
             leadInsights={{
