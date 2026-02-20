@@ -47,6 +47,10 @@ export async function createTransaction(data: {
         const currency = payload.currency
         const normalizedBank = (payload.bank || '').trim()
 
+        if (payload.category !== TransactionCategory.INCOME && payload.invoiceId) {
+            return { success: false, error: 'Solo los ingresos pueden vincularse a una factura de venta.' }
+        }
+
         if (normalizedBank) {
             let bank: { id: string; name: string; supportedCurrencies: string[] } | null = null
             try {
@@ -249,7 +253,7 @@ export async function importTransactionsCsv(csvText: string) {
                 projectId,
                 currency: parsedRow.data.currency,
                 bank: parsedRow.data.bank,
-                invoiceId,
+                invoiceId: parsedRow.data.category === TransactionCategory.INCOME ? invoiceId : undefined,
             })
 
             if (!createResult.success) {

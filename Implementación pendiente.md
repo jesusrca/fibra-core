@@ -42,8 +42,8 @@
 ## Medio (calidad y mantenibilidad)
 
 1. [~] Reducir uso de `any` y `as any` en frontend/backend.
-       Estado: Aplicado tipado fuerte en módulos de Proyectos y formularios críticos; persisten `any` en zonas legacy.
-       Archivos ejemplo:
+   Estado: Aplicado tipado fuerte en módulos de Proyectos y formularios críticos; persisten `any` en zonas legacy.
+   Archivos ejemplo:
    - `src/components/projects/project-client.tsx`
    - `src/components/projects/project-detail-client.tsx`
    - `src/app/(app)/comercial/page.tsx`
@@ -65,23 +65,23 @@
 ### Frontend pendiente
 
 1. [x] CRM: crear formularios propios para `Contacto` y `Empresa` (hoy el botón "Nuevo" en tabs usa flujo de lead).
-   Archivos relacionados:
+       Archivos relacionados:
    - `src/components/crm/comercial-client.tsx`
    - `src/components/crm/lead-form.tsx`
 2. [x] Implementar módulo UI de Cotizaciones (crear/listar/editar/estados).
-   Estado: Implementado crear/listar/editar y actualización de estado.
+       Estado: Implementado crear/listar/editar y actualización de estado.
 3. [x] Implementar módulo UI de Facturas (emitidas/pagadas/por emitir, por cliente/proyecto).
-   Estado: Implementado crear/listar/editar, actualización de estado y emisión automática “por emitir” por hitos/cuotas.
+       Estado: Implementado crear/listar/editar, actualización de estado y emisión automática “por emitir” por hitos/cuotas.
 4. [x] Alinear fechas de proyecto en UI (`endDate`/fecha fin) para no depender de campo ambiguo `deadline`.
-   Archivos relacionados:
+       Archivos relacionados:
    - `src/components/projects/project-form.tsx`
    - `src/lib/actions/projects.ts`
 5. [x] Equipo: exponer y editar campos faltantes (teléfono, país, cumpleaños, horario, huso horario).
-   Archivo relacionado: `src/components/equipo/equipo-client.tsx`
+       Archivo relacionado: `src/components/equipo/equipo-client.tsx`
 6. [x] Contabilidad: ampliar formulario con moneda, banco, factura relacionada y comprobante.
-   Archivo relacionado: `src/components/contabilidad/contabilidad-client.tsx`
+       Archivo relacionado: `src/components/contabilidad/contabilidad-client.tsx`
 7. [x] Proyecto-Proveedores: UI para presupuesto por proyecto con proveedor, cuotas y recibos/facturas de pago.
-   Archivos relacionados:
+       Archivos relacionados:
    - `src/components/projects/project-detail-client.tsx`
    - `src/components/proveedores/proveedores-client.tsx`
 
@@ -96,12 +96,12 @@
    Estado: Implementadas acciones de creación y cambio de estado con UI conectada. Falta completar reglas avanzadas de facturación por cuota/hito.
    Archivo base: `prisma/schema.prisma`
 3. [x] Implementar lógica de "facturas por emitir" por hitos/cuotas de proyecto (no solo facturas registradas).
-   Estado: Implementada generación automática por hitos completados y cuotas acumuladas (sync en CRM + acción manual).
+       Estado: Implementada generación automática por hitos completados y cuotas acumuladas (sync en CRM + acción manual).
 4. [ ] Definir contacto principal de empresa de forma explícita (`mainContactId` o `isPrimary`) y su flujo.
 5. [~] Validaciones anti-duplicidad consistentes (cliente/contacto/lead) para evitar registros repetidos.
    Estado: Cubierto en create/update de cliente/contacto y en creación de leads. Falta estandarizar en todos los módulos y casos borde.
 6. [x] Completar flujo UI+backend de actividades/notas del lead (`Activity`: llamada, mail, reunión, chat).
-   Estado: Implementado historial por lead + registro de actividad desde modal de lead en CRM.
+       Estado: Implementado historial por lead + registro de actividad desde modal de lead en CRM.
 
 ### No necesario / evitar duplicación
 
@@ -121,23 +121,23 @@
 - [~] Relación de contactos en lead/cotización/empresa evitando duplicidad.
   Estado: Implementado en flujo de lead (selección de contacto existente + creación si no existe). Falta completar el mismo patrón en todos los bloques.
 - [x] En marketing mostrar cantidad de seguidores e interacción por red social.
-  Estado: Implementado con módulo de métricas sociales por plataforma (seguidores, impresiones, interacciones, clicks, leads), visualización agregada, CRUD en BD y endpoint de sync (`/api/integrations/social/sync`).
+      Estado: Implementado con módulo de métricas sociales por plataforma (seguidores, impresiones, interacciones, clicks, leads), visualización agregada, CRUD en BD y endpoint de sync (`/api/integrations/social/sync`).
 - [~] Vincular Gmail/correo por usuario y ver mails recibidos por contacto.
   Estado: Implementado flujo base Gmail por usuario (configuración OAuth refresh token + sync manual + persistencia en BD + vista en CRM por contacto). Falta OAuth completo one-click y proveedores adicionales.
 - [~] Ver mails por proyecto (buzón por proyecto con reenvío y almacenamiento).
   Estado: Implementado listado de correos vinculados en detalle de proyecto con asociación automática por contacto. Falta reenvío y almacenamiento de adjuntos.
 - [x] Equipo: horario de trabajo, zona horaria actual, cumpleaños y próximo cumpleaños en dashboard.
-  Estado: Implementado en Dashboard (tabla de equipo con hora local por zona, horario y próximo cumpleaños) y edición en Equipo con selector de zona horaria basado en lista IANA.
+      Estado: Implementado en Dashboard (tabla de equipo con hora local por zona, horario y próximo cumpleaños) y edición en Equipo con selector de zona horaria basado en lista IANA.
 - [x] Espacio para deudas por pagar y por cobrar.
-  Estado: Implementado en Contabilidad con vistas consolidadas y detalle relacionado (facturas por cobrar + proveedores/planilla/costos fijos por pagar).
+      Estado: Implementado en Contabilidad con vistas consolidadas y detalle relacionado (facturas por cobrar + proveedores/planilla/costos fijos por pagar).
 - [x] Espacio para facturas emitidas/pendientes/por emitir por proyecto y por hito.
-  Estado: Implementado emitidas/pendientes con estados y alertas + sincronización automática por hitos/cuotas y proyección de siguiente factura.
+      Estado: Implementado emitidas/pendientes con estados y alertas + sincronización automática por hitos/cuotas y proyección de siguiente factura.
 - [x] El bot debe ingresar contactos, empresas, leads y proyectos con datos básicos.
-  Estado: Implementado para contactos/empresas/leads/proyectos con permisos por rol y auditoría.
+      Estado: Implementado para contactos/empresas/leads/proyectos con permisos por rol y auditoría.
 - [x] Notificaciones por contactos/proyectos con datos faltantes.
-  Estado: Implementado con detección automática en carga de módulos CRM/Proyectos y creación de notificaciones deduplicadas (`contact_data_missing`, `project_data_missing`) visibles en Header/Sidebar.
+      Estado: Implementado con detección automática en carga de módulos CRM/Proyectos y creación de notificaciones deduplicadas (`contact_data_missing`, `project_data_missing`) visibles en Header/Sidebar.
 - [x] Importación masiva de transacciones vía CSV + plantilla modelo.
-  Estado: Implementado en Contabilidad con descarga de modelo e importador con validación de filas y reporte de errores.
+      Estado: Implementado en Contabilidad con descarga de modelo e importador con validación de filas y reporte de errores.
 - [~] Rentabilidad real por cliente/proyecto/servicio.
   Estado: Implementado cálculo y ranking en Finanzas con ingresos de facturas y costos directos por proyecto; pendiente asignación avanzada de costos indirectos.
 - [~] Flujo de caja proyectado (30/60/90 días) con alertas.
@@ -171,3 +171,7 @@
 4. [ ] Integraciones externas operativas y probadas.
 5. [ ] Tests automáticos + CI + monitoreo.
 6. [ ] Secretos rotados y política de seguridad aplicada.
+
+## Errores
+
+- Valida que funcione bien el envio de audios, tanto en interaccion visual como en transcripción, usa whispper de open ai, si debes reconstruir el modulo, hazlo.

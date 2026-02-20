@@ -94,10 +94,31 @@ export function ContabilidadClient({
     const [showForm, setShowForm] = useState(false)
     const [transactionType, setTransactionType] = useState<TransactionCategory>('INCOME')
     const [selectedCurrency, setSelectedCurrency] = useState<'PEN' | 'USD'>('PEN')
+    const [selectedExpenseRef, setSelectedExpenseRef] = useState('')
     const [loading, setLoading] = useState(false)
     const [importing, setImporting] = useState(false)
     const fileInputRef = useRef<HTMLInputElement | null>(null)
     const compatibleBanks = banks.filter((bank) => bank.supportedCurrencies.includes(selectedCurrency))
+    const expenseReferences = [
+        ...pendingSupplierPayments.map((payment) => ({
+            id: `SUPPLIER:${payment.id}`,
+            label: `Proveedor · ${payment.supplierWork.supplier?.name || payment.supplierWork.supplierName} · ${formatCurrency(payment.amount)} · ${payment.supplierWork.project?.name || 'Sin proyecto'}`,
+            description: payment.description || `Pago proveedor: ${payment.supplierWork.serviceProvided}`,
+            receiptUrl: payment.receiptUrl || undefined
+        })),
+        ...fixedCosts.map((cost) => ({
+            id: `FIXED:${cost.id}`,
+            label: `Costo fijo · ${cost.name} · ${formatCurrency(cost.amount)}`,
+            description: `Costo fijo: ${cost.name}`,
+            receiptUrl: undefined
+        })),
+        ...pendingPayroll.map((row) => ({
+            id: `PAYROLL:${row.id}`,
+            label: `Planilla · ${row.user?.name || 'Sin usuario'} · ${formatCurrency(row.salary + row.bonus)}`,
+            description: `Pago planilla: ${row.user?.name || 'Sin usuario'}`,
+            receiptUrl: undefined
+        }))
+    ]
 
     // Filter logic
     const filtered = initialTransactions.filter((t) => {
@@ -156,17 +177,32 @@ export function ContabilidadClient({
             category: transactionType,
             amount: parseFloat(formData.get('amount') as string),
             subcategory: formData.get('subcategory') as string,
-            description: formData.get('description') as string,
+            description: (() => {
+                const base = ((formData.get('description') as string) || '').trim()
+                if (transactionType !== 'EXPENSE' || !selectedExpenseRef) return base
+                const ref = expenseReferences.find((item) => item.id === selectedExpenseRef)
+                if (!ref) return base
+                return base ? `${base} · Ref: ${ref.label}` : ref.description
+            })(),
             date: new Date(formData.get('date') as string),
             currency: (formData.get('currency') as string) || 'PEN',
             bank: ((formData.get('bank') as string) || '').trim() || undefined,
-            invoiceId: ((formData.get('invoiceId') as string) || '').trim() || undefined,
-            receiptUrl: ((formData.get('receiptUrl') as string) || '').trim() || undefined,
+            invoiceId: transactionType === 'INCOME'
+                ? ((formData.get('invoiceId') as string) || '').trim() || undefined
+                : undefined,
+            receiptUrl: (() => {
+                const manual = ((formData.get('receiptUrl') as string) || '').trim()
+                if (manual) return manual
+                if (transactionType !== 'EXPENSE' || !selectedExpenseRef) return undefined
+                const ref = expenseReferences.find((item) => item.id === selectedExpenseRef)
+                return ref?.receiptUrl
+            })(),
         })
 
         setLoading(false)
         setShowForm(false)
         setSelectedCurrency('PEN')
+        setSelectedExpenseRef('')
     }
 
     const handleDelete = async (id: string) => {
@@ -265,7 +301,7 @@ export function ContabilidadClient({
                         }}
                     />
                     <button className="btn-secondary" onClick={exportTransactionsCsv}><Download className="w-4 h-4" /> Exportar</button>
-                    <button className="btn-primary" onClick={() => { setSelectedCurrency('PEN'); setShowForm(true) }}><Plus className="w-4 h-4" /> Nueva Transacción</button>
+                    <button className="btn-primary" onClick={() => { setSelectedCurrency('PEN'); setSelectedExpenseRef(''); setShowForm(true) }}><Plus className="w-4 h-4" /> Nueva Transacción</button>
                 </div>
             </div>
 
@@ -660,7 +696,10 @@ export function ContabilidadClient({
                                 <div className="flex gap-2">
                                     <button
                                         type="button"
-                                        onClick={() => setTransactionType('INCOME')}
+                                        onClick={() => {
+                                            setTransactionType('INCOME')
+                                            setSelectedExpenseRef('')
+                                        }}
                                         className={cn(
                                             "flex-1 py-2 rounded-lg border text-sm font-medium transition-all",
                                             transactionType === 'INCOME'
@@ -719,17 +758,35 @@ export function ContabilidadClient({
                                     </select>
                                 </div>
                             </div>
-                            <div>
-                                <label className="form-label">Factura relacionada (opcional)</label>
-                                <select name="invoiceId" className="form-input" defaultValue="">
-                                    <option value="">Sin factura</option>
-                                    {invoices.map((invoice) => (
-                                        <option key={invoice.id} value={invoice.id}>
-                                            {invoice.invoiceNumber} - {invoice.client?.name || 'Sin cliente'} - {formatCurrency(invoice.amount)}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                            {transactionType === 'INCOME' ? (
+                                <div>
+                                    <label className="form-label">Factura de ingreso (opcional)</label>
+                                    <select name="invoiceId" className="form-input" defaultValue="">
+                                        <option value="">Sin factura</option>
+                                        {invoices.map((invoice) => (
+                                            <option key={invoice.id} value={invoice.id}>
+                                                {invoice.invoiceNumber} - {invoice.client?.name || 'Sin cliente'} - {formatCurrency(invoice.amount)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="form-label">Comprobante de gasto / referencia (opcional)</label>
+                                    <select
+                                        className="form-input"
+                                        value={selectedExpenseRef}
+                                        onChange={(e) => setSelectedExpenseRef(e.target.value)}
+                                    >
+                                        <option value="">Sin referencia</option>
+                                        {expenseReferences.map((ref) => (
+                                            <option key={ref.id} value={ref.id}>
+                                                {ref.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                             <div>
                                 <label className="form-label">Comprobante (URL)</label>
                                 <input name="receiptUrl" type="url" placeholder="https://..." className="form-input" />
