@@ -67,6 +67,67 @@ function canRunWriteTool(role: Role, toolName: WriteToolName) {
     return WRITE_TOOL_ROLES[toolName].includes(role)
 }
 
+function parseSpanishDateInput(value?: string): Date | null {
+    const raw = (value || '').trim()
+    if (!raw) return null
+
+    const normalized = raw
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    if (normalized === 'hoy' || normalized === 'today') {
+        return startOfToday
+    }
+    if (normalized === 'manana' || normalized === 'tomorrow') {
+        const tomorrow = new Date(startOfToday)
+        tomorrow.setDate(tomorrow.getDate() + 1)
+        return tomorrow
+    }
+    if (normalized === 'pasado manana' || normalized === 'day after tomorrow') {
+        const dayAfterTomorrow = new Date(startOfToday)
+        dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2)
+        return dayAfterTomorrow
+    }
+
+    const dmyMatch = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+    if (dmyMatch) {
+        const day = Number.parseInt(dmyMatch[1], 10)
+        const month = Number.parseInt(dmyMatch[2], 10) - 1
+        const year = Number.parseInt(dmyMatch[3], 10)
+        const parsed = new Date(year, month, day)
+        if (
+            parsed.getFullYear() === year &&
+            parsed.getMonth() === month &&
+            parsed.getDate() === day
+        ) {
+            return parsed
+        }
+    }
+
+    const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (isoMatch) {
+        const year = Number.parseInt(isoMatch[1], 10)
+        const month = Number.parseInt(isoMatch[2], 10) - 1
+        const day = Number.parseInt(isoMatch[3], 10)
+        const parsed = new Date(year, month, day)
+        if (
+            parsed.getFullYear() === year &&
+            parsed.getMonth() === month &&
+            parsed.getDate() === day
+        ) {
+            return parsed
+        }
+    }
+
+    const parsed = new Date(raw)
+    if (!Number.isNaN(parsed.getTime())) return parsed
+    return null
+}
+
 export async function getProjects({ status, query }: ProjectFilters) {
     try {
         const where: Prisma.ProjectWhereInput = {
@@ -663,8 +724,8 @@ export async function createTaskByAI(
             if (byName) assigneeId = byName.id
         }
 
-        const parsedDueDate = input.dueDate ? new Date(input.dueDate) : null
-        const parsedStartDate = input.startDate ? new Date(input.startDate) : null
+        const parsedDueDate = parseSpanishDateInput(input.dueDate)
+        const parsedStartDate = parseSpanishDateInput(input.startDate)
 
         const task = await prisma.task.create({
             data: {
@@ -674,8 +735,8 @@ export async function createTaskByAI(
                 priority: input.priority || 'MEDIUM',
                 projectId,
                 assigneeId: assigneeId || null,
-                dueDate: parsedDueDate && !Number.isNaN(parsedDueDate.getTime()) ? parsedDueDate : null,
-                startDate: parsedStartDate && !Number.isNaN(parsedStartDate.getTime()) ? parsedStartDate : null
+                dueDate: parsedDueDate,
+                startDate: parsedStartDate
             },
             select: {
                 id: true,

@@ -305,6 +305,11 @@ export async function POST(req: Request) {
         const modelMessages = await convertToModelMessages(
             enrichedMessages.map(({ id: _id, ...rest }) => rest)
         )
+        const now = new Date()
+        const todayIso = now.toISOString().slice(0, 10)
+        const tomorrow = new Date(now)
+        tomorrow.setDate(tomorrow.getDate() + 1)
+        const tomorrowIso = tomorrow.toISOString().slice(0, 10)
 
         const result = streamText({
             model: openai('gpt-4o'),
@@ -312,6 +317,7 @@ export async function POST(req: Request) {
             system: `You are Fibra Bot, an AI assistant for the Fibra branding studio management platform.
       You have access to the company database through tools.
       Your goal is to help users find information about projects, leads, finances, team members, and suppliers quickly.
+      Current date reference: today is ${todayIso}. Tomorrow is ${tomorrowIso}.
       
       Guidelines:
       - Always check the database before answering questions about specific data.
@@ -326,6 +332,8 @@ export async function POST(req: Request) {
       - When listing multiple items, use bullet points for readability.
       - For write operations (create lead/client/contact/project/task), indica los datos recomendados, pero permite guardado mínimo cuando solo hay nombre cuando aplique.
       - For write operations, NEVER claim "created/registered successfully" unless the corresponding tool was executed and returned success: true.
+      - For relative dates in Spanish (hoy, mañana, pasado mañana), always convert using the current date reference above.
+      - Do not infer old years (e.g., 2023) for new tasks unless the user explicitly asks for that year.
       - Si faltan datos no críticos (email, empresa, director, presupuesto), crea el registro base y sugiere completarlo luego.
       - If a write tool returns "success: false", explain the reason to the user clearly.
       - For project creation, minimum operativo: nombre del proyecto. Si falta cliente, usar cliente placeholder y luego completar.
