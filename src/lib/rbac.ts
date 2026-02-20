@@ -13,6 +13,7 @@ export type Module =
     | 'facturas'
     | 'finanzas'
     | 'proyectos'
+    | 'tareas'
     | 'marketing'
     | 'comercial'
     | 'reportes'
@@ -29,6 +30,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         facturas: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         finanzas: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         proyectos: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        tareas: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         marketing: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         comercial: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         reportes: { canView: true, canCreate: true, canEdit: true, canDelete: true },
@@ -44,6 +46,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         facturas: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         finanzas: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         proyectos: { canView: true, canCreate: true, canEdit: true, canDelete: true },
+        tareas: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         marketing: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         comercial: { canView: true, canCreate: true, canEdit: true, canDelete: true },
         reportes: { canView: true, canCreate: true, canEdit: true, canDelete: true },
@@ -59,6 +62,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         facturas: { canView: true, canCreate: true, canEdit: true, canDelete: false },
         finanzas: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         proyectos: { canView: false, canCreate: false, canEdit: false, canDelete: false },
+        tareas: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         marketing: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         comercial: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         reportes: { canView: true, canCreate: true, canEdit: false, canDelete: false },
@@ -74,6 +78,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         facturas: { canView: true, canCreate: false, canEdit: true, canDelete: false },
         finanzas: { canView: true, canCreate: true, canEdit: true, canDelete: false },
         proyectos: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+        tareas: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         marketing: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         comercial: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         reportes: { canView: true, canCreate: true, canEdit: false, canDelete: false },
@@ -89,6 +94,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         facturas: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         finanzas: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         proyectos: { canView: true, canCreate: true, canEdit: true, canDelete: false },
+        tareas: { canView: true, canCreate: true, canEdit: true, canDelete: false },
         marketing: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         comercial: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         reportes: { canView: true, canCreate: false, canEdit: false, canDelete: false },
@@ -104,6 +110,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         facturas: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         finanzas: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         proyectos: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+        tareas: { canView: true, canCreate: false, canEdit: true, canDelete: false },
         marketing: { canView: true, canCreate: true, canEdit: true, canDelete: false },
         comercial: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         reportes: { canView: true, canCreate: false, canEdit: false, canDelete: false },
@@ -119,6 +126,7 @@ const permissions: Record<Role, Record<Module, Permission>> = {
         facturas: { canView: true, canCreate: true, canEdit: true, canDelete: false },
         finanzas: { canView: false, canCreate: false, canEdit: false, canDelete: false },
         proyectos: { canView: true, canCreate: false, canEdit: false, canDelete: false },
+        tareas: { canView: true, canCreate: false, canEdit: true, canDelete: false },
         marketing: { canView: true, canCreate: false, canEdit: false, canDelete: false },
         comercial: { canView: true, canCreate: true, canEdit: true, canDelete: false },
         reportes: { canView: true, canCreate: false, canEdit: false, canDelete: false },

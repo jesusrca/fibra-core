@@ -133,8 +133,13 @@ export function ChatWidget() {
         if ((!text && attachments.length === 0) || isBusy) return
 
         setIsSending(true)
+        const previousInput = input
+        const previousAttachments = attachments
+        setInput('')
+        setAttachments([])
+        setRecordError(null)
         try {
-            const fileParts = await Promise.all(attachments.map(fileToPart))
+            const fileParts = await Promise.all(previousAttachments.map(fileToPart))
             if (text && fileParts.length > 0) {
                 await sendMessage({ text, files: fileParts })
             } else if (fileParts.length > 0) {
@@ -142,10 +147,9 @@ export function ChatWidget() {
             } else {
                 await sendMessage({ text })
             }
-            setInput('')
-            setAttachments([])
-            setRecordError(null)
         } catch (error) {
+            setInput(previousInput)
+            setAttachments(previousAttachments)
             setRecordError(error instanceof Error ? error.message : 'No se pudo enviar el mensaje')
         } finally {
             setIsSending(false)

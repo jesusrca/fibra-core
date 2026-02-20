@@ -13,6 +13,7 @@ import {
     Calculator,
     TrendingUp,
     FolderKanban,
+    ListTodo,
     Megaphone,
     Handshake,
     FileBarChart,
@@ -40,6 +41,7 @@ type NotificationModuleKey =
     | 'dashboard'
     | 'comercial'
     | 'proyectos'
+    | 'tareas'
     | 'equipo'
     | 'proveedores'
     | 'contabilidad'
@@ -54,6 +56,7 @@ const navItems: NavItem[] = [
     { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: 'dashboard', notifyKey: 'dashboard' },
     { label: 'Comercial (CRM)', href: '/comercial', icon: Handshake, module: 'comercial', notifyKey: 'comercial' },
     { label: 'Proyectos', href: '/proyectos', icon: FolderKanban, module: 'proyectos', notifyKey: 'proyectos' },
+    { label: 'Tareas', href: '/tareas', icon: ListTodo, module: 'tareas', notifyKey: 'tareas' },
     { label: 'Equipo', href: '/equipo', icon: UsersIcon, module: 'equipo', notifyKey: 'equipo' },
     { label: 'Proveedores', href: '/proveedores', icon: Truck, module: 'proveedores', notifyKey: 'proveedores' },
     { label: 'Contabilidad', href: '/contabilidad', icon: Calculator, module: 'contabilidad', notifyKey: 'contabilidad' },
@@ -76,6 +79,7 @@ export function Sidebar({ userRole }: SidebarProps) {
         dashboard: 0,
         comercial: 0,
         proyectos: 0,
+        tareas: 0,
         equipo: 0,
         proveedores: 0,
         contabilidad: 0,

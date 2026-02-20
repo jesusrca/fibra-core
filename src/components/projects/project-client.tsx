@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, Calendar, Users, DollarSign, CheckCircle2 } from 'lucide-react'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { ProjectForm } from './project-form'
@@ -57,6 +57,10 @@ export function ProjectClient({ initialProjects, clients, users, services, filte
     const [updatingId, setUpdatingId] = useState<string | null>(null)
     const [search, setSearch] = useState(filters.q || '')
     const [statusFilter, setStatusFilter] = useState(filters.status || 'ALL')
+
+    useEffect(() => {
+        setProjects(initialProjects)
+    }, [initialProjects])
 
     // Calculate progress based on milestones if available
     const getProjectProgress = (project: ProjectRow) => {

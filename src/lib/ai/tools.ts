@@ -1,6 +1,8 @@
 import prisma from '@/lib/prisma'
 import { LeadStatus, Prisma, ProjectStatus, Role } from '@prisma/client'
 import { canAccess } from '@/lib/rbac'
+import { createNotificationForUser } from '@/lib/notifications'
+import { revalidatePath } from 'next/cache'
 
 type ProjectFilters = {
     status?: ProjectStatus
@@ -27,13 +29,14 @@ export type AIToolContext = {
     role: Role
 }
 
-type WriteToolName = 'createLead' | 'createClient' | 'createContact' | 'createProject'
+type WriteToolName = 'createLead' | 'createClient' | 'createContact' | 'createProject' | 'createTask'
 
 const WRITE_TOOL_ROLES: Record<WriteToolName, Role[]> = {
     createLead: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
     createClient: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
     createContact: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
-    createProject: [Role.ADMIN, Role.GERENCIA, Role.PROYECTOS]
+    createProject: [Role.ADMIN, Role.GERENCIA, Role.PROYECTOS],
+    createTask: [Role.ADMIN, Role.GERENCIA, Role.PROYECTOS, Role.MARKETING, Role.COMERCIAL]
 }
 
 async function auditWriteTool(params: {
@@ -597,6 +600,111 @@ export async function createProjectByAI(
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Error creando proyecto'
         await auditWriteTool({ ctx, toolName: 'createProject', input, success: false, error: message })
+        return { success: false as const, error: message }
+    }
+}
+
+export async function createTaskByAI(
+    ctx: AIToolContext,
+    input: {
+        title: string
+        description?: string
+        projectId?: string
+        projectName?: string
+        assigneeId?: string
+        assigneeEmail?: string
+        assigneeName?: string
+        priority?: 'HIGH' | 'MEDIUM' | 'LOW'
+        dueDate?: string
+        startDate?: string
+    }
+) {
+    if (!canRunWriteTool(ctx.role, 'createTask')) {
+        const error = `Rol ${ctx.role} sin permisos para crear tareas`
+        await auditWriteTool({ ctx, toolName: 'createTask', input, success: false, error })
+        return { success: false as const, error }
+    }
+
+    try {
+        let projectId = (input.projectId || '').trim()
+        if (!projectId && input.projectName) {
+            const project = await prisma.project.findFirst({
+                where: {
+                    OR: [
+                        { name: { equals: input.projectName, mode: 'insensitive' } },
+                        { name: { contains: input.projectName, mode: 'insensitive' } }
+                    ]
+                },
+                select: { id: true, name: true },
+                orderBy: { updatedAt: 'desc' }
+            })
+            if (project) projectId = project.id
+        }
+
+        if (!projectId) {
+            const error = 'No se pudo determinar el proyecto (projectId o projectName son requeridos)'
+            await auditWriteTool({ ctx, toolName: 'createTask', input, success: false, error })
+            return { success: false as const, error }
+        }
+
+        let assigneeId = (input.assigneeId || '').trim() || undefined
+        if (!assigneeId && input.assigneeEmail) {
+            const byEmail = await prisma.user.findFirst({
+                where: { email: { equals: input.assigneeEmail, mode: 'insensitive' } },
+                select: { id: true }
+            })
+            if (byEmail) assigneeId = byEmail.id
+        }
+        if (!assigneeId && input.assigneeName) {
+            const byName = await prisma.user.findFirst({
+                where: { name: { contains: input.assigneeName, mode: 'insensitive' } },
+                select: { id: true }
+            })
+            if (byName) assigneeId = byName.id
+        }
+
+        const parsedDueDate = input.dueDate ? new Date(input.dueDate) : null
+        const parsedStartDate = input.startDate ? new Date(input.startDate) : null
+
+        const task = await prisma.task.create({
+            data: {
+                title: input.title.trim(),
+                description: (input.description || '').trim() || null,
+                status: 'TODO',
+                priority: input.priority || 'MEDIUM',
+                projectId,
+                assigneeId: assigneeId || null,
+                dueDate: parsedDueDate && !Number.isNaN(parsedDueDate.getTime()) ? parsedDueDate : null,
+                startDate: parsedStartDate && !Number.isNaN(parsedStartDate.getTime()) ? parsedStartDate : null
+            },
+            select: {
+                id: true,
+                title: true,
+                status: true,
+                priority: true,
+                dueDate: true,
+                project: { select: { id: true, name: true } },
+                assignee: { select: { id: true, name: true, email: true } }
+            }
+        })
+
+        if (task.assignee?.id) {
+            await createNotificationForUser({
+                userId: task.assignee.id,
+                type: 'task_due',
+                message: `Nueva tarea asignada: ${task.title}`
+            })
+        }
+
+        revalidatePath('/tareas')
+        revalidatePath(`/proyectos/${projectId}`)
+        revalidatePath('/dashboard')
+
+        await auditWriteTool({ ctx, toolName: 'createTask', input, success: true })
+        return { success: true as const, task }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error creando tarea'
+        await auditWriteTool({ ctx, toolName: 'createTask', input, success: false, error: message })
         return { success: false as const, error: message }
     }
 }

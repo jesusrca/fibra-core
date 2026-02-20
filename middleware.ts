@@ -7,6 +7,7 @@ export const config = {
         '/contabilidad/:path*',
         '/finanzas/:path*',
         '/proyectos/:path*',
+        '/tareas/:path*',
         '/equipo/:path*',
         '/proveedores/:path*',
         '/marketing/:path*',
@@ -16,4 +17,3 @@ export const config = {
         '/chatbot/:path*'
     ]
 }
-

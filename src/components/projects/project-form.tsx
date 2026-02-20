@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { X, Loader2 } from 'lucide-react'
 import { createProject, createProjectClient } from '@/lib/actions/projects'
 import { ProjectStatus } from '@prisma/client'
+import { useRouter } from 'next/navigation'
 
 interface ProjectFormProps {
     onClose: () => void
@@ -13,6 +14,7 @@ interface ProjectFormProps {
 }
 
 export function ProjectForm({ onClose, clients, users, services }: ProjectFormProps) {
+    const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [creatingClient, setCreatingClient] = useState(false)
     const [clientMode, setClientMode] = useState<'select' | 'create'>('select')
@@ -81,6 +83,7 @@ export function ProjectForm({ onClose, clients, users, services }: ProjectFormPr
         const result = await createProject(data)
 
         if (result.success) {
+            router.refresh()
             onClose()
         } else {
             setError(result.error || 'Ocurrió un error')

@@ -7,6 +7,7 @@ type NotificationModule =
     | 'dashboard'
     | 'comercial'
     | 'proyectos'
+    | 'tareas'
     | 'equipo'
     | 'proveedores'
     | 'contabilidad'
@@ -27,7 +28,7 @@ function mapTypeToModules(type: string): NotificationModule[] {
         case 'project_data_missing':
             return ['proyectos', 'dashboard']
         case 'task_due':
-            return ['proyectos', 'equipo', 'dashboard']
+            return ['tareas', 'proyectos', 'equipo', 'dashboard']
         case 'invoice_update':
         case 'invoice_overdue':
             return ['contabilidad', 'facturas', 'finanzas', 'dashboard']
@@ -57,6 +58,7 @@ export async function GET() {
             dashboard: 0,
             comercial: 0,
             proyectos: 0,
+            tareas: 0,
             equipo: 0,
             proveedores: 0,
             contabilidad: 0,
@@ -86,6 +88,7 @@ export async function GET() {
                 dashboard: 0,
                 comercial: 0,
                 proyectos: 0,
+                tareas: 0,
                 equipo: 0,
                 proveedores: 0,
                 contabilidad: 0,

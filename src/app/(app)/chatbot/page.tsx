@@ -169,8 +169,12 @@ export default function ChatbotPage() {
 
         setIsSending(true)
         setUploadError(null)
+        const previousInput = input
+        const previousAttachments = attachments
+        setInput('')
+        setAttachments([])
         try {
-            const fileParts = await Promise.all(attachments.map(fileToPart))
+            const fileParts = await Promise.all(previousAttachments.map(fileToPart))
 
             if (text && fileParts.length > 0) {
                 await sendMessage({ text, files: fileParts })
@@ -179,10 +183,9 @@ export default function ChatbotPage() {
             } else {
                 await sendMessage({ text })
             }
-
-            setInput('')
-            setAttachments([])
         } catch (sendError) {
+            setInput(previousInput)
+            setAttachments(previousAttachments)
             setUploadError(sendError instanceof Error ? sendError.message : 'No se pudo enviar el mensaje')
         } finally {
             setIsSending(false)

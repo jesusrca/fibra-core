@@ -7,6 +7,7 @@ import {
     createContactByAI,
     createLeadByAI,
     createProjectByAI,
+    createTaskByAI,
     getFinancialSummary,
     getLeads,
     getProjects,
@@ -323,7 +324,8 @@ export async function POST(req: Request) {
       - For dates, use a readable format (e.g., "DD/MM/YYYY").
       - If you can't find information, state that clearly.
       - When listing multiple items, use bullet points for readability.
-      - For write operations (create lead/client/contact/project), indica los datos recomendados, pero permite guardado mínimo cuando solo hay nombre.
+      - For write operations (create lead/client/contact/project/task), indica los datos recomendados, pero permite guardado mínimo cuando solo hay nombre cuando aplique.
+      - For write operations, NEVER claim "created/registered successfully" unless the corresponding tool was executed and returned success: true.
       - Si faltan datos no críticos (email, empresa, director, presupuesto), crea el registro base y sugiere completarlo luego.
       - If a write tool returns "success: false", explain the reason to the user clearly.
       - For project creation, minimum operativo: nombre del proyecto. Si falta cliente, usar cliente placeholder y luego completar.
@@ -427,6 +429,24 @@ export async function POST(req: Request) {
                         endDate: z.string().optional().describe('ISO date format recommended (YYYY-MM-DD)')
                     }),
                     execute: async (input) => createProjectByAI({ userId: user.id, role: user.role }, input)
+                }),
+                createTask: tool({
+                    description: 'Create a task in a project. Requires title and either projectId or projectName.',
+                    inputSchema: z.object({
+                        title: z.string().min(2),
+                        description: z.string().optional(),
+                        projectId: z.string().optional(),
+                        projectName: z.string().optional(),
+                        assigneeId: z.string().optional(),
+                        assigneeEmail: z.string().email().optional(),
+                        assigneeName: z.string().optional(),
+                        priority: z.enum(['HIGH', 'MEDIUM', 'LOW']).optional(),
+                        dueDate: z.string().optional().describe('ISO date format recommended (YYYY-MM-DD)'),
+                        startDate: z.string().optional().describe('ISO date format recommended (YYYY-MM-DD)')
+                    }).refine((data) => Boolean(data.projectId || data.projectName), {
+                        message: 'Debes indicar projectId o projectName'
+                    }),
+                    execute: async (input) => createTaskByAI({ userId: user.id, role: user.role }, input)
                 })
             },
             stopWhen: stepCountIs(5),

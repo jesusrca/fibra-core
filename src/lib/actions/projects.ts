@@ -528,6 +528,8 @@ export async function createTask(data: {
             })
         }
         revalidatePath(`/proyectos/${data.projectId}`)
+        revalidatePath('/tareas')
+        revalidatePath('/dashboard')
         return { success: true, task }
     } catch (error) {
         console.error('Error creating task:', error)
@@ -543,6 +545,8 @@ export async function updateTaskStatus(id: string, status: string, projectId: st
             data: { status }
         }))
         revalidatePath(`/proyectos/${projectId}`)
+        revalidatePath('/tareas')
+        revalidatePath('/dashboard')
         return { success: true }
     } catch (error) {
         console.error('Error updating task:', error)
