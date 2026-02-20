@@ -5,7 +5,9 @@ import { revalidatePath } from 'next/cache'
 import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { createNotificationForRoles, createNotificationForUser } from '@/lib/notifications'
-import { InvoiceStatus, Role } from '@prisma/client'
+import { InvoiceStatus, ProjectStatus, Role } from '@prisma/client'
+import { projectCreateSchema } from '@/lib/validation/schemas'
+import { z } from 'zod'
 
 function normalizeServiceName(name: string) {
     return name.trim().replace(/\s+/g, ' ')
@@ -171,7 +173,7 @@ export async function createProject(data: {
     name: string
     clientId: string
     directorId: string
-    status: any
+    status: ProjectStatus
     budget: number
     serviceType: string
     endDate?: Date
@@ -179,23 +181,42 @@ export async function createProject(data: {
 }) {
     try {
         await requireModuleAccess('proyectos')
-        const serviceType = normalizeServiceName(data.serviceType || '')
+        const parsed = projectCreateSchema.safeParse(data)
+        if (!parsed.success) {
+            const message = parsed.error.issues[0]?.message || 'Datos inválidos para crear proyecto'
+            return { success: false, error: message }
+        }
+        const payload = parsed.data
+        const serviceType = normalizeServiceName(payload.serviceType || '')
         if (!serviceType) return { success: false, error: 'El tipo de servicio es obligatorio' }
 
+        const duplicate = await withPrismaRetry(() =>
+            prisma.project.findFirst({
+                where: {
+                    clientId: payload.clientId,
+                    name: { equals: payload.name, mode: 'insensitive' }
+                },
+                select: { id: true }
+            })
+        )
+        if (duplicate) {
+            return { success: false, error: 'Ya existe un proyecto con ese nombre para este cliente' }
+        }
+
         await upsertServiceCatalogFromName(serviceType)
-        const inboxEmail = await generateProjectInboxEmail(data.name)
+        const inboxEmail = await generateProjectInboxEmail(payload.name)
 
         const project = await withPrismaRetry(() => prisma.project.create({
             data: {
-                name: data.name,
+                name: payload.name,
                 inboxEmail,
-                clientId: data.clientId,
-                directorId: data.directorId,
-                status: data.status,
-                budget: data.budget,
+                clientId: payload.clientId,
+                directorId: payload.directorId,
+                status: payload.status,
+                budget: payload.budget,
                 serviceType,
-                startDate: data.startDate || new Date(),
-                endDate: data.endDate || null,
+                startDate: payload.startDate || new Date(),
+                endDate: payload.endDate || null,
                 // milestonesCount: 0 
             },
         }))
@@ -248,12 +269,16 @@ export async function createProjectClient(data: {
     }
 }
 
-export async function updateProjectStatus(projectId: string, status: any) {
+const projectStatusSchema = z.nativeEnum(ProjectStatus)
+
+export async function updateProjectStatus(projectId: string, status: ProjectStatus) {
     try {
         await requireModuleAccess('proyectos')
+        const parsedStatus = projectStatusSchema.safeParse(status)
+        if (!parsedStatus.success) return { success: false, error: 'Estado de proyecto inválido' }
         await withPrismaRetry(() => prisma.project.update({
             where: { id: projectId },
-            data: { status },
+            data: { status: parsedStatus.data },
         }))
         revalidatePath('/proyectos')
         return { success: true }

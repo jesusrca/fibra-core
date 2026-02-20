@@ -23,6 +23,20 @@ interface FinanzasClientProps {
     margin: number
     budgetData: Array<{ area: string; presupuesto: number; real: number }>
     cashFlowData: Array<{ mes: string; flujo: number }>
+    projectProfitability: Array<{
+        projectId: string
+        projectName: string
+        clientName: string
+        serviceType: string
+        revenue: number
+        directCosts: number
+        grossMargin: number
+        marginPct: number
+    }>
+    clientProfitability: Array<{ clientName: string; net: number }>
+    serviceProfitability: Array<{ service: string; net: number }>
+    projectedCashFlow: Array<{ horizonDays: number; inflow: number; outflow: number; net: number; alert: boolean }>
+    cashflowRecommendation: string
 }
 
 export function FinanzasClient({
@@ -35,7 +49,12 @@ export function FinanzasClient({
     netProfit,
     margin,
     budgetData,
-    cashFlowData
+    cashFlowData,
+    projectProfitability,
+    clientProfitability,
+    serviceProfitability,
+    projectedCashFlow,
+    cashflowRecommendation
 }: FinanzasClientProps) {
     const [activeSection, setActiveSection] = useState<'resumen' | 'costos' | 'planilla'>('resumen')
     const [showCostForm, setShowCostForm] = useState(false)
@@ -242,6 +261,92 @@ export function FinanzasClient({
                                 <Bar dataKey="balance" name="Saldo" fill="#2563EB" radius={[0, 6, 6, 0]} />
                             </BarChart>
                         </ResponsiveContainer>
+                    </div>
+
+                    <div className="glass-card p-5">
+                        <h2 className="section-title mb-2">Flujo de Caja Proyectado (30/60/90 días)</h2>
+                        <p className="text-xs text-muted-foreground mb-4">{cashflowRecommendation}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {projectedCashFlow.map((row) => (
+                                <div key={row.horizonDays} className={cn('rounded-lg border p-3', row.alert ? 'border-red-500/30 bg-red-500/5' : 'border-emerald-500/30 bg-emerald-500/5')}>
+                                    <p className="text-xs text-muted-foreground">Horizonte {row.horizonDays} días</p>
+                                    <p className={cn('text-lg font-bold mt-1', row.alert ? 'text-[hsl(var(--danger-text))]' : 'text-[hsl(var(--success-text))]')}>
+                                        {formatCurrency(row.net)}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground mt-1">
+                                        Cobros: {formatCurrency(row.inflow)} · Pagos: {formatCurrency(row.outflow)}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="glass-card p-5">
+                        <h2 className="section-title mb-3">Rentabilidad por Proyecto</h2>
+                        <div className="table-container">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Proyecto</th>
+                                        <th>Cliente</th>
+                                        <th>Servicio</th>
+                                        <th>Ingresos</th>
+                                        <th>Costos Directos</th>
+                                        <th>Margen Bruto</th>
+                                        <th>% Margen</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {projectProfitability.map((row) => (
+                                        <tr key={row.projectId}>
+                                            <td className="font-medium">{row.projectName}</td>
+                                            <td>{row.clientName}</td>
+                                            <td>{row.serviceType}</td>
+                                            <td>{formatCurrency(row.revenue)}</td>
+                                            <td>{formatCurrency(row.directCosts)}</td>
+                                            <td className={cn('font-semibold', row.grossMargin >= 0 ? 'text-[hsl(var(--success-text))]' : 'text-[hsl(var(--danger-text))]')}>
+                                                {formatCurrency(row.grossMargin)}
+                                            </td>
+                                            <td>{row.marginPct.toFixed(1)}%</td>
+                                        </tr>
+                                    ))}
+                                    {projectProfitability.length === 0 && (
+                                        <tr><td colSpan={7} className="text-center py-6 text-sm text-muted-foreground">Sin datos de rentabilidad todavía.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="glass-card p-5">
+                            <h2 className="section-title mb-3">Ranking clientes rentables</h2>
+                            <div className="space-y-2">
+                                {clientProfitability.map((row) => (
+                                    <div key={row.clientName} className="flex items-center justify-between border-b border-border/30 pb-1">
+                                        <span className="text-sm">{row.clientName}</span>
+                                        <span className={cn('text-sm font-semibold', row.net >= 0 ? 'text-[hsl(var(--success-text))]' : 'text-[hsl(var(--danger-text))]')}>
+                                            {formatCurrency(row.net)}
+                                        </span>
+                                    </div>
+                                ))}
+                                {clientProfitability.length === 0 && <p className="text-xs text-muted-foreground">Sin datos.</p>}
+                            </div>
+                        </div>
+                        <div className="glass-card p-5">
+                            <h2 className="section-title mb-3">Rentabilidad por servicio</h2>
+                            <div className="space-y-2">
+                                {serviceProfitability.map((row) => (
+                                    <div key={row.service} className="flex items-center justify-between border-b border-border/30 pb-1">
+                                        <span className="text-sm">{row.service}</span>
+                                        <span className={cn('text-sm font-semibold', row.net >= 0 ? 'text-[hsl(var(--success-text))]' : 'text-[hsl(var(--danger-text))]')}>
+                                            {formatCurrency(row.net)}
+                                        </span>
+                                    </div>
+                                ))}
+                                {serviceProfitability.length === 0 && <p className="text-xs text-muted-foreground">Sin datos.</p>}
+                            </div>
+                        </div>
                     </div>
                 </>
             )}

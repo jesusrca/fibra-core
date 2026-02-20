@@ -7,6 +7,7 @@ import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { createNotificationForRoles } from '@/lib/notifications'
 import { upsertServiceCatalogFromName } from '@/lib/actions/projects'
+import { leadCreateSchema } from '@/lib/validation/schemas'
 
 type QuoteStatus = 'PENDING' | 'SENT' | 'ACCEPTED' | 'REJECTED'
 
@@ -368,15 +369,33 @@ export async function deleteClient(id: string) {
 }
 
 export async function createLead(formData: FormData) {
-    const companyName = (formData.get('companyName') as string || '').trim()
-    const serviceRequested = formData.get('serviceRequested') as string
-    const requirementDetail = formData.get('requirementDetail') as string
-    const estimatedValue = parseFloat(formData.get('estimatedValue') as string || '0')
-    const status = (formData.get('status') as LeadStatus) || LeadStatus.NEW
-    const clientId = formData.get('clientId') as string
-    const selectedContactId = (formData.get('contactId') as string || '').trim()
-    const contactName = (formData.get('contactName') as string || '').trim()
-    const contactEmail = (formData.get('contactEmail') as string || '').trim().toLowerCase()
+    const parsed = leadCreateSchema.safeParse({
+        companyName: (formData.get('companyName') as string || '').trim() || undefined,
+        serviceRequested: (formData.get('serviceRequested') as string || '').trim() || undefined,
+        requirementDetail: (formData.get('requirementDetail') as string || '').trim() || undefined,
+        estimatedValue: parseFloat(formData.get('estimatedValue') as string || '0'),
+        status: (formData.get('status') as LeadStatus) || LeadStatus.NEW,
+        clientId: (formData.get('clientId') as string || '').trim() || undefined,
+        selectedContactId: (formData.get('contactId') as string || '').trim() || undefined,
+        contactName: (formData.get('contactName') as string || '').trim() || undefined,
+        contactEmail: (formData.get('contactEmail') as string || '').trim().toLowerCase() || '',
+    })
+
+    if (!parsed.success) {
+        throw new Error(parsed.error.issues[0]?.message || 'Datos inválidos de lead')
+    }
+
+    const {
+        companyName,
+        serviceRequested,
+        requirementDetail,
+        estimatedValue,
+        status,
+        clientId,
+        selectedContactId,
+        contactName,
+        contactEmail,
+    } = parsed.data
 
     if (!companyName && !clientId) {
         throw new Error('El nombre de la empresa o cliente es obligatorio')
@@ -640,8 +659,9 @@ export async function createLeadActivity(data: {
 
         let contactId = data.contactId || lead.contactId || null
         if (contactId) {
+            const contactIdValue = contactId
             const contact = await withPrismaRetry(() => prisma.contact.findUnique({
-                where: { id: contactId },
+                where: { id: contactIdValue },
                 select: { id: true }
             }))
             if (!contact) contactId = null

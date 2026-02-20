@@ -70,7 +70,8 @@ export default async function FacturasPage() {
     const invoicesToIssueProjection = projectMilestones
         .map((project) => {
             const now = new Date()
-            const startDate = project.startDate || now
+            const parsedStartDate = project.startDate ? new Date(project.startDate) : now
+            const startDate = Number.isNaN(parsedStartDate.getTime()) ? now : parsedStartDate
             const totalMilestones = Math.max(project.milestones.length, 1)
             const completedMilestones = project.milestones.filter((m) => m.status === 'COMPLETED').length
             const issuedInvoices = project.invoices.filter((inv) => inv.status !== 'CANCELLED').length

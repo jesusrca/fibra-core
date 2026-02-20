@@ -41,7 +41,8 @@
 
 ## Medio (calidad y mantenibilidad)
 
-1. [ ] Reducir uso de `any` y `as any` en frontend/backend.
+1. [~] Reducir uso de `any` y `as any` en frontend/backend.
+       Estado: Aplicado tipado fuerte en módulos de Proyectos y formularios críticos; persisten `any` en zonas legacy.
        Archivos ejemplo:
    - `src/components/projects/project-client.tsx`
    - `src/components/projects/project-detail-client.tsx`
@@ -135,19 +136,31 @@
   Estado: Implementado para contactos/empresas/leads/proyectos con permisos por rol y auditoría.
 - [x] Notificaciones por contactos/proyectos con datos faltantes.
   Estado: Implementado con detección automática en carga de módulos CRM/Proyectos y creación de notificaciones deduplicadas (`contact_data_missing`, `project_data_missing`) visibles en Header/Sidebar.
+- [x] Importación masiva de transacciones vía CSV + plantilla modelo.
+  Estado: Implementado en Contabilidad con descarga de modelo e importador con validación de filas y reporte de errores.
+- [~] Rentabilidad real por cliente/proyecto/servicio.
+  Estado: Implementado cálculo y ranking en Finanzas con ingresos de facturas y costos directos por proyecto; pendiente asignación avanzada de costos indirectos.
+- [~] Flujo de caja proyectado (30/60/90 días) con alertas.
+  Estado: Implementado en Finanzas con cobros esperados vs pagos comprometidos y recomendación automática.
+- [~] Pipeline comercial con forecast y meta vs real.
+  Estado: Implementado forecast ponderado por estado y comparativo meta/forecast/real por canal fuente.
 
 ## Integraciones externas pendientes
 
 1. [ ] n8n inbound/outbound real (webhooks + seguridad + trazas).
 2. [ ] Telegram bot productivo.
 3. [ ] Google Drive (subida/documentos).
-4. [ ] Email transaccional productivo.
+4. [~] Email transaccional productivo.
+   Estado: Implementado canal Brevo para correos de sistema (notificaciones por email opcionales, envío de reportes y recuperación de contraseña). Gmail se mantiene para correo operativo de proyecto.
 
 ## Frontend/UX pendiente para “100%”
 
-1. [ ] Estandarizar estados de carga/error en todos los módulos.
-2. [ ] Paginación y filtros server-side completos (CRM/proyectos).
-3. [ ] Validación consistente con esquemas compartidos (frontend + backend).
+1. [~] Estandarizar estados de carga/error en todos los módulos.
+   Estado: Mejorado en contabilidad/importación CSV y formularios clave; falta cobertura total.
+2. [~] Paginación y filtros server-side completos (CRM/proyectos).
+   Estado: Implementado en CRM (leads) y Proyectos con `page`, `pageSize`, `q`, `status`.
+3. [~] Validación consistente con esquemas compartidos (frontend + backend).
+   Estado: Implementado con Zod compartido para creación de transacciones, leads, proyectos y parsing CSV.
 4. Agregar opcion de cambio a modo oscuro y claro en moviles
 
 ## Criterio de “100% listo”

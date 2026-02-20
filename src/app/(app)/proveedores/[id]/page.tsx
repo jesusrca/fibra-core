@@ -45,7 +45,7 @@ export default async function ProveedorDetallePage({ params }: ProveedorDetalleP
                     select: { id: true, name: true, status: true }
                 },
                 payments: {
-                    orderBy: [{ issueDate: 'desc' }, { createdAt: 'desc' }]
+                    orderBy: [{ paymentDate: 'desc' }, { issueDate: 'desc' }]
                 }
             },
             orderBy: { createdAt: 'desc' }

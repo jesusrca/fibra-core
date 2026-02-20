@@ -6,7 +6,9 @@ function isAuthorized(request: Request) {
     const auth = request.headers.get('authorization') || ''
     const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : ''
     const headerToken = request.headers.get('x-inbound-token') || ''
-    return bearer === expected || headerToken === expected
+    const url = new URL(request.url)
+    const queryToken = url.searchParams.get('token') || ''
+    return bearer === expected || headerToken === expected || queryToken === expected
 }
 
 export async function POST(request: Request) {

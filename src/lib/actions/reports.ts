@@ -3,6 +3,7 @@
 import prisma from '@/lib/prisma'
 import { requireModuleAccess, requireAuthUser } from '@/lib/server-auth'
 import { revalidatePath } from 'next/cache'
+import { sendSystemEmailByBrevo } from '@/lib/brevo'
 
 type ReportType = 'financial' | 'projects' | 'commercial' | 'marketing'
 type ReportFormat = 'JSON' | 'CSV'
@@ -193,4 +194,52 @@ export async function generateReport(input: {
 
     revalidatePath('/reportes')
     return { success: true, report }
+}
+
+export async function emailReportByBrevo(input: {
+    reportId: string
+    to?: string
+}) {
+    await requireModuleAccess('reportes')
+    const user = await requireAuthUser()
+
+    const report = await prisma.report.findFirst({
+        where: {
+            id: input.reportId,
+            generatedById: user.id
+        },
+        select: {
+            id: true,
+            name: true,
+            format: true,
+            content: true,
+            periodLabel: true
+        }
+    })
+    if (!report) return { success: false, error: 'Reporte no encontrado' }
+
+    const to = (input.to || user.email || '').trim().toLowerCase()
+    if (!to) return { success: false, error: 'No hay correo destino para enviar el reporte' }
+
+    const body = [
+        `Reporte: ${report.name}`,
+        report.periodLabel ? `Periodo: ${report.periodLabel}` : null,
+        `Formato: ${report.format}`,
+        '',
+        'Resumen / contenido:',
+        '',
+        report.content || '(Sin contenido)'
+    ]
+        .filter(Boolean)
+        .join('\n')
+
+    const sendResult = await sendSystemEmailByBrevo({
+        to,
+        subject: `Reporte Fibra Core: ${report.name}`,
+        text: body.slice(0, 180000)
+    })
+    if (!sendResult.success) {
+        return { success: false, error: sendResult.error || 'No se pudo enviar el reporte por correo' }
+    }
+    return { success: true }
 }

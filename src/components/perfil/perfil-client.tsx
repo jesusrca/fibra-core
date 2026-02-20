@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { User, Mail, MapPin, Calendar, Camera, Shield, Zap, Target } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { roleLabels } from '@/lib/rbac'
-import { updateMyProfile } from '@/lib/actions/users'
+import { updateMyPassword, updateMyProfile } from '@/lib/actions/users'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { formatTimezoneLabel, getTimezoneOptions } from '@/lib/timezones'
 
 interface PerfilClientProps {
     profile: {
@@ -36,7 +37,19 @@ export function PerfilClient({ profile }: PerfilClientProps) {
     })
     const [saving, setSaving] = useState(false)
     const [message, setMessage] = useState<string | null>(null)
+    const [showPasswordForm, setShowPasswordForm] = useState(false)
+    const [passwordForm, setPasswordForm] = useState({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+    })
+    const [passwordSaving, setPasswordSaving] = useState(false)
+    const [passwordMessage, setPasswordMessage] = useState<string | null>(null)
     const initials = (form.name || profile.email).split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+    const timezoneOptions = useMemo(
+        () => getTimezoneOptions(form.timezone || profile.timezone || null),
+        [form.timezone, profile.timezone]
+    )
 
     const handleSave = async () => {
         setSaving(true)
@@ -62,6 +75,31 @@ export function PerfilClient({ profile }: PerfilClientProps) {
         } as any)
         router.refresh()
         setMessage('Perfil actualizado correctamente')
+    }
+
+    const handlePasswordUpdate = async () => {
+        setPasswordMessage(null)
+        if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+            setPasswordMessage('Completa todos los campos de contraseña')
+            return
+        }
+        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+            setPasswordMessage('La confirmación no coincide con la nueva contraseña')
+            return
+        }
+        setPasswordSaving(true)
+        const result = await updateMyPassword({
+            currentPassword: passwordForm.currentPassword,
+            newPassword: passwordForm.newPassword
+        })
+        setPasswordSaving(false)
+        if (!result.success) {
+            setPasswordMessage(result.error || 'No se pudo actualizar la contraseña')
+            return
+        }
+        setPasswordMessage('Contraseña actualizada correctamente')
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+        setShowPasswordForm(false)
     }
 
     return (
@@ -152,10 +190,11 @@ export function PerfilClient({ profile }: PerfilClientProps) {
                             <div className="space-y-1.5 md:col-span-2">
                                 <label className="form-label">Zona Horaria</label>
                                 <select className="form-input" value={form.timezone} onChange={(e) => setForm((prev) => ({ ...prev, timezone: e.target.value }))}>
-                                    <option value="America/Lima">America/Lima</option>
-                                    <option value="America/New_York">America/New_York</option>
-                                    <option value="Europe/Madrid">Europe/Madrid</option>
-                                    <option value="America/Buenos_Aires">America/Buenos_Aires</option>
+                                    {timezoneOptions.map((tz) => (
+                                        <option key={tz} value={tz}>
+                                            {formatTimezoneLabel(tz)}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         </div>
@@ -189,8 +228,55 @@ export function PerfilClient({ profile }: PerfilClientProps) {
                                         <p className="text-xs text-muted-foreground">Actualiza tu contraseña regularmente.</p>
                                     </div>
                                 </div>
-                                <button className="btn-secondary text-xs">Actualizar</button>
+                                <button
+                                    className="btn-secondary text-xs"
+                                    onClick={() => setShowPasswordForm((prev) => !prev)}
+                                >
+                                    {showPasswordForm ? 'Cancelar' : 'Actualizar'}
+                                </button>
                             </div>
+
+                            {showPasswordForm && (
+                                <div className="rounded-xl border border-border/40 bg-card p-4 space-y-3">
+                                    <div>
+                                        <label className="form-label">Contraseña actual</label>
+                                        <input
+                                            type="password"
+                                            className="form-input"
+                                            value={passwordForm.currentPassword}
+                                            onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="form-label">Nueva contraseña</label>
+                                            <input
+                                                type="password"
+                                                className="form-input"
+                                                value={passwordForm.newPassword}
+                                                onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="form-label">Confirmar nueva contraseña</label>
+                                            <input
+                                                type="password"
+                                                className="form-input"
+                                                value={passwordForm.confirmPassword}
+                                                onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                                            />
+                                        </div>
+                                    </div>
+                                    {passwordMessage && (
+                                        <p className="text-xs text-muted-foreground">{passwordMessage}</p>
+                                    )}
+                                    <div className="flex justify-end">
+                                        <button className="btn-primary text-xs" onClick={handlePasswordUpdate} disabled={passwordSaving}>
+                                            {passwordSaving ? 'Actualizando...' : 'Guardar nueva contraseña'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

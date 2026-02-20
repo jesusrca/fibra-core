@@ -6,6 +6,7 @@ import { Role } from '@prisma/client'
 import { requireAuthUser, requireModuleAccess } from '@/lib/server-auth'
 import { hashPassword } from '@/lib/password'
 import { withPrismaRetry } from '@/lib/prisma-retry'
+import { verifyPassword } from '@/lib/password'
 
 export async function getUsers() {
     try {
@@ -163,5 +164,53 @@ export async function updateMyProfile(data: {
     } catch (error) {
         console.error('Error updating my profile:', error)
         return { success: false, error: 'No se pudo actualizar el perfil' }
+    }
+}
+
+export async function updateMyPassword(data: {
+    currentPassword: string
+    newPassword: string
+}) {
+    try {
+        const user = await requireAuthUser()
+        const currentPassword = (data.currentPassword || '').trim()
+        const newPassword = (data.newPassword || '').trim()
+
+        if (!currentPassword || !newPassword) {
+            return { success: false, error: 'Completa la contraseña actual y la nueva' }
+        }
+        if (newPassword.length < 8) {
+            return { success: false, error: 'La nueva contraseña debe tener al menos 8 caracteres' }
+        }
+
+        const dbUser = await withPrismaRetry(() =>
+            prisma.user.findUnique({
+                where: { id: user.id },
+                select: { id: true, passwordHash: true }
+            })
+        )
+        if (!dbUser?.passwordHash) {
+            return { success: false, error: 'No se pudo validar la contraseña actual' }
+        }
+
+        const valid = verifyPassword(currentPassword, dbUser.passwordHash)
+        if (!valid) return { success: false, error: 'La contraseña actual no es correcta' }
+
+        if (verifyPassword(newPassword, dbUser.passwordHash)) {
+            return { success: false, error: 'La nueva contraseña debe ser diferente a la actual' }
+        }
+
+        await withPrismaRetry(() =>
+            prisma.user.update({
+                where: { id: user.id },
+                data: { passwordHash: hashPassword(newPassword) }
+            })
+        )
+
+        revalidatePath('/perfil')
+        return { success: true }
+    } catch (error) {
+        console.error('Error updating my password:', error)
+        return { success: false, error: 'No se pudo actualizar la contraseña' }
     }
 }

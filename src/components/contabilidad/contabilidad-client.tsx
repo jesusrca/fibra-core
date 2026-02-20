@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Plus, Download, TrendingUp, TrendingDown, DollarSign } from 'lucide-react'
 import { formatCurrency, formatDate, cn } from '@/lib/utils'
-import { createTransaction, deleteTransaction } from '@/lib/actions/accounting'
+import { createTransaction, deleteTransaction, importTransactionsCsv } from '@/lib/actions/accounting'
 import { InvoiceStatus, TransactionCategory } from '@prisma/client'
 
 const categories = ['Todos', 'Servicios de Branding', 'Consultoría', 'Diseño Web', 'Software & Herramientas', 'Nómina', 'Marketing', 'Oficina']
@@ -95,6 +95,8 @@ export function ContabilidadClient({
     const [transactionType, setTransactionType] = useState<TransactionCategory>('INCOME')
     const [selectedCurrency, setSelectedCurrency] = useState<'PEN' | 'USD'>('PEN')
     const [loading, setLoading] = useState(false)
+    const [importing, setImporting] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement | null>(null)
     const compatibleBanks = banks.filter((bank) => bank.supportedCurrencies.includes(selectedCurrency))
 
     // Filter logic
@@ -200,6 +202,45 @@ export function ContabilidadClient({
         URL.revokeObjectURL(url)
     }
 
+    const downloadCsvTemplate = () => {
+        const headers = ['Fecha', 'Categoría', 'Subcategoría', 'Moneda', 'Banco', 'Monto', 'Descripción', 'Factura', 'Proyecto']
+        const examples = [
+            ['2026-02-20', 'INCOME', 'Servicios de Branding', 'USD', 'BCP', '2500', 'Cobro de identidad visual', 'INV-2026-10001', 'Identidad Visual Nexo'],
+            ['2026-02-22', 'EXPENSE', 'Marketing', 'PEN', 'Interbank', '850', 'Publicidad Meta Ads', '', ''],
+        ]
+        const csv = [headers, ...examples]
+            .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+            .join('\n')
+
+        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'modelo-importacion-transacciones.csv'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(url)
+    }
+
+    const handleImportFile = async (file: File) => {
+        if (importing) return
+        setImporting(true)
+        try {
+            const text = await file.text()
+            const result = await importTransactionsCsv(text)
+            if (!result.success) {
+                alert(result.error || 'No se pudo importar el archivo')
+                return
+            }
+            const errors = result.errors?.length ? `\nCon observaciones: ${result.errors.slice(0, 5).join(' | ')}` : ''
+            alert(`Importación completada. Filas creadas: ${result.created}.${errors}`)
+        } finally {
+            setImporting(false)
+            if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+    }
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="page-header">
@@ -208,6 +249,21 @@ export function ContabilidadClient({
                     <p className="text-sm text-muted-foreground mt-0.5">Gestión de ingresos, gastos y facturas</p>
                 </div>
                 <div className="flex gap-2">
+                    <button className="btn-secondary" onClick={downloadCsvTemplate}><Download className="w-4 h-4" /> Modelo CSV</button>
+                    <button className="btn-secondary" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+                        <Download className="w-4 h-4" />
+                        {importing ? 'Importando...' : 'Importar CSV'}
+                    </button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv,text/csv"
+                        className="hidden"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) handleImportFile(file)
+                        }}
+                    />
                     <button className="btn-secondary" onClick={exportTransactionsCsv}><Download className="w-4 h-4" /> Exportar</button>
                     <button className="btn-primary" onClick={() => { setSelectedCurrency('PEN'); setShowForm(true) }}><Plus className="w-4 h-4" /> Nueva Transacción</button>
                 </div>

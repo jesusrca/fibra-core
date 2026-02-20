@@ -46,7 +46,12 @@ export async function ensureDefaultServices() {
     try {
         await withPrismaRetry(() =>
             prisma.serviceCatalog.createMany({
-                data: DEFAULT_SERVICES,
+                data: DEFAULT_SERVICES.map((service) => ({
+                    name: service.name,
+                    description: service.description,
+                    averagePrice: service.averagePrice,
+                    currency: service.currency
+                })),
                 skipDuplicates: true
             })
         )

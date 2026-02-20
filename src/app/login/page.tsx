@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react'
 import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import Link from 'next/link'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -73,6 +74,11 @@ export default function LoginPage() {
                             onChange={(e) => setPassword(e.target.value)}
                             required
                         />
+                        <div className="mt-2 text-right">
+                            <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+                                ¿Olvidaste tu contraseña?
+                            </Link>
+                        </div>
                     </div>
 
                     {error && (

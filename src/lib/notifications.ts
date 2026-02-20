@@ -1,5 +1,17 @@
 import prisma from '@/lib/prisma'
 import { Role } from '@prisma/client'
+import { sendSystemEmailByBrevo } from '@/lib/brevo'
+
+async function maybeSendNotificationEmails(users: Array<{ email: string | null }>, subject: string, message: string) {
+    if ((process.env.BREVO_NOTIFY_EMAILS || '').toLowerCase() !== 'true') return
+    const recipients = users.map((u) => (u.email || '').trim().toLowerCase()).filter(Boolean)
+    if (recipients.length === 0) return
+    await sendSystemEmailByBrevo({
+        to: recipients,
+        subject,
+        text: message
+    })
+}
 
 export async function createNotificationForRoles(args: {
     roles: Role[]
@@ -8,7 +20,7 @@ export async function createNotificationForRoles(args: {
 }) {
     const users = await prisma.user.findMany({
         where: { role: { in: args.roles } },
-        select: { id: true }
+        select: { id: true, email: true }
     })
 
     if (!users.length) return
@@ -20,6 +32,12 @@ export async function createNotificationForRoles(args: {
             message: args.message
         }))
     })
+
+    await maybeSendNotificationEmails(
+        users,
+        `Notificación Fibra Core: ${args.type}`,
+        args.message
+    )
 }
 
 export async function createNotificationForUser(args: {
@@ -27,6 +45,11 @@ export async function createNotificationForUser(args: {
     type: string
     message: string
 }) {
+    const user = await prisma.user.findUnique({
+        where: { id: args.userId },
+        select: { email: true }
+    })
+
     await prisma.notification.create({
         data: {
             userId: args.userId,
@@ -34,6 +57,12 @@ export async function createNotificationForUser(args: {
             message: args.message
         }
     })
+
+    await maybeSendNotificationEmails(
+        [{ email: user?.email || null }],
+        `Notificación Fibra Core: ${args.type}`,
+        args.message
+    )
 }
 
 export async function createNotificationForUserOnce(args: {

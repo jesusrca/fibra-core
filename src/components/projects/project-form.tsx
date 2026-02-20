@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X, Loader2 } from 'lucide-react'
 import { createProject, createProjectClient } from '@/lib/actions/projects'
+import { ProjectStatus } from '@prisma/client'
 
 interface ProjectFormProps {
     onClose: () => void
@@ -71,7 +72,7 @@ export function ProjectForm({ onClose, clients, users, services }: ProjectFormPr
             name: formData.get('name') as string,
             clientId,
             directorId: formData.get('directorId') as string,
-            status: 'PLANNING' as any,
+            status: ProjectStatus.PLANNING,
             budget: parseFloat(formData.get('budget') as string) || 0,
             serviceType,
             endDate: formData.get('endDate') ? new Date(formData.get('endDate') as string) : undefined,

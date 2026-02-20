@@ -43,3 +43,6 @@ next-env.d.ts
 # editor/OS
 .idea/
 .vscode/
+
+# local tooling
+.tools/

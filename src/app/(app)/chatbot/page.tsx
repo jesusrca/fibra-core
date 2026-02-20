@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User, Sparkles, Paperclip, Mic, Zap, Info, X, File as FileIcon, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import Link from 'next/link'
 import { useSharedChat } from '@/lib/use-shared-chat'
 import type { UIMessage } from 'ai'
+import { RichTextMessage } from '@/components/chat/rich-text-message'
 
 const MAX_ATTACHMENTS = 6
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
@@ -43,92 +43,6 @@ async function fileToPart(file: File): Promise<ChatFilePart> {
         filename: file.name,
         url: await readFileAsDataURL(file),
     }
-}
-
-function renderInline(text: string, keyPrefix: string) {
-    const parts: React.ReactNode[] = []
-    const pattern = /(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g
-    let last = 0
-    let match: RegExpExecArray | null
-    let idx = 0
-
-    while ((match = pattern.exec(text)) !== null) {
-        if (match.index > last) {
-            parts.push(<span key={`${keyPrefix}-t-${idx++}`}>{text.slice(last, match.index)}</span>)
-        }
-        const token = match[0]
-        if (token.startsWith('**') && token.endsWith('**')) {
-            parts.push(<strong key={`${keyPrefix}-b-${idx++}`}>{token.slice(2, -2)}</strong>)
-        } else {
-            const linkMatch = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-            if (linkMatch) {
-                const [, label, href] = linkMatch
-                const isInternal = href.startsWith('/')
-                parts.push(
-                    isInternal ? (
-                        <Link key={`${keyPrefix}-l-${idx++}`} href={href} className="text-primary underline underline-offset-2 hover:text-primary/80">
-                            {label}
-                        </Link>
-                    ) : (
-                        <a
-                            key={`${keyPrefix}-l-${idx++}`}
-                            href={href}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-primary underline underline-offset-2 hover:text-primary/80"
-                        >
-                            {label}
-                        </a>
-                    )
-                )
-            } else {
-                parts.push(<span key={`${keyPrefix}-t-${idx++}`}>{token}</span>)
-            }
-        }
-        last = pattern.lastIndex
-    }
-
-    if (last < text.length) {
-        parts.push(<span key={`${keyPrefix}-t-${idx++}`}>{text.slice(last)}</span>)
-    }
-
-    return parts
-}
-
-function renderAssistantMessage(content: string) {
-    const lines = content.split('\n').map((line) => line.trim()).filter(Boolean)
-    const nodes: React.ReactNode[] = []
-    let listItems: string[] = []
-
-    const flushList = (key: string) => {
-        if (!listItems.length) return
-        nodes.push(
-            <ul key={`ul-${key}`} className="list-disc pl-5 my-2 space-y-1">
-                {listItems.map((item, i) => (
-                    <li key={`li-${key}-${i}`} className="leading-relaxed">
-                        {renderInline(item, `li-${key}-${i}`)}
-                    </li>
-                ))}
-            </ul>
-        )
-        listItems = []
-    }
-
-    lines.forEach((line, i) => {
-        if (line.startsWith('- ')) {
-            listItems.push(line.slice(2).trim())
-            return
-        }
-        flushList(String(i))
-        nodes.push(
-            <p key={`p-${i}`} className="leading-relaxed">
-                {renderInline(line, `p-${i}`)}
-            </p>
-        )
-    })
-
-    flushList('end')
-    return nodes
 }
 
 export default function ChatbotPage() {
@@ -354,7 +268,7 @@ export default function ChatbotPage() {
                         >
                             <div className="space-y-2">
                                 {m.role === 'assistant'
-                                    ? renderAssistantMessage(textContent)
+                                    ? <RichTextMessage content={textContent} className="space-y-2" />
                                     : <p className="whitespace-pre-wrap">{textContent}</p>}
                                 {fileParts.length > 0 && (
                                     <div className="space-y-1.5 pt-1">

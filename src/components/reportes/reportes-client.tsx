@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { FileText, Download, BarChart3, PieChart, Target, Megaphone } from 'lucide-react'
+import { FileText, Download, BarChart3, PieChart, Target, Megaphone, Send } from 'lucide-react'
 import { formatDate, cn } from '@/lib/utils'
-import { generateReport } from '@/lib/actions/reports'
+import { emailReportByBrevo, generateReport } from '@/lib/actions/reports'
 
 const reportTypes = [
     { id: 'financial', label: 'Financiero', description: 'P&L y flujo de caja', icon: BarChart3, color: 'text-[hsl(var(--success-text))]', bg: 'bg-emerald-500/10' },
@@ -27,6 +27,7 @@ export function ReportesClient({ initialReports }: { initialReports: ReportItem[
     const [type, setType] = useState<(typeof reportTypes)[number]['id']>('financial')
     const [period, setPeriod] = useState<'this_month' | 'last_month' | 'last_quarter'>('this_month')
     const [format, setFormat] = useState<'JSON' | 'CSV'>('JSON')
+    const [emailTo, setEmailTo] = useState('')
     const [isPending, startTransition] = useTransition()
 
     const handleGenerate = () => {
@@ -46,6 +47,17 @@ export function ReportesClient({ initialReports }: { initialReports: ReportItem[
                     ...state
                 ])
             }
+        })
+    }
+
+    const handleEmailReport = (reportId: string) => {
+        startTransition(async () => {
+            const result = await emailReportByBrevo({ reportId, to: emailTo || undefined })
+            if (!result.success) {
+                alert(result.error || 'No se pudo enviar por correo')
+                return
+            }
+            alert('Reporte enviado por correo con Brevo')
         })
     }
 
@@ -112,14 +124,34 @@ export function ReportesClient({ initialReports }: { initialReports: ReportItem[
 
                 <div className="space-y-4">
                     <h2 className="section-title text-base">Historial</h2>
+                    <div className="glass-card p-3">
+                        <label className="form-label">Enviar reportes a (opcional)</label>
+                        <input
+                            type="email"
+                            value={emailTo}
+                            onChange={(e) => setEmailTo(e.target.value)}
+                            className="form-input"
+                            placeholder="si vacío, se usa tu correo de usuario"
+                        />
+                    </div>
                     <div className="space-y-3">
                         {reports.map((r) => (
                             <div key={r.id} className="glass-card p-4 border border-border/40">
                                 <div className="flex justify-between items-start mb-2">
                                     <p className="text-sm font-medium leading-snug">{r.name}</p>
-                                    <a className="text-muted-foreground hover:text-primary transition-colors" href={`/api/reports/${r.id}/download`}>
-                                        <Download className="w-4 h-4" />
-                                    </a>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            className="text-muted-foreground hover:text-primary transition-colors"
+                                            type="button"
+                                            onClick={() => handleEmailReport(r.id)}
+                                            title="Enviar por correo (Brevo)"
+                                        >
+                                            <Send className="w-4 h-4" />
+                                        </button>
+                                        <a className="text-muted-foreground hover:text-primary transition-colors" href={`/api/reports/${r.id}/download`}>
+                                            <Download className="w-4 h-4" />
+                                        </a>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2 mt-3">
                                     <span className="badge badge-neutral text-[10px] uppercase">{r.type}</span>

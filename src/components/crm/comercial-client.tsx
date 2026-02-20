@@ -10,6 +10,7 @@ import { QuoteForm } from './quote-form'
 import { InvoiceForm } from './invoice-form'
 import { InvoiceStatus, Lead, LeadStatus, User, Client, Contact } from '@prisma/client'
 import { convertLeadToProject, createLeadActivity, deleteClient, deleteContact, syncInvoicesFromMilestones, updateInvoiceStatus, updateLeadStatus, updateQuoteStatus } from '@/lib/actions/crm'
+import { useRouter } from 'next/navigation'
 
 type QuoteStatus = 'PENDING' | 'SENT' | 'ACCEPTED' | 'REJECTED'
 
@@ -95,6 +96,13 @@ interface ComercialClientProps {
         installmentAmount: number
         totalAmount: number
     }>
+    leadFilters: { q: string; status: string; page: number; pageSize: number }
+    leadPagination: { total: number; totalPages: number }
+    leadInsights: {
+        weightedPipeline: number
+        forecastByMonth: Array<{ key: string; label: string; value: number }>
+        goalsVsReal: Array<{ source: string; goal: number; forecast: number; real: number }>
+    }
 }
 
 const pipelineStages = [
@@ -105,7 +113,8 @@ const pipelineStages = [
     { key: LeadStatus.WON, label: 'Ganado', color: 'border-[hsl(var(--success-text))]/40', dot: 'bg-[hsl(var(--success-text))]' },
 ] as const
 
-export function ComercialClient({ initialLeads, users, clients, contacts, quotes, invoices, projects, invoicesToIssueProjection }: ComercialClientProps) {
+export function ComercialClient({ initialLeads, users, clients, contacts, quotes, invoices, projects, invoicesToIssueProjection, leadFilters, leadPagination, leadInsights }: ComercialClientProps) {
+    const router = useRouter()
     const [activeTab, setActiveTab] = useState<'leads' | 'contacts' | 'companies' | 'quotes' | 'invoices'>('leads')
     const [view, setView] = useState<'pipeline' | 'list'>('pipeline')
     const [selectedLead, setSelectedLead] = useState<LeadRow | null>(null)
@@ -128,6 +137,8 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
     const [syncingInvoices, setSyncingInvoices] = useState(false)
     const [deletingContactId, setDeletingContactId] = useState<string | null>(null)
     const [deletingClientId, setDeletingClientId] = useState<string | null>(null)
+    const [leadSearch, setLeadSearch] = useState(leadFilters.q || '')
+    const [leadStatusFilter, setLeadStatusFilter] = useState(leadFilters.status || 'ALL')
 
     const [quoteRows, setQuoteRows] = useState(quotes)
     const [invoiceRows, setInvoiceRows] = useState(invoices)
@@ -271,6 +282,24 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
         setDeletingClientId(null)
     }
 
+    const applyLeadFilters = () => {
+        const params = new URLSearchParams()
+        if (leadSearch.trim()) params.set('q', leadSearch.trim())
+        if (leadStatusFilter && leadStatusFilter !== 'ALL') params.set('status', leadStatusFilter)
+        params.set('page', '1')
+        params.set('pageSize', String(leadFilters.pageSize || 20))
+        router.push(`/comercial?${params.toString()}`)
+    }
+
+    const goToLeadsPage = (page: number) => {
+        const params = new URLSearchParams()
+        if (leadSearch.trim()) params.set('q', leadSearch.trim())
+        if (leadStatusFilter && leadStatusFilter !== 'ALL') params.set('status', leadStatusFilter)
+        params.set('page', String(page))
+        params.set('pageSize', String(leadFilters.pageSize || 20))
+        router.push(`/comercial?${params.toString()}`)
+    }
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="page-header">
@@ -309,6 +338,43 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
 
             {activeTab === 'leads' && (
                 <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="glass-card p-4">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Pipeline ponderado</p>
+                            <p className="text-2xl font-bold mt-1 text-primary">{formatCurrency(leadInsights.weightedPipeline)}</p>
+                        </div>
+                        <div className="glass-card p-4">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Leads visibles</p>
+                            <p className="text-2xl font-bold mt-1">{leadPagination.total}</p>
+                        </div>
+                        <div className="glass-card p-4">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wide">Pronóstico próximo mes</p>
+                            <p className="text-2xl font-bold mt-1 text-[hsl(var(--success-text))]">
+                                {formatCurrency(leadInsights.forecastByMonth[1]?.value || 0)}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="glass-card p-4 flex flex-col sm:flex-row gap-3">
+                        <input
+                            className="form-input"
+                            placeholder="Buscar leads por empresa, servicio o fuente..."
+                            value={leadSearch}
+                            onChange={(e) => setLeadSearch(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') applyLeadFilters() }}
+                        />
+                        <select className="form-input sm:w-56" value={leadStatusFilter} onChange={(e) => setLeadStatusFilter(e.target.value)}>
+                            <option value="ALL">Todos los estados</option>
+                            <option value="NEW">Nuevo</option>
+                            <option value="CONTACTED">Contactado</option>
+                            <option value="QUALIFIED">Calificado</option>
+                            <option value="PROPOSAL">Propuesta</option>
+                            <option value="WON">Ganado</option>
+                            <option value="LOST">Perdido</option>
+                        </select>
+                        <button className="btn-secondary sm:w-32" onClick={applyLeadFilters}>Aplicar</button>
+                    </div>
+
                     <div className="flex justify-end gap-3 items-center">
                         <div className="flex gap-4 mr-auto">
                             <div className="flex items-center gap-2">
@@ -330,6 +396,34 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
                                     {option === 'pipeline' ? '⬛ Pipeline' : '☰ Lista'}
                                 </button>
                             ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        <div className="glass-card p-4">
+                            <h3 className="text-sm font-semibold mb-2">Forecast de cierres (3 meses)</h3>
+                            <div className="space-y-2">
+                                {leadInsights.forecastByMonth.map((item) => (
+                                    <div key={item.key} className="flex items-center justify-between text-sm border-b border-border/30 pb-1">
+                                        <span className="capitalize">{item.label}</span>
+                                        <span className="font-semibold">{formatCurrency(item.value)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="glass-card p-4">
+                            <h3 className="text-sm font-semibold mb-2">Meta vs real por canal</h3>
+                            <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                                {leadInsights.goalsVsReal.map((row) => (
+                                    <div key={row.source} className="text-sm border-b border-border/30 pb-1">
+                                        <p className="font-medium">{row.source}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Meta: {formatCurrency(row.goal)} · Forecast: {formatCurrency(row.forecast)} · Real: {formatCurrency(row.real)}
+                                        </p>
+                                    </div>
+                                ))}
+                                {leadInsights.goalsVsReal.length === 0 && <p className="text-xs text-muted-foreground">Sin datos suficientes.</p>}
+                            </div>
                         </div>
                     </div>
 
@@ -459,6 +553,26 @@ export function ComercialClient({ initialLeads, users, clients, contacts, quotes
                             </table>
                         </div>
                     )}
+
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Página {leadFilters.page} de {leadPagination.totalPages}</span>
+                        <div className="flex gap-2">
+                            <button
+                                className="btn-secondary h-8 px-3"
+                                disabled={leadFilters.page <= 1}
+                                onClick={() => goToLeadsPage(leadFilters.page - 1)}
+                            >
+                                Anterior
+                            </button>
+                            <button
+                                className="btn-secondary h-8 px-3"
+                                disabled={leadFilters.page >= leadPagination.totalPages}
+                                onClick={() => goToLeadsPage(leadFilters.page + 1)}
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                    </div>
                 </>
             )}
 

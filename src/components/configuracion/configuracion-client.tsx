@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation'
 import { createAccountingBank, deleteAccountingBank, updateAccountingBank } from '@/lib/actions/accounting-settings'
 import { disconnectEmailIntegration, syncGmailEmails, upsertGmailIntegration } from '@/lib/actions/email'
 import { createUser, deleteUser, updateUser } from '@/lib/actions/users'
+import { sendBrevoTestEmail } from '@/lib/actions/system-email'
 
 interface ConfigUser {
     id: string
@@ -60,6 +61,9 @@ export function ConfiguracionClient({
     const [gmailError, setGmailError] = useState<string | null>(null)
     const [gmailSaving, setGmailSaving] = useState(false)
     const [gmailSyncing, setGmailSyncing] = useState(false)
+    const [brevoTestTo, setBrevoTestTo] = useState('')
+    const [brevoSending, setBrevoSending] = useState(false)
+    const [brevoError, setBrevoError] = useState<string | null>(null)
 
     const openCreateBank = () => {
         setEditingBank(null)
@@ -198,6 +202,18 @@ export function ConfiguracionClient({
             return
         }
         router.refresh()
+    }
+
+    const handleBrevoTest = async () => {
+        setBrevoSending(true)
+        setBrevoError(null)
+        const result = await sendBrevoTestEmail({ to: brevoTestTo })
+        setBrevoSending(false)
+        if (!result.success) {
+            setBrevoError(result.error || 'No se pudo enviar correo de prueba')
+            return
+        }
+        alert('Correo de prueba enviado por Brevo')
     }
 
     return (
@@ -444,6 +460,34 @@ export function ConfiguracionClient({
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="glass-card p-5 border-l-4 border-blue-600">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                                    <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold">Brevo (Sistema)</h3>
+                                    <p className="text-[10px] text-muted-foreground">Notificaciones, reportes y recuperación de contraseña</p>
+                                </div>
+                            </div>
+                            <span className="badge badge-neutral">API</span>
+                        </div>
+                        <div className="space-y-2">
+                            <input
+                                type="email"
+                                className="form-input"
+                                placeholder="correo@destino.com"
+                                value={brevoTestTo}
+                                onChange={(e) => setBrevoTestTo(e.target.value)}
+                            />
+                            <button className="btn-secondary text-xs" onClick={handleBrevoTest} disabled={brevoSending}>
+                                {brevoSending ? 'Enviando...' : 'Enviar prueba Brevo'}
+                            </button>
+                            {brevoError && <p className="text-xs text-destructive">{brevoError}</p>}
+                        </div>
+                    </div>
+
                     <div className="glass-card p-5 border-l-4 border-indigo-500">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">

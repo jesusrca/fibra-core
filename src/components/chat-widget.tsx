@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { MessageSquare, X, Send, Bot, User, Loader2, Sparkles, File as FileIcon, Mic } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSharedChat } from '@/lib/use-shared-chat'
+import { RichTextMessage } from '@/components/chat/rich-text-message'
 
 type ChatFilePart = {
     type: 'file'
@@ -221,7 +222,11 @@ export function ChatWidget() {
                                             ? "bg-primary text-primary-foreground rounded-tr-none"
                                             : "bg-card border border-border/50 rounded-tl-none"
                                     )}>
-                                        {text && <p className="whitespace-pre-wrap leading-relaxed">{text}</p>}
+                                        {text && (
+                                            m.role === 'assistant'
+                                                ? <RichTextMessage content={text} className="space-y-2" />
+                                                : <p className="whitespace-pre-wrap leading-relaxed">{text}</p>
+                                        )}
                                         {!text && files.length > 0 && <p className="leading-relaxed">Adjunto enviado</p>}
                                         {files.length > 0 && (
                                             <div className="mt-2 flex flex-col gap-1.5">

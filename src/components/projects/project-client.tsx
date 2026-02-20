@@ -6,11 +6,13 @@ import { formatCurrency, formatDate, cn } from '@/lib/utils'
 import { ProjectForm } from './project-form'
 import { useRouter } from 'next/navigation'
 import { updateProjectStatus } from '@/lib/actions/projects'
+import { ProjectStatus, Role } from '@prisma/client'
 
 const statusColumns = [
     { key: 'PLANNING', label: 'Planeación', color: 'border-purple-500/40', dot: 'bg-purple-500' },
     { key: 'ACTIVE', label: 'Activo', color: 'border-[hsl(var(--info-text))]/40', dot: 'bg-[hsl(var(--info-text))]' },
     { key: 'REVIEW', label: 'Revisión', color: 'border-[hsl(var(--warning-text))]/40', dot: 'bg-[hsl(var(--warning-text))]' },
+    { key: 'ON_HOLD', label: 'En pausa', color: 'border-slate-500/40', dot: 'bg-slate-500' },
     { key: 'COMPLETED', label: 'Completado', color: 'border-[hsl(var(--success-text))]/40', dot: 'bg-[hsl(var(--success-text))]' },
 ] as const
 
@@ -26,32 +28,48 @@ const priorityLabel: Record<string, string> = {
     LOW: 'Baja',
 }
 
-interface ProjectClientProps {
-    initialProjects: any[]
-    clients: any[]
-    users: any[]
-    services: any[]
+interface ProjectRow {
+    id: string
+    name: string
+    status: ProjectStatus
+    budget: number
+    serviceType: string | null
+    endDate: Date | string | null
+    client: { id: string; name: string } | null
+    director: { id: string; name: string } | null
+    milestones: Array<{ id: string; status: string }>
 }
 
-export function ProjectClient({ initialProjects, clients, users, services }: ProjectClientProps) {
+interface ProjectClientProps {
+    initialProjects: ProjectRow[]
+    clients: Array<{ id: string; name: string }>
+    users: Array<{ id: string; name: string; email: string; role: Role }>
+    services: Array<{ id: string; name: string }>
+    filters: { q: string; status: string; page: number; pageSize: number }
+    pagination: { total: number; totalPages: number }
+}
+
+export function ProjectClient({ initialProjects, clients, users, services, filters, pagination }: ProjectClientProps) {
     const router = useRouter()
     const [view, setView] = useState<'kanban' | 'list'>('kanban')
     const [showForm, setShowForm] = useState(false)
     const [projects, setProjects] = useState(initialProjects)
     const [updatingId, setUpdatingId] = useState<string | null>(null)
+    const [search, setSearch] = useState(filters.q || '')
+    const [statusFilter, setStatusFilter] = useState(filters.status || 'ALL')
 
     // Calculate progress based on milestones if available
-    const getProjectProgress = (project: any) => {
+    const getProjectProgress = (project: ProjectRow) => {
         if (!project.milestones || project.milestones.length === 0) return 0
-        const completed = project.milestones.filter((m: any) => m.status === 'COMPLETED').length
+        const completed = project.milestones.filter((m) => m.status === 'COMPLETED').length
         return Math.round((completed / project.milestones.length) * 100)
     }
 
-    const handleChangeStatus = async (projectId: string, status: string) => {
+    const handleChangeStatus = async (projectId: string, status: ProjectStatus) => {
         const previous = projects
         setUpdatingId(projectId)
         setProjects((state) => state.map((p) => (p.id === projectId ? { ...p, status } : p)))
-        const result = await updateProjectStatus(projectId, status as any)
+        const result = await updateProjectStatus(projectId, status)
         setUpdatingId(null)
         if (!result.success) {
             setProjects(previous)
@@ -61,12 +79,30 @@ export function ProjectClient({ initialProjects, clients, users, services }: Pro
         router.refresh()
     }
 
+    const applyFilters = () => {
+        const params = new URLSearchParams()
+        if (search.trim()) params.set('q', search.trim())
+        if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
+        params.set('page', '1')
+        params.set('pageSize', String(filters.pageSize || 20))
+        router.push(`/proyectos?${params.toString()}`)
+    }
+
+    const goToPage = (page: number) => {
+        const params = new URLSearchParams()
+        if (search.trim()) params.set('q', search.trim())
+        if (statusFilter && statusFilter !== 'ALL') params.set('status', statusFilter)
+        params.set('page', String(page))
+        params.set('pageSize', String(filters.pageSize || 20))
+        router.push(`/proyectos?${params.toString()}`)
+    }
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="page-header">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">Proyectos</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">{projects.length} proyectos en total</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{pagination.total} proyectos en total</p>
                 </div>
                 <div className="flex gap-2">
                     <div className="flex border border-border rounded-lg overflow-hidden h-9 bg-background/50">
@@ -87,6 +123,29 @@ export function ProjectClient({ initialProjects, clients, users, services }: Pro
                         <Plus className="w-4 h-4" /> Nuevo Proyecto
                     </button>
                 </div>
+            </div>
+
+            <div className="glass-card p-4 flex flex-col sm:flex-row gap-3">
+                <input
+                    className="form-input"
+                    placeholder="Buscar por nombre, servicio o cliente..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') applyFilters() }}
+                />
+                <select
+                    className="form-input sm:w-52"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                    <option value="ALL">Todos los estados</option>
+                    <option value="PLANNING">Planeación</option>
+                    <option value="ACTIVE">Activo</option>
+                    <option value="REVIEW">Revisión</option>
+                    <option value="COMPLETED">Completado</option>
+                    <option value="ON_HOLD">En pausa</option>
+                </select>
+                <button className="btn-secondary sm:w-32" onClick={applyFilters}>Aplicar</button>
             </div>
 
             {/* Summary */}
@@ -142,7 +201,7 @@ export function ProjectClient({ initialProjects, clients, users, services }: Pro
                                                         value={p.status}
                                                         disabled={updatingId === p.id}
                                                         onClick={(e) => e.stopPropagation()}
-                                                        onChange={(e) => handleChangeStatus(p.id, e.target.value)}
+                                                        onChange={(e) => handleChangeStatus(p.id, e.target.value as ProjectStatus)}
                                                     >
                                                         {statusColumns.map((option) => (
                                                             <option key={option.key} value={option.key}>
@@ -236,7 +295,7 @@ export function ProjectClient({ initialProjects, clients, users, services }: Pro
                                                     value={p.status}
                                                     disabled={updatingId === p.id}
                                                     onClick={(e) => e.stopPropagation()}
-                                                    onChange={(e) => handleChangeStatus(p.id, e.target.value)}
+                                                    onChange={(e) => handleChangeStatus(p.id, e.target.value as ProjectStatus)}
                                                 >
                                                     {statusColumns.map((option) => (
                                                         <option key={option.key} value={option.key}>
@@ -276,6 +335,26 @@ export function ProjectClient({ initialProjects, clients, users, services }: Pro
                     services={services}
                 />
             )}
+
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Página {filters.page} de {pagination.totalPages}</span>
+                <div className="flex gap-2">
+                    <button
+                        className="btn-secondary h-8 px-3"
+                        disabled={filters.page <= 1}
+                        onClick={() => goToPage(filters.page - 1)}
+                    >
+                        Anterior
+                    </button>
+                    <button
+                        className="btn-secondary h-8 px-3"
+                        disabled={filters.page >= pagination.totalPages}
+                        onClick={() => goToPage(filters.page + 1)}
+                    >
+                        Siguiente
+                    </button>
+                </div>
+            </div>
         </div>
     )
 }

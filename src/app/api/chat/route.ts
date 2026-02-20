@@ -33,7 +33,7 @@ function isFilePart(part: UIMessage['parts'][number]): part is ChatFilePart {
 }
 
 function decodeDataUrl(dataUrl: string) {
-    const match = dataUrl.match(/^data:([^;,]+)?(;base64)?,(.*)$/s)
+    const match = dataUrl.match(/^data:([^;,]+)?(;base64)?,([\s\S]*)$/)
     if (!match) return null
 
     const mediaType = match[1] || 'application/octet-stream'

@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { formatDate } from '@/lib/utils'
 import { createUser, updateUser } from '@/lib/actions/users'
 import { Role } from '@prisma/client'
+import { formatTimezoneLabel, getTimezoneOptions } from '@/lib/timezones'
 
 interface TeamMember {
     id: string
@@ -33,51 +34,10 @@ export function EquipoClient({ initialUsers }: EquipoClientProps) {
     const [showForm, setShowForm] = useState(false)
     const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
     const [loading, setLoading] = useState(false)
-    const timezoneOptions = useMemo(() => {
-        const fallback = [
-            'America/Lima',
-            'America/Bogota',
-            'America/New_York',
-            'America/Mexico_City',
-            'America/Buenos_Aires',
-            'Europe/Madrid',
-            'UTC'
-        ]
-
-        try {
-            const maybeIntl = Intl as unknown as {
-                supportedValuesOf?: (key: string) => string[]
-            }
-            const values = typeof maybeIntl.supportedValuesOf === 'function'
-                ? maybeIntl.supportedValuesOf('timeZone')
-                : []
-            const merged = [...values]
-            for (const tz of fallback) {
-                if (!merged.includes(tz)) merged.push(tz)
-            }
-            if (selectedMember?.timezone && !merged.includes(selectedMember.timezone)) {
-                merged.push(selectedMember.timezone)
-            }
-            return merged.sort((a, b) => a.localeCompare(b))
-        } catch {
-            return fallback
-        }
-    }, [selectedMember?.timezone])
-    const formatTimezoneLabel = (timezone: string) => {
-        try {
-            const parts = new Intl.DateTimeFormat('en-US', {
-                timeZone: timezone,
-                timeZoneName: 'longOffset',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            }).formatToParts(new Date())
-            const offset = parts.find((part) => part.type === 'timeZoneName')?.value || 'GMT'
-            return `${timezone} (${offset})`
-        } catch {
-            return timezone
-        }
-    }
+    const timezoneOptions = useMemo(
+        () => getTimezoneOptions(selectedMember?.timezone || null),
+        [selectedMember?.timezone]
+    )
 
     const filteredTeam = initialUsers.filter(member =>
         member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

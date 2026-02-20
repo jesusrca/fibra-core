@@ -30,7 +30,11 @@ export async function ensureDefaultAccountingBanks() {
     try {
         await withPrismaRetry(() =>
             prisma.accountingBank.createMany({
-                data: DEFAULT_BANKS,
+                data: DEFAULT_BANKS.map((bank) => ({
+                    name: bank.name,
+                    code: bank.code,
+                    supportedCurrencies: [...bank.supportedCurrencies]
+                })),
                 skipDuplicates: true
             })
         )
