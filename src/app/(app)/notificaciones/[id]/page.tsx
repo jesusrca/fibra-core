@@ -24,10 +24,16 @@ const typeLabels: Record<string, string> = {
 }
 
 function formatNotificationDate(value: Date) {
-    return new Intl.DateTimeFormat('es-PE', {
-        dateStyle: 'medium',
-        timeStyle: 'short'
+    const date = new Intl.DateTimeFormat('es-PE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
     }).format(value)
+    const time = new Intl.DateTimeFormat('es-PE', {
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(value)
+    return `${date} ${time}`
 }
 
 export default async function NotificationDetailPage({ params }: { params: { id: string } }) {
@@ -112,4 +118,3 @@ export default async function NotificationDetailPage({ params }: { params: { id:
         </div>
     )
 }
-

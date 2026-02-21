@@ -6,6 +6,7 @@ import {
     createClientByAI,
     createContactByAI,
     createLeadByAI,
+    updateLeadStatusByAI,
     createProjectByAI,
     createTaskByAI,
     getClients,
@@ -322,7 +323,7 @@ export async function POST(req: Request) {
       - Prefer short sections with clear bullets and avoid noisy formatting.
       - Format monetary values with the exact currency from data: PEN => S/ and USD => $.
       - Never convert or assume currency; if a lead has currency USD, keep USD in the response.
-      - For dates, use a readable format (e.g., "DD/MM/YYYY").
+      - For dates, ALWAYS use DD/MM/YYYY format in responses.
       - If you can't find information, state that clearly.
       - If a company exists but has zero active projects, explicitly say the company exists and indicate its project status/count.
       - For questions about companies/contacts, use getClients/getContacts instead of assuming from active projects only.
@@ -523,6 +524,14 @@ export async function POST(req: Request) {
                         message: 'Debes indicar projectId o projectName'
                     }),
                     execute: async (input) => createTaskByAI({ userId: user.id, role: user.role }, input)
+                }),
+                updateLeadStatus: tool({
+                    description: 'Update lead status in CRM.',
+                    inputSchema: z.object({
+                        leadId: z.string().min(1),
+                        status: z.nativeEnum(LeadStatus)
+                    }),
+                    execute: async (input) => updateLeadStatusByAI({ userId: user.id, role: user.role }, input)
                 })
             },
             stopWhen: stepCountIs(5),

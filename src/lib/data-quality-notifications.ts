@@ -25,6 +25,7 @@ export async function ensureComercialDataQualityNotifications(userId: string) {
                 ]
             },
             select: {
+                id: true,
                 firstName: true,
                 lastName: true
             },
@@ -35,10 +36,17 @@ export async function ensureComercialDataQualityNotifications(userId: string) {
     if (incompleteContacts.length > 0) {
         const names = incompleteContacts.map((c) => shortName(c.firstName, c.lastName))
         const examples = joinExamples(names)
+        const links = incompleteContacts
+            .slice(0, 3)
+            .map((contact) => {
+                const name = shortName(contact.firstName, contact.lastName)
+                return `${name}: /comercial?tab=contacts&focusContactId=${contact.id}`
+            })
+            .join(' | ')
         await createNotificationForUserOnce({
             userId,
             type: 'contact_data_missing',
-            message: `CRM: ${incompleteContacts.length} contacto(s) con datos faltantes${examples ? ` (ej.: ${examples})` : ''}.`,
+            message: `CRM: ${incompleteContacts.length} contacto(s) con datos faltantes${examples ? ` (ej.: ${examples})` : ''}.${links ? ` Revisar: ${links}` : ''}`,
             dedupeHours: 8
         })
     }

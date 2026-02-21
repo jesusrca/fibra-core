@@ -13,6 +13,9 @@ interface ClientOption {
 interface ProjectOption {
     id: string
     name: string
+    clientId?: string | null
+    clientName?: string | null
+    quoteId?: string | null
 }
 
 interface QuoteOption {
@@ -34,7 +37,13 @@ interface InvoiceInitialData {
     amount: number
     status: InvoiceStatus
     paymentMethod: string | null
+    paymentBank?: string | null
     paymentCountry: string | null
+}
+
+interface BankOption {
+    id: string
+    name: string
 }
 
 interface InvoiceFormProps {
@@ -42,6 +51,7 @@ interface InvoiceFormProps {
     clients: ClientOption[]
     projects: ProjectOption[]
     quotes: QuoteOption[]
+    banks: BankOption[]
     initialData?: InvoiceInitialData | null
 }
 
@@ -50,14 +60,20 @@ function toInputDate(value?: Date | null) {
     return new Date(value).toISOString().slice(0, 10)
 }
 
-export function InvoiceForm({ onClose, clients, projects, quotes, initialData }: InvoiceFormProps) {
+export function InvoiceForm({ onClose, clients, projects, quotes, banks, initialData }: InvoiceFormProps) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [uploadingFile, setUploadingFile] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [fileUrl, setFileUrl] = useState(initialData?.fileUrl || '')
     const [fileRef, setFileRef] = useState(initialData?.fileRef || initialData?.fileUrl || '')
+    const [selectedProjectId, setSelectedProjectId] = useState(initialData?.projectId || '')
+    const [selectedClientId, setSelectedClientId] = useState(initialData?.clientId || '')
+    const [selectedQuoteId, setSelectedQuoteId] = useState(initialData?.quoteId || '')
     const isEditing = !!initialData
+    const selectedProject = projects.find((project) => project.id === selectedProjectId) || null
+    const resolvedClientId = selectedProject?.clientId || selectedClientId || ''
+    const resolvedQuoteId = selectedProject?.quoteId || selectedQuoteId || ''
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
@@ -68,15 +84,15 @@ export function InvoiceForm({ onClose, clients, projects, quotes, initialData }:
         const payload = {
             invoiceNumber: (formData.get('invoiceNumber') as string || '').trim() || undefined,
             fileUrl: fileRef || undefined,
-            quoteId: (formData.get('quoteId') as string || '').trim() || undefined,
-            clientId: (formData.get('clientId') as string || '').trim() || undefined,
+            quoteId: ((formData.get('quoteId') as string || '').trim() || undefined) || (selectedProject?.quoteId || undefined),
+            clientId: ((formData.get('clientId') as string || '').trim() || undefined) || (selectedProject?.clientId || undefined),
             projectId: (formData.get('projectId') as string || '').trim() || undefined,
             issueDate: formData.get('issueDate') ? new Date(formData.get('issueDate') as string) : undefined,
             dueDate: formData.get('dueDate') ? new Date(formData.get('dueDate') as string) : undefined,
             amount: parseFloat(formData.get('amount') as string || '0'),
             status: formData.get('status') as InvoiceStatus,
             paymentMethod: (formData.get('paymentMethod') as string || '').trim() || undefined,
-            paymentCountry: (formData.get('paymentCountry') as string || '').trim() || undefined
+            paymentBank: (formData.get('paymentBank') as string || '').trim() || undefined
         }
 
         const result = isEditing
@@ -170,19 +186,52 @@ export function InvoiceForm({ onClose, clients, projects, quotes, initialData }:
                         )}
                     </div>
 
+                        <div>
+                            <label className="form-label">Proyecto (obligatorio)</label>
+                            <select
+                                name="projectId"
+                                className="form-input"
+                                value={selectedProjectId}
+                                onChange={(e) => setSelectedProjectId(e.target.value)}
+                                required
+                            >
+                                <option value="">Seleccionar proyecto...</option>
+                                {projects.map((project) => (
+                                    <option key={project.id} value={project.id}>{project.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="form-label">Cliente</label>
-                            <select name="clientId" className="form-input" defaultValue={initialData?.clientId || ''}>
+                            <select
+                                name="clientId"
+                                className="form-input"
+                                value={resolvedClientId}
+                                disabled={!!selectedProject?.clientId}
+                                onChange={(e) => setSelectedClientId(e.target.value)}
+                            >
                                 <option value="">Seleccionar cliente...</option>
                                 {clients.map((client) => (
                                     <option key={client.id} value={client.id}>{client.name}</option>
                                 ))}
                             </select>
+                            {selectedProject?.clientId ? (
+                                <p className="text-[11px] text-muted-foreground mt-1">
+                                    Cliente autocompletado desde el proyecto.
+                                </p>
+                            ) : null}
                         </div>
                         <div>
                             <label className="form-label">Cotización asociada</label>
-                            <select name="quoteId" className="form-input" defaultValue={initialData?.quoteId || ''}>
+                            <select
+                                name="quoteId"
+                                className="form-input"
+                                value={resolvedQuoteId}
+                                disabled={!!selectedProject?.quoteId}
+                                onChange={(e) => setSelectedQuoteId(e.target.value)}
+                            >
                                 <option value="">Sin cotización</option>
                                 {quotes.map((quote) => (
                                     <option key={quote.id} value={quote.id}>
@@ -190,17 +239,12 @@ export function InvoiceForm({ onClose, clients, projects, quotes, initialData }:
                                     </option>
                                 ))}
                             </select>
+                            {selectedProject?.quoteId ? (
+                                <p className="text-[11px] text-muted-foreground mt-1">
+                                    Cotización autocompletada desde el proyecto.
+                                </p>
+                            ) : null}
                         </div>
-                    </div>
-
-                    <div>
-                        <label className="form-label">Proyecto (opcional)</label>
-                        <select name="projectId" className="form-input" defaultValue={initialData?.projectId || ''}>
-                            <option value="">Sin proyecto</option>
-                            {projects.map((project) => (
-                                <option key={project.id} value={project.id}>{project.name}</option>
-                            ))}
-                        </select>
                     </div>
 
                     <div className="grid grid-cols-3 gap-4">
@@ -224,8 +268,13 @@ export function InvoiceForm({ onClose, clients, projects, quotes, initialData }:
                             <input name="paymentMethod" className="form-input" defaultValue={initialData?.paymentMethod || ''} />
                         </div>
                         <div>
-                            <label className="form-label">País de pago</label>
-                            <input name="paymentCountry" className="form-input" defaultValue={initialData?.paymentCountry || ''} />
+                            <label className="form-label">Banco de destino</label>
+                            <select name="paymentBank" className="form-input" defaultValue={initialData?.paymentBank || ''}>
+                                <option value="">Seleccionar banco...</option>
+                                {banks.map((bank) => (
+                                    <option key={bank.id} value={bank.name}>{bank.name}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 

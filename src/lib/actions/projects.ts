@@ -70,15 +70,16 @@ async function createMissingInvoicesForCompletedMilestones(projectId: string) {
                     installmentsCount: true
                 }
             },
-            milestones: { select: { id: true, status: true } },
+            milestones: { select: { id: true, status: true, billable: true } },
             invoices: { select: { id: true, status: true } }
         }
     }))
 
     if (!project) return { created: 0, amountPerInvoice: 0 }
 
-    const totalMilestones = Math.max(project.milestones.length, 1)
-    const completedMilestones = project.milestones.filter((m) => m.status === 'COMPLETED').length
+    const billableMilestones = project.milestones.filter((m) => m.billable !== false)
+    const totalMilestones = Math.max(billableMilestones.length, 1)
+    const completedMilestones = billableMilestones.filter((m) => m.status === 'COMPLETED').length
     const issuedInvoices = project.invoices.filter((invoice) => invoice.status !== InvoiceStatus.CANCELLED).length
     const quoteInstallments = Math.max(project.quote?.installmentsCount || 0, 0)
     const statusAllowsInstallments = project.status === 'ACTIVE' || project.status === 'REVIEW' || project.status === 'COMPLETED'
@@ -391,8 +392,11 @@ export async function getProjectById(id: string) {
                 invoices: {
                     select: {
                         id: true,
+                        invoiceNumber: true,
                         amount: true,
                         status: true,
+                        issueDate: true,
+                        dueDate: true,
                         createdAt: true
                     },
                     orderBy: { createdAt: 'desc' }
@@ -428,6 +432,7 @@ export async function createMilestone(data: {
     name: string
     dueDate: Date
     status: string
+    billable?: boolean
 }) {
     try {
         await requireModuleAccess('proyectos')
@@ -436,7 +441,8 @@ export async function createMilestone(data: {
                 projectId: data.projectId,
                 name: data.name,
                 dueDate: data.dueDate,
-                status: data.status
+                status: data.status,
+                billable: data.billable ?? true
             }
         }))
         revalidatePath(`/proyectos/${data.projectId}`)
@@ -453,7 +459,7 @@ export async function updateMilestoneStatus(id: string, status: string, projectI
         const [previousMilestone, project] = await withPrismaRetry(() => Promise.all([
             prisma.milestone.findUnique({
                 where: { id },
-                select: { id: true, name: true, status: true, projectId: true }
+                select: { id: true, name: true, status: true, projectId: true, billable: true }
             }),
             prisma.project.findUnique({
                 where: { id: projectId },
@@ -474,6 +480,7 @@ export async function updateMilestoneStatus(id: string, status: string, projectI
         const shouldNotifyBilling =
             previousMilestone?.status !== 'COMPLETED' &&
             updatedMilestone.status === 'COMPLETED' &&
+            previousMilestone?.billable !== false &&
             !!project
 
         if (shouldNotifyBilling) {

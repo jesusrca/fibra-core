@@ -52,7 +52,7 @@ const getFacturasData = unstable_cache(
                         startDate: true,
                         status: true,
                         quote: { select: { installmentsCount: true } },
-                        milestones: { select: { id: true, status: true } },
+                        milestones: { select: { id: true, status: true, billable: true } },
                         invoices: { select: { id: true, status: true } }
                     },
                     orderBy: { updatedAt: 'desc' },
@@ -83,8 +83,9 @@ export default async function FacturasPage() {
             const now = new Date()
             const parsedStartDate = project.startDate ? new Date(project.startDate) : now
             const startDate = Number.isNaN(parsedStartDate.getTime()) ? now : parsedStartDate
-            const totalMilestones = Math.max(project.milestones.length, 1)
-            const completedMilestones = project.milestones.filter((m) => m.status === 'COMPLETED').length
+            const billableMilestones = project.milestones.filter((m) => m.billable !== false)
+            const totalMilestones = Math.max(billableMilestones.length, 1)
+            const completedMilestones = billableMilestones.filter((m) => m.status === 'COMPLETED').length
             const issuedInvoices = project.invoices.filter((inv) => inv.status !== 'CANCELLED').length
             const installments = Math.max(project.quote?.installmentsCount || 0, 0)
             const monthsElapsed = Math.max(

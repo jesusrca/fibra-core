@@ -126,14 +126,23 @@ const getComercialData = unstable_cache(
                 select: {
                     id: true,
                     name: true,
+                    clientId: true,
+                    quoteId: true,
+                    client: { select: { id: true, name: true } },
                     budget: true,
                     startDate: true,
                     status: true,
                     quote: { select: { installmentsCount: true } },
-                    milestones: { select: { id: true, status: true } },
-                    invoices: { select: { id: true, status: true } }
-                },
+                        milestones: { select: { id: true, status: true, billable: true } },
+                        invoices: { select: { id: true, status: true } }
+                    },
                 orderBy: { updatedAt: 'desc' },
+                take: 120
+            }),
+            prisma.accountingBank.findMany({
+                where: { isActive: true },
+                select: { id: true, name: true },
+                orderBy: { name: 'asc' },
                 take: 120
             }),
             prisma.lead.findMany({
@@ -148,7 +157,7 @@ const getComercialData = unstable_cache(
                 take: 400
             })
         ])),
-    ['comercial-data-v4'],
+    ['comercial-data-v5'],
     { revalidate: 15 }
 )
 
@@ -172,8 +181,9 @@ export default async function ComercialPage({ searchParams }: { searchParams?: P
             ? tabParam
             : 'leads'
     const editClientId = (firstParam(searchParams?.editClientId) || '').trim()
+    const focusContactId = (firstParam(searchParams?.focusContactId) || '').trim()
 
-    const [leads, totalLeads, users, clients, contacts, quotes, invoices, projects, leadSeries] = await getComercialData(
+    const [leads, totalLeads, users, clients, contacts, quotes, invoices, projects, banks, leadSeries] = await getComercialData(
         query.page,
         query.pageSize,
         query.q,
@@ -194,8 +204,9 @@ export default async function ComercialPage({ searchParams }: { searchParams?: P
             const now = new Date()
             const parsedStartDate = project.startDate ? new Date(project.startDate) : now
             const startDate = Number.isNaN(parsedStartDate.getTime()) ? now : parsedStartDate
-            const totalMilestones = Math.max(project.milestones.length, 1)
-            const completedMilestones = project.milestones.filter((m) => m.status === 'COMPLETED').length
+            const billableMilestones = project.milestones.filter((m) => m.billable !== false)
+            const totalMilestones = Math.max(billableMilestones.length, 1)
+            const completedMilestones = billableMilestones.filter((m) => m.status === 'COMPLETED').length
             const issuedInvoices = project.invoices.filter((inv) => inv.status !== 'CANCELLED').length
             const installments = Math.max(project.quote?.installmentsCount || 0, 0)
             const monthsElapsed = Math.max(
@@ -291,10 +302,18 @@ export default async function ComercialPage({ searchParams }: { searchParams?: P
             contacts={contacts}
             quotes={quotes as any}
             invoices={invoicesForUi as any}
-            projects={projects.map((project) => ({ id: project.id, name: project.name })) as any}
+            projects={projects.map((project) => ({
+                id: project.id,
+                name: project.name,
+                clientId: project.clientId,
+                clientName: project.client?.name || null,
+                quoteId: project.quoteId || null
+            })) as any}
+            banks={banks as any}
             invoicesToIssueProjection={invoicesToIssueProjection}
             initialTab={initialTab}
             editClientId={editClientId}
+            focusContactId={focusContactId}
             leadFilters={{ q: query.q, status: safeStatus, page: query.page, pageSize: query.pageSize }}
             leadPagination={{ total: totalLeads, totalPages }}
             leadInsights={{

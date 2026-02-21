@@ -41,14 +41,15 @@ export type AIToolContext = {
     role: Role
 }
 
-type WriteToolName = 'createLead' | 'createClient' | 'createContact' | 'createProject' | 'createTask'
+type WriteToolName = 'createLead' | 'createClient' | 'createContact' | 'createProject' | 'createTask' | 'updateLeadStatus'
 
 const WRITE_TOOL_ROLES: Record<WriteToolName, Role[]> = {
     createLead: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
     createClient: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
     createContact: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL],
     createProject: [Role.ADMIN, Role.GERENCIA, Role.PROYECTOS],
-    createTask: [Role.ADMIN, Role.GERENCIA, Role.PROYECTOS, Role.MARKETING, Role.COMERCIAL]
+    createTask: [Role.ADMIN, Role.GERENCIA, Role.PROYECTOS, Role.MARKETING, Role.COMERCIAL],
+    updateLeadStatus: [Role.ADMIN, Role.GERENCIA, Role.COMERCIAL]
 }
 
 async function auditWriteTool(params: {
@@ -673,6 +674,50 @@ export async function createLeadByAI(
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Error creando lead'
         await auditWriteTool({ ctx, toolName: 'createLead', input, success: false, error: message })
+        return { success: false as const, error: message }
+    }
+}
+
+export async function updateLeadStatusByAI(
+    ctx: AIToolContext,
+    input: {
+        leadId: string
+        status: LeadStatus
+    }
+) {
+    if (!canRunWriteTool(ctx.role, 'updateLeadStatus')) {
+        const error = `Rol ${ctx.role} sin permisos para actualizar estado de leads`
+        await auditWriteTool({ ctx, toolName: 'updateLeadStatus', input, success: false, error })
+        return { success: false as const, error }
+    }
+
+    try {
+        const existing = await prisma.lead.findUnique({
+            where: { id: input.leadId },
+            select: { id: true, companyName: true, status: true }
+        })
+        if (!existing) {
+            const error = 'Lead no encontrado'
+            await auditWriteTool({ ctx, toolName: 'updateLeadStatus', input, success: false, error })
+            return { success: false as const, error }
+        }
+
+        const lead = await prisma.lead.update({
+            where: { id: input.leadId },
+            data: { status: input.status },
+            select: {
+                id: true,
+                companyName: true,
+                status: true
+            }
+        })
+
+        revalidatePath('/comercial')
+        await auditWriteTool({ ctx, toolName: 'updateLeadStatus', input, success: true })
+        return { success: true as const, lead }
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Error actualizando estado del lead'
+        await auditWriteTool({ ctx, toolName: 'updateLeadStatus', input, success: false, error: message })
         return { success: false as const, error: message }
     }
 }

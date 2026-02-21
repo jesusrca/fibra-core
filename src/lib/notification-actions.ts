@@ -11,7 +11,7 @@ function sanitizePath(path: string) {
 }
 
 function extractPathsFromMessage(message: string) {
-    const matches = message.match(/\/[a-zA-Z0-9/_-]+/g) || []
+    const matches = message.match(/\/[a-zA-Z0-9/_-]+(?:\?[a-zA-Z0-9_=%&-]+)?/g) || []
     const unique = Array.from(new Set(matches))
     return unique
         .map((rawPath) => sanitizePath(rawPath))
@@ -78,4 +78,3 @@ export function getNotificationActions(type: string, message: string): Notificat
 
     return Array.from(dedupedMap.values())
 }
-

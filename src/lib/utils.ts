@@ -15,9 +15,9 @@ export function formatCurrency(amount: number, currency = 'USD'): string {
 }
 
 export function formatDate(date: Date | string): string {
-    return new Intl.DateTimeFormat('es-ES', {
+    return new Intl.DateTimeFormat('es-PE', {
         day: '2-digit',
-        month: 'short',
+        month: '2-digit',
         year: 'numeric',
     }).format(new Date(date))
 }

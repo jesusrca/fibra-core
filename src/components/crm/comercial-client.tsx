@@ -48,6 +48,7 @@ interface InvoiceItem {
     issueDate: Date
     dueDate: Date | null
     paymentMethod: string | null
+    paymentBank?: string | null
     paymentCountry: string | null
     client: { id: string; name: string } | null
     project: { id: string; name: string } | null
@@ -55,6 +56,14 @@ interface InvoiceItem {
 }
 
 interface ProjectItem {
+    id: string
+    name: string
+    clientId?: string | null
+    clientName?: string | null
+    quoteId?: string | null
+}
+
+interface BankItem {
     id: string
     name: string
 }
@@ -91,6 +100,7 @@ interface ComercialClientProps {
     quotes: QuoteItem[]
     invoices: InvoiceItem[]
     projects: ProjectItem[]
+    banks: BankItem[]
     invoicesToIssueProjection: Array<{
         projectId: string
         projectName: string
@@ -100,6 +110,7 @@ interface ComercialClientProps {
     }>
     initialTab?: 'leads' | 'contacts' | 'companies' | 'quotes' | 'invoices'
     editClientId?: string
+    focusContactId?: string
     leadFilters: { q: string; status: string; page: number; pageSize: number }
     leadPagination: { total: number; totalPages: number }
     leadInsights: {
@@ -125,9 +136,11 @@ export function ComercialClient({
     quotes,
     invoices,
     projects,
+    banks,
     invoicesToIssueProjection,
     initialTab,
     editClientId,
+    focusContactId,
     leadFilters,
     leadPagination,
     leadInsights
@@ -193,6 +206,15 @@ export function ComercialClient({
         setSelectedCompany(clientToEdit)
         setShowCompanyForm(true)
     }, [editClientId, clients])
+
+    useEffect(() => {
+        if (!focusContactId) return
+        const contactToEdit = contacts.find((contact) => contact.id === focusContactId)
+        if (!contactToEdit) return
+        setActiveTab('contacts')
+        setSelectedContact(contactToEdit)
+        setShowContactForm(true)
+    }, [focusContactId, contacts])
 
     const openCreateModal = () => {
         if (activeTab === 'leads') setShowLeadForm(true)
@@ -984,6 +1006,7 @@ export function ComercialClient({
                 <InvoiceForm
                     clients={clients.map((client) => ({ id: client.id, name: client.name }))}
                     projects={projects}
+                    banks={banks}
                     quotes={quoteRows.map((quote) => ({
                         id: quote.id,
                         budget: quote.budget,

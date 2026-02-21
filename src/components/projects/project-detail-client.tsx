@@ -87,6 +87,8 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
     const completedMilestones = optimisticMilestones?.filter((m: any) => m.status === 'COMPLETED').length || 0
     const totalMilestones = optimisticMilestones?.length || 0
     const progress = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0
+    const completedBillableMilestones = optimisticMilestones?.filter((m: any) => m.billable !== false && m.status === 'COMPLETED').length || 0
+    const totalBillableMilestones = Math.max((optimisticMilestones?.filter((m: any) => m.billable !== false).length || 0), 1)
 
     // Calculate finances
     const income = project.transactions?.filter((t: any) => t.category === 'INCOME').reduce((s: number, t: any) => s + t.amount, 0) || 0
@@ -109,9 +111,9 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
         .reduce((sum: number, payment: any) => sum + payment.amount, 0)
     const supplierPending = Math.max(supplierCommitted - supplierPaid, 0)
     const issuedInvoicesCount = (project.invoices || []).length
-    const milestonesForBilling = Math.max(totalMilestones, 1)
+    const milestonesForBilling = totalBillableMilestones
     const installmentEstimate = project.budget / milestonesForBilling
-    const invoicesToIssue = Math.max(completedMilestones - issuedInvoicesCount, 0)
+    const invoicesToIssue = Math.max(completedBillableMilestones - issuedInvoicesCount, 0)
     const amountToIssue = invoicesToIssue * installmentEstimate
     const recentProjectEmails = (project.emailMessages || []).slice(0, 5)
 
@@ -119,12 +121,15 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
         e.preventDefault()
         setLoading(true)
         const formData = new FormData(e.currentTarget)
+        const dueDateValue = (formData.get('dueDate') as string || '').trim()
+        const dueDate = dueDateValue ? new Date(`${dueDateValue}T00:00:00`) : new Date()
 
         await createMilestone({
             projectId: project.id,
             name: formData.get('name') as string,
-            dueDate: new Date(formData.get('dueDate') as string),
-            status: 'PENDING'
+            dueDate,
+            status: 'PENDING',
+            billable: formData.get('billable') === 'on'
         })
 
         setLoading(false)
@@ -570,6 +575,13 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
                                     <div className="flex-1">
                                         <p className={cn("font-medium text-sm", m.status === 'COMPLETED' ? "line-through text-muted-foreground" : "")}>{m.name}</p>
                                         <p className="text-xs text-muted-foreground mt-0.5">{formatDate(m.dueDate)}</p>
+                                        <p className="text-[11px] mt-1">
+                                            {m.billable !== false ? (
+                                                <span className="badge badge-info">Facturable</span>
+                                            ) : (
+                                                <span className="badge badge-neutral">Producción</span>
+                                            )}
+                                        </p>
                                     </div>
                                     <span className={cn("badge", m.status === 'COMPLETED' ? "badge-success" : "badge-neutral")}>
                                         {m.status === 'COMPLETED' ? 'Completado' : 'Pendiente'}
@@ -676,10 +688,54 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
                             <span className="badge badge-neutral">Estimado</span>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                            Hitos completados: <span className="font-semibold text-foreground">{completedMilestones}</span> ·
+                            Hitos facturables completados: <span className="font-semibold text-foreground">{completedBillableMilestones}</span> ·
                             Facturas registradas: <span className="font-semibold text-foreground">{issuedInvoicesCount}</span> ·
                             Valor por cuota estimado: <span className="font-semibold text-foreground">{formatCurrency(installmentEstimate)}</span>
                         </p>
+                    </div>
+
+                    <div className="glass-card p-5">
+                        <div className="flex items-center justify-between mb-5">
+                            <h3 className="section-title">Facturas del Proyecto</h3>
+                            <Link href="/facturas" className="text-xs text-primary hover:underline">
+                                Ver módulo de facturas
+                            </Link>
+                        </div>
+                        <div className="table-container">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Factura</th>
+                                        <th>Monto</th>
+                                        <th>Estado</th>
+                                        <th>Emisión</th>
+                                        <th className="text-right">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(project.invoices || []).map((invoice: any) => (
+                                        <tr key={invoice.id}>
+                                            <td className="font-medium whitespace-nowrap">{invoice.invoiceNumber || `INV-${invoice.id.slice(0, 8)}`}</td>
+                                            <td className="whitespace-nowrap">{formatCurrency(invoice.amount || 0)}</td>
+                                            <td className="whitespace-nowrap">{invoice.status}</td>
+                                            <td className="whitespace-nowrap">{formatDate(invoice.issueDate || invoice.createdAt)}</td>
+                                            <td className="text-right">
+                                                <Link href={`/facturas?invoiceId=${invoice.id}`} className="text-primary hover:underline text-xs">
+                                                    Ver detalle
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {(project.invoices || []).length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="text-center py-8 text-sm text-muted-foreground">
+                                                No hay facturas vinculadas a este proyecto.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <div className="glass-card p-5">
@@ -949,6 +1005,15 @@ export function ProjectDetailClient({ project, users, suppliers }: ProjectDetail
                                 <label className="form-label">Fecha Límite</label>
                                 <input name="dueDate" type="date" className="form-input" required />
                             </div>
+                            <label className="flex items-center gap-2 text-sm text-foreground">
+                                <input
+                                    type="checkbox"
+                                    name="billable"
+                                    className="rounded border-border"
+                                    defaultChecked
+                                />
+                                Este hito habilita facturación
+                            </label>
                             <div className="pt-2 flex gap-3">
                                 <button type="button" className="btn-secondary flex-1" onClick={() => setShowMilestoneForm(false)}>Cancelar</button>
                                 <button type="submit" className="btn-primary flex-1 justify-center" disabled={loading}>Guardar</button>

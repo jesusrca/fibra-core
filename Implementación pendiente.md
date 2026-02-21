@@ -144,6 +144,7 @@
   Estado: Implementado en Finanzas con cobros esperados vs pagos comprometidos y recomendación automática.
 - [~] Pipeline comercial con forecast y meta vs real.
   Estado: Implementado forecast ponderado por estado y comparativo meta/forecast/real por canal fuente.
+  - El bot debe poder agendar reuniones en google calendar con links en google meet
 
 ## Integraciones externas pendientes
 
@@ -178,11 +179,40 @@
 - [x] Subir foto de perfil y PDF/archivo de facturas a Storage (Supabase) con URL persistida en BD.
       Estado: Implementado con APIs `POST /api/uploads/profile-photo` y `POST /api/uploads/invoice-file`, persistiendo en `User.avatarUrl` e `Invoice.fileUrl`.
 
-- El lead dice USD y en el chat sale en soles cuando se le consulta los leads que hay.
+- [x] El lead dice USD y en el chat sale en soles cuando se le consulta los leads que hay.
+      Estado: Corregido agregando `Lead.currency` y exposición de moneda en tools del bot para respetar moneda real.
 
-- Además cuando se crea un lead debe dar la opción de elegir en que moneda está el presupuesto.
-- El bot debe poder cambiar el estado de los leads
-- En una notificacion sobre completar datos de contactos, deberia decir que contactos faltan y poner los enlaces de cada contacto
-- Las fechas deben estar en formato dd/mm/yyyy
-- Cuando se crea un hito desde un proyecto debe poder marcarse si el hito es necesario para enviar una factura, o si es un hito de producción nada más.
-- En la sección finanzas del proyecto, indica las facturas generadas, pero no hay enlace ni visualización de esas facturas, debería poder estar vinculadas para verlas
+- [x] Al crear un lead debe dar opción para elegir la moneda del presupuesto.
+      Estado: Corregido en formulario de lead (`USD` / `PEN`) y persistencia en backend.
+
+- [x] El bot debe poder cambiar el estado de los leads.
+      Estado: Corregido agregando tool `updateLeadStatus` con RBAC y auditoría.
+
+- [x] En notificación de completar contactos, indicar cuáles faltan y enlaces de acción.
+      Estado: Corregido incluyendo contactos y links directos a `/comercial?tab=contacts&focusContactId=...`.
+
+- [~] Las fechas deben estar en formato `dd/mm/yyyy`.
+  Estado: Ajustado en utilidades UI y prompts del chatbot. Falta revisar manualmente algunos textos legacy fuera de `formatDate`.
+
+- [x] Hitos: marcar si habilitan facturación o son solo producción.
+      Estado: Corregido agregando `Milestone.billable` + checkbox en creación + lógica de facturación por hito facturable.
+
+- [x] En finanzas del proyecto, facturas vinculadas con enlace y visualización.
+      Estado: Corregido agregando tabla “Facturas del Proyecto” con enlace al módulo de facturas.
+- Mejorar el ui de los desplegales como cambio de estado, asignación,etc, que sea más moderno.
+- [x] En el ingreso de nueva factura debe salir la opción de elegir banco de destino. No debe salir país de pago.
+      Estado: Corregido en formulario de factura con selector de bancos activos (`AccountingBank`) y campo `paymentBank`.
+- [x] En el ingreso de factura, el proyecto debe ser obligatorio y primero; cliente/cotización deben autocompletarse desde el proyecto.
+      Estado: Corregido en UI y backend: proyecto obligatorio, autocompletado de cliente/cotización por proyecto con fallback manual cuando no existe.
+- El ingreso de la planilla/sueldo debe tener la opción de ingresar en PEN y en USD. La fecha de pago debe ser solo el día no la fehca exacta porque se paga mensual o quincenal. Falta elegir la forma de pago (15 dias o 30 días)
+- En transacciones, el comprobante se debe subir directamente en el formulario.
+- La fecha de transacción no puede ser despues de la fehca actual, solo antes.
+- En duedas por pagar debe salir el monto total que se debe pagar y cuanto resta pagar, considerando que se debe restar de lo que ya se pagó.
+
+## Finanzas
+
+- En deudas por pagar deben agregarse los sueldos cada inicio de nuevo mes
+- En los dashboards debe indicarse cuando dinero habrá a fin de mes, considerando todos los sueldos que hay que pagar, estén o no pagados, es para tener una proyección.
+- Debe haber una proyección semanal en base a los pagos que se deben hacer cada semana, para ver la liquidez actual y la proyectada por semana.
+- Debe haber una parte de impuestos, para saber cuanto de cada factura corresponde para pagar impuestos, y de las emitidas que incluan impuestos, debe llevarse un registro, y esos impuestos por pagar deben ir reduciendose con las transacciones que sean para pagar esos impuestos.
+- Todos los totales y proyecciones deben ser en USD y se debe poner al tipo de cambio del día los movimientos que sean en soles, pero deben mostrarse ambos datos, en soles y dólares y solo hacer un total proyectado en USD.

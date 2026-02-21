@@ -867,22 +867,37 @@ export async function createInvoice(data: {
     amount: number
     status?: InvoiceStatus
     paymentMethod?: string
+    paymentBank?: string
     paymentCountry?: string
 }) {
     try {
         await requireModuleAccess('comercial')
-        let clientId = data.clientId || null
+        if (!data.projectId) {
+            return { success: false, error: 'Debes seleccionar un proyecto para registrar la factura' }
+        }
 
-        if (!clientId && data.quoteId) {
+        const project = await withPrismaRetry(() => prisma.project.findUnique({
+            where: { id: data.projectId },
+            select: {
+                id: true,
+                clientId: true,
+                quoteId: true
+            }
+        }))
+        if (!project) return { success: false, error: 'Proyecto no encontrado' }
+
+        let clientId = project.clientId || data.clientId || null
+
+        const quoteId = data.quoteId || project.quoteId || null
+        if (!clientId && quoteId) {
             const quote = await withPrismaRetry(() => prisma.quote.findUnique({
-                where: { id: data.quoteId },
+                where: { id: quoteId },
                 select: { lead: { select: { clientId: true } } }
             }))
             clientId = quote?.lead.clientId || null
         }
-
         if (!clientId) {
-            return { success: false, error: 'Debes seleccionar cliente o cotización asociada' }
+            return { success: false, error: 'No se pudo determinar el cliente desde el proyecto/cotización' }
         }
 
         const invoiceNumber = data.invoiceNumber?.trim() || await generateInvoiceNumber()
@@ -896,14 +911,15 @@ export async function createInvoice(data: {
             data: {
                 invoiceNumber,
                 fileUrl: data.fileUrl || null,
-                quoteId: data.quoteId || null,
+                quoteId,
                 clientId,
-                projectId: data.projectId || null,
+                projectId: project.id,
                 issueDate: data.issueDate || new Date(),
                 dueDate: data.dueDate || null,
                 amount: data.amount,
                 status: data.status || InvoiceStatus.DRAFT,
                 paymentMethod: data.paymentMethod || null,
+                paymentBank: data.paymentBank || null,
                 paymentCountry: data.paymentCountry || null
             }
         }))
@@ -1047,6 +1063,7 @@ export async function updateInvoice(invoiceId: string, data: {
     amount: number
     status?: InvoiceStatus
     paymentMethod?: string
+    paymentBank?: string
     paymentCountry?: string
 }) {
     try {
@@ -1057,15 +1074,23 @@ export async function updateInvoice(invoiceId: string, data: {
         }))
         if (!existing) return { success: false, error: 'Factura no encontrada' }
 
-        let clientId = data.clientId || null
-        if (!clientId && data.quoteId) {
+        if (!data.projectId) return { success: false, error: 'Debes seleccionar proyecto' }
+        const project = await withPrismaRetry(() => prisma.project.findUnique({
+            where: { id: data.projectId },
+            select: { id: true, clientId: true, quoteId: true }
+        }))
+        if (!project) return { success: false, error: 'Proyecto no encontrado' }
+
+        const quoteId = data.quoteId || project.quoteId || null
+        let clientId = project.clientId || data.clientId || null
+        if (!clientId && quoteId) {
             const quote = await withPrismaRetry(() => prisma.quote.findUnique({
-                where: { id: data.quoteId },
+                where: { id: quoteId },
                 select: { lead: { select: { clientId: true } } }
             }))
             clientId = quote?.lead.clientId || null
         }
-        if (!clientId) return { success: false, error: 'Debes seleccionar cliente o cotización asociada' }
+        if (!clientId) return { success: false, error: 'No se pudo determinar el cliente desde el proyecto/cotización' }
 
         const invoiceNumber = data.invoiceNumber?.trim() || existing.invoiceNumber
         const duplicate = await withPrismaRetry(() => prisma.invoice.findFirst({
@@ -1082,14 +1107,15 @@ export async function updateInvoice(invoiceId: string, data: {
             data: {
                 invoiceNumber,
                 fileUrl: data.fileUrl || null,
-                quoteId: data.quoteId || null,
+                quoteId,
                 clientId,
-                projectId: data.projectId || null,
+                projectId: project.id,
                 issueDate: data.issueDate || new Date(),
                 dueDate: data.dueDate || null,
                 amount: data.amount,
                 status: data.status || InvoiceStatus.DRAFT,
                 paymentMethod: data.paymentMethod || null,
+                paymentBank: data.paymentBank || null,
                 paymentCountry: data.paymentCountry || null
             }
         }))

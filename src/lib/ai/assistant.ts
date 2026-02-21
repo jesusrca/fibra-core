@@ -6,6 +6,7 @@ import {
     createClientByAI,
     createContactByAI,
     createLeadByAI,
+    updateLeadStatusByAI,
     createProjectByAI,
     createTaskByAI,
     getClients,
@@ -41,6 +42,8 @@ Guidelines:
 - Client creation requires only name. Email can be completed later.
 - For write operations, do not claim success unless tool returns success:true.
 - Convert relative dates like "hoy" or "mañana" using the date reference above.
+- Use date format DD/MM/YYYY in final responses.
+- Respect the original currency from data (USD => $, PEN => S/). Never change currency.
 - If mentioning a project, include its URL path in plain text: /proyectos/{projectId}.
 - If creating multiple clients in one request, use createClientsBulk and include each edit URL:
   /comercial?tab=companies&editClientId={clientId}
@@ -232,6 +235,14 @@ export async function generateFibraAssistantReply(user: AssistantUserContext, pr
                     message: 'Debes indicar projectId o projectName'
                 }),
                 execute: async (input) => createTaskByAI({ userId: user.id, role: user.role }, input)
+            }),
+            updateLeadStatus: tool({
+                description: 'Update lead status',
+                inputSchema: z.object({
+                    leadId: z.string().min(1),
+                    status: z.nativeEnum(LeadStatus)
+                }),
+                execute: async (input) => updateLeadStatusByAI({ userId: user.id, role: user.role }, input)
             })
         },
         stopWhen: stepCountIs(5)
