@@ -195,6 +195,7 @@ export async function getLeads({ status, query }: LeadFilters) {
                 companyName: true,
                 status: true,
                 estimatedValue: true,
+                currency: true,
                 serviceRequested: true,
                 clientId: true,
                 createdAt: true
@@ -607,6 +608,7 @@ export async function createLeadByAI(
         serviceRequested: string
         requirementDetail?: string
         estimatedValue?: number
+        currency?: 'USD' | 'PEN'
         source?: string
         status?: LeadStatus
     }
@@ -651,6 +653,7 @@ export async function createLeadByAI(
                 serviceRequested: input.serviceRequested,
                 requirementDetail: input.requirementDetail,
                 estimatedValue: input.estimatedValue || 0,
+                currency: input.currency || 'USD',
                 source: input.source,
                 status: input.status || LeadStatus.NEW
             },
@@ -659,6 +662,7 @@ export async function createLeadByAI(
                 companyName: true,
                 status: true,
                 estimatedValue: true,
+                currency: true,
                 clientId: true,
                 serviceRequested: true
             }

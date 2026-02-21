@@ -374,6 +374,7 @@ export async function createLead(formData: FormData) {
         serviceRequested: (formData.get('serviceRequested') as string || '').trim() || undefined,
         requirementDetail: (formData.get('requirementDetail') as string || '').trim() || undefined,
         estimatedValue: parseFloat(formData.get('estimatedValue') as string || '0'),
+        currency: (formData.get('currency') as string || 'USD').trim().toUpperCase(),
         status: (formData.get('status') as LeadStatus) || LeadStatus.NEW,
         clientId: (formData.get('clientId') as string || '').trim() || undefined,
         selectedContactId: (formData.get('contactId') as string || '').trim() || undefined,
@@ -390,6 +391,7 @@ export async function createLead(formData: FormData) {
         serviceRequested,
         requirementDetail,
         estimatedValue,
+        currency,
         status,
         clientId,
         selectedContactId,
@@ -482,6 +484,7 @@ export async function createLead(formData: FormData) {
                 serviceRequested,
                 requirementDetail,
                 estimatedValue,
+                currency,
                 status,
                 clientId: finalClientId || null,
                 contactId
@@ -579,6 +582,7 @@ export async function updateLead(leadId: string, formData: FormData) {
     const serviceRequested = formData.get('serviceRequested') as string
     const requirementDetail = formData.get('requirementDetail') as string
     const estimatedValue = parseFloat(formData.get('estimatedValue') as string || '0')
+    const currency = ((formData.get('currency') as string) || 'USD').trim().toUpperCase()
     const status = formData.get('status') as LeadStatus
     const clientId = (formData.get('clientId') as string || '').trim()
     const selectedContactId = (formData.get('contactId') as string || '').trim()
@@ -618,6 +622,7 @@ export async function updateLead(leadId: string, formData: FormData) {
                 serviceRequested,
                 requirementDetail,
                 estimatedValue,
+                currency: currency === 'PEN' ? 'PEN' : 'USD',
                 status,
                 clientId: finalClientId || null,
                 contactId

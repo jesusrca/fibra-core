@@ -320,7 +320,8 @@ export async function POST(req: Request) {
       - When mentioning a specific project returned by tools, ALWAYS include a direct markdown link to its detail page using its id:
         [Project Name](/proyectos/{projectId})
       - Prefer short sections with clear bullets and avoid noisy formatting.
-      - Format monetary values with the currency symbol (S/ or $).
+      - Format monetary values with the exact currency from data: PEN => S/ and USD => $.
+      - Never convert or assume currency; if a lead has currency USD, keep USD in the response.
       - For dates, use a readable format (e.g., "DD/MM/YYYY").
       - If you can't find information, state that clearly.
       - If a company exists but has zero active projects, explicitly say the company exists and indicate its project status/count.
@@ -482,6 +483,7 @@ export async function POST(req: Request) {
                         serviceRequested: z.string().min(2),
                         requirementDetail: z.string().optional(),
                         estimatedValue: z.number().min(0).optional(),
+                        currency: z.enum(['USD', 'PEN']).optional(),
                         source: z.string().optional(),
                         status: z.nativeEnum(LeadStatus).optional()
                     }),

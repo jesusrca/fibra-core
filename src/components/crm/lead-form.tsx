@@ -230,7 +230,7 @@ export function LeadForm({ onClose, clients, contacts, initialData }: LeadFormPr
                             />
                         </div>
                         <div>
-                            <label className="form-label">Valor Estimado (USD)</label>
+                            <label className="form-label">Valor Estimado</label>
                             <input
                                 name="estimatedValue"
                                 type="number"
@@ -239,6 +239,17 @@ export function LeadForm({ onClose, clients, contacts, initialData }: LeadFormPr
                                 placeholder="0.00"
                                 defaultValue={initialData?.estimatedValue || ''}
                             />
+                        </div>
+                        <div>
+                            <label className="form-label">Moneda</label>
+                            <select
+                                name="currency"
+                                className="form-input"
+                                defaultValue={(initialData as (Lead & { currency?: string }) | undefined)?.currency || 'USD'}
+                            >
+                                <option value="USD">USD ($)</option>
+                                <option value="PEN">PEN (S/)</option>
+                            </select>
                         </div>
                         <div>
                             <label className="form-label">Estado</label>

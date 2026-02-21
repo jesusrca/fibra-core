@@ -176,4 +176,13 @@
 
 - [~] Validar envío de audios (UX + transcripción Whisper) en chatbot.
 - [x] Subir foto de perfil y PDF/archivo de facturas a Storage (Supabase) con URL persistida en BD.
-  Estado: Implementado con APIs `POST /api/uploads/profile-photo` y `POST /api/uploads/invoice-file`, persistiendo en `User.avatarUrl` e `Invoice.fileUrl`.
+      Estado: Implementado con APIs `POST /api/uploads/profile-photo` y `POST /api/uploads/invoice-file`, persistiendo en `User.avatarUrl` e `Invoice.fileUrl`.
+
+- El lead dice USD y en el chat sale en soles cuando se le consulta los leads que hay.
+
+- Además cuando se crea un lead debe dar la opción de elegir en que moneda está el presupuesto.
+- El bot debe poder cambiar el estado de los leads
+- En una notificacion sobre completar datos de contactos, deberia decir que contactos faltan y poner los enlaces de cada contacto
+- Las fechas deben estar en formato dd/mm/yyyy
+- Cuando se crea un hito desde un proyecto debe poder marcarse si el hito es necesario para enviar una factura, o si es un hito de producción nada más.
+- En la sección finanzas del proyecto, indica las facturas generadas, pero no hay enlace ni visualización de esas facturas, debería poder estar vinculadas para verlas

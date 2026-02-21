@@ -152,13 +152,15 @@ export function Header({ user }: HeaderProps) {
                             </div>
                             <div className="max-h-80 overflow-y-auto">
                                 {notifications.map((n) => (
-                                    <div
+                                    <Link
                                         key={n.id}
+                                        href={`/notificaciones/${n.id}`}
                                         onClick={() => {
-                                            if (!n.read) markOneAsRead(n.id)
+                                            if (!n.read) void markOneAsRead(n.id)
+                                            setNotifOpen(false)
                                         }}
                                         className={cn(
-                                            'px-4 py-3 border-b border-border/40 hover:bg-secondary/30 transition-colors cursor-pointer',
+                                            'block px-4 py-3 border-b border-border/40 hover:bg-secondary/30 transition-colors cursor-pointer',
                                             !n.read && 'bg-primary/5'
                                         )}
                                     >
@@ -170,7 +172,7 @@ export function Header({ user }: HeaderProps) {
                                             </div>
                                             {!n.read && <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />}
                                         </div>
-                                    </div>
+                                    </Link>
                                 ))}
                             </div>
                             <div className="px-4 py-2 border-t border-border">

@@ -125,6 +125,7 @@ export async function generateReport(input: {
                 companyName: true,
                 status: true,
                 estimatedValue: true,
+                currency: true,
                 createdAt: true
             },
             take: 300
@@ -139,6 +140,7 @@ export async function generateReport(input: {
             empresa: l.companyName || '-',
             estado: l.status,
             valor_estimado: l.estimatedValue,
+            moneda: l.currency || 'USD',
             fecha: l.createdAt.toISOString()
         }))
     } else if (input.type === 'marketing') {

@@ -218,6 +218,7 @@ model Lead {
   serviceRequested    String?
   requirementDetail   String?    @db.Text
   estimatedValue      Float      @default(0)
+  currency            String     @default("USD")
   quoteNumber         String?
   status              LeadStatus @default(NEW)
   source              String?

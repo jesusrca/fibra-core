@@ -49,6 +49,12 @@ export const leadCreateSchema = z.object({
     serviceRequested: z.string().trim().max(140).optional(),
     requirementDetail: z.string().trim().max(5000).optional(),
     estimatedValue: z.coerce.number().nonnegative().default(0),
+    currency: z
+        .string()
+        .trim()
+        .transform((v) => v.toUpperCase())
+        .pipe(z.enum(['USD', 'PEN']))
+        .default('USD'),
     status: z.nativeEnum(LeadStatus).default(LeadStatus.NEW),
     clientId: z.string().trim().optional(),
     selectedContactId: z.string().trim().optional(),

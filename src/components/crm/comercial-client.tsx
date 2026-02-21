@@ -224,6 +224,9 @@ export function ComercialClient({
                     ? 'Cotización'
                     : 'Factura'
 
+    const getLeadCurrency = (lead: { currency?: string | null }) =>
+        (lead.currency || '').toUpperCase() === 'PEN' ? 'PEN' : 'USD'
+
     const handleChangeStatus = async (leadId: string, status: LeadStatus) => {
         startTransition(() => {
             addOptimisticLead({ id: leadId, status })
@@ -266,6 +269,12 @@ export function ComercialClient({
         }
         const result = await convertLeadToProject(leadId, defaultDirector.id)
         if (!result.success) alert(result.error)
+        if (result.success) {
+            startTransition(() => {
+                addOptimisticLead({ id: leadId, status: LeadStatus.WON })
+            })
+            router.refresh()
+        }
         setConvertingId(null)
     }
 
@@ -520,7 +529,7 @@ export function ComercialClient({
                                                             <span>{lead.serviceRequested || 'Sin Servicio'}</span>
                                                         </div>
                                                         <div className="flex items-center justify-between pt-2 border-t border-border/40">
-                                                            <span className="text-sm font-bold text-foreground">{formatCurrency(lead.estimatedValue)}</span>
+                                                            <span className="text-sm font-bold text-foreground">{formatCurrency(lead.estimatedValue, getLeadCurrency(lead as { currency?: string | null }))}</span>
                                                             <span className="text-[10px] text-muted-foreground">{formatDate(lead.createdAt)}</span>
                                                         </div>
                                                     </div>
@@ -561,7 +570,7 @@ export function ComercialClient({
                                                     <option value={LeadStatus.LOST} className="bg-card text-foreground">Perdido</option>
                                                 </select>
                                             </td>
-                                            <td className="text-sm font-semibold whitespace-nowrap">{formatCurrency(lead.estimatedValue)}</td>
+                                            <td className="text-sm font-semibold whitespace-nowrap">{formatCurrency(lead.estimatedValue, getLeadCurrency(lead as { currency?: string | null }))}</td>
                                             <td className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(lead.createdAt)}</td>
                                             <td className="text-right">
                                                 <div className="flex items-center justify-end gap-1">
@@ -1023,7 +1032,7 @@ export function ComercialClient({
                                 </div>
                                 <div>
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Valor Estimado</p>
-                                    <p className="text-xl font-bold text-primary">{formatCurrency(selectedLead.estimatedValue)}</p>
+                                    <p className="text-xl font-bold text-primary">{formatCurrency(selectedLead.estimatedValue, getLeadCurrency(selectedLead as { currency?: string | null }))}</p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1">Fecha de Creación</p>

@@ -192,6 +192,7 @@ export async function generateFibraAssistantReply(user: AssistantUserContext, pr
                     serviceRequested: z.string().min(2),
                     requirementDetail: z.string().optional(),
                     estimatedValue: z.number().min(0).optional(),
+                    currency: z.enum(['USD', 'PEN']).optional(),
                     source: z.string().optional(),
                     status: z.nativeEnum(LeadStatus).optional()
                 }),
