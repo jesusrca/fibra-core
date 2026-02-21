@@ -277,6 +277,8 @@ model Invoice {
   issueDate       DateTime      @default(now())
   dueDate         DateTime?
   amount          Float
+  taxRate         Float         @default(0)
+  taxAmount       Float         @default(0)
   status          InvoiceStatus @default(DRAFT)
   paymentMethod   String?
   paymentBank     String?

@@ -15,6 +15,7 @@ import {
     getLeads,
     getProjects,
     getSuppliers,
+    getReceivablesSummary,
     getUsers
 } from '@/lib/ai/tools';
 import { AuthError, requireModuleAccess } from '@/lib/server-auth';
@@ -327,6 +328,14 @@ export async function POST(req: Request) {
       - If you can't find information, state that clearly.
       - If a company exists but has zero active projects, explicitly say the company exists and indicate its project status/count.
       - For questions about companies/contacts, use getClients/getContacts instead of assuming from active projects only.
+      - For "por cobrar / cobranzas" questions, ALWAYS use getReceivablesSummary and clearly separate:
+        1) Por cobrar emitido (facturas ya emitidas: SENT/OVERDUE)
+        2) Potencial por hitos (aún NO facturable hasta completar hitos)
+      - For cobranzas responses, always include a short "Resumen" with:
+        - Emitido por cobrar ahora
+        - Potencial por hitos
+        - Total combinado (emitido + potencial)
+        - Ventana 7 días y 30 días
       - When listing multiple items, use bullet points for readability.
       - For write operations (create lead/client/contact/project/task), indica los datos recomendados, pero permite guardado mínimo cuando solo hay nombre cuando aplique.
       - Para crear clientes NO es obligatorio email; puede completarse después.
@@ -401,6 +410,14 @@ export async function POST(req: Request) {
                         city: z.string().optional()
                     }),
                     execute: async ({ query, category, city }) => getSuppliers({ userId: user.id, role: user.role }, { query, category, city })
+                }),
+                getReceivablesSummary: tool({
+                    description: 'Get receivables split in issued invoices vs potential from upcoming billable milestones.',
+                    inputSchema: z.object({
+                        horizonDays: z.number().int().min(1).max(120).optional()
+                    }),
+                    execute: async ({ horizonDays }) =>
+                        getReceivablesSummary({ userId: user.id, role: user.role }, { horizonDays })
                 }),
                 createClient: tool({
                     description: 'Create a company/client in CRM. Requires only name. Email is optional.',

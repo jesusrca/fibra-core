@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma'
-import { LeadStatus, Prisma, ProjectStatus, Role } from '@prisma/client'
+import { InvoiceStatus, LeadStatus, Prisma, ProjectStatus, Role } from '@prisma/client'
 import { canAccess } from '@/lib/rbac'
 import { createNotificationForUser } from '@/lib/notifications'
 import { revalidatePath } from 'next/cache'
@@ -34,6 +34,10 @@ type SupplierFilters = {
     query?: string
     category?: string
     city?: string
+}
+
+type ReceivablesFilters = {
+    horizonDays?: number
 }
 
 export type AIToolContext = {
@@ -243,6 +247,221 @@ export async function getFinancialSummary() {
             expenses: 0,
             profit: 0,
             note: 'No se pudo obtener la data financiera en este momento'
+        }
+    }
+}
+
+function toValidDate(value: Date | string | null | undefined) {
+    if (!value) return null
+    const parsed = value instanceof Date ? value : new Date(value)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+async function getProjectsForReceivables() {
+    try {
+        return await prisma.project.findMany({
+            select: {
+                id: true,
+                name: true,
+                status: true,
+                budget: true,
+                milestones: {
+                    select: { id: true, name: true, status: true, dueDate: true, billable: true },
+                    orderBy: { dueDate: 'asc' }
+                },
+                invoices: {
+                    select: { id: true, status: true }
+                }
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 200
+        })
+    } catch (error) {
+        const message = error instanceof Error ? error.message : ''
+        if (!message.includes('Unknown field `billable`')) throw error
+
+        const legacyProjects = await prisma.project.findMany({
+            select: {
+                id: true,
+                name: true,
+                status: true,
+                budget: true,
+                milestones: {
+                    select: { id: true, name: true, status: true, dueDate: true },
+                    orderBy: { dueDate: 'asc' }
+                },
+                invoices: {
+                    select: { id: true, status: true }
+                }
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 200
+        })
+
+        return legacyProjects.map((project) => ({
+            ...project,
+            milestones: project.milestones.map((milestone) => ({ ...milestone, billable: true }))
+        }))
+    }
+}
+
+export async function getReceivablesSummary(ctx: AIToolContext, { horizonDays }: ReceivablesFilters = {}) {
+    if (!canAccess(ctx.role, 'contabilidad') && !canAccess(ctx.role, 'finanzas')) {
+        return {
+            success: false as const,
+            error: `Rol ${ctx.role} sin permisos para ver cobranzas`
+        }
+    }
+
+    try {
+        const days = Math.min(Math.max(horizonDays || 30, 1), 120)
+        const now = new Date()
+        const horizonDate = new Date(now)
+        horizonDate.setDate(horizonDate.getDate() + days)
+
+        const [issuedInvoices, projects] = await Promise.all([
+            prisma.invoice.findMany({
+                where: {
+                    status: { in: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE] }
+                },
+                select: {
+                    id: true,
+                    invoiceNumber: true,
+                    amount: true,
+                    status: true,
+                    issueDate: true,
+                    dueDate: true,
+                    client: { select: { id: true, name: true } },
+                    project: { select: { id: true, name: true } }
+                },
+                orderBy: [{ dueDate: 'asc' }, { issueDate: 'asc' }],
+                take: 300
+            }),
+            getProjectsForReceivables()
+        ])
+
+        const issuedTotal = issuedInvoices.reduce((sum, invoice) => sum + (invoice.amount || 0), 0)
+        const issuedDetails = issuedInvoices.map((invoice) => ({
+            invoiceId: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            amount: invoice.amount,
+            status: invoice.status,
+            issueDate: invoice.issueDate,
+            dueDate: invoice.dueDate,
+            clientName: invoice.client?.name || 'Sin cliente',
+            projectId: invoice.project?.id || null,
+            projectName: invoice.project?.name || null
+        }))
+
+        const potentialSoon: Array<{
+            projectId: string
+            projectName: string
+            milestoneId: string
+            milestoneName: string
+            dueDate: Date | null
+            estimatedAmount: number
+        }> = []
+
+        let potentialTotal = 0
+        projects.forEach((project) => {
+            const billableMilestones = project.milestones.filter((milestone: any) => milestone.billable !== false)
+            const divisor = Math.max(billableMilestones.length, 1)
+            const estimatedInstallment = Math.round(((project.budget || 0) / divisor) * 100) / 100
+            const issuedForProject = project.invoices.filter((invoice) => invoice.status !== InvoiceStatus.CANCELLED).length
+            const completedBillableCount = billableMilestones.filter((milestone) => milestone.status === 'COMPLETED').length
+
+            let alreadyProjected = Math.max(issuedForProject - completedBillableCount, 0)
+            for (const milestone of billableMilestones) {
+                if (milestone.status === 'COMPLETED') continue
+                const dueDate = toValidDate(milestone.dueDate)
+                if (!dueDate || dueDate > horizonDate) continue
+                if (alreadyProjected > 0) {
+                    alreadyProjected -= 1
+                    continue
+                }
+                potentialSoon.push({
+                    projectId: project.id,
+                    projectName: project.name,
+                    milestoneId: milestone.id,
+                    milestoneName: milestone.name,
+                    dueDate,
+                    estimatedAmount: estimatedInstallment
+                })
+                potentialTotal += estimatedInstallment
+            }
+        })
+
+        const issuedIn7 = issuedDetails
+            .filter((invoice) => {
+                const due = toValidDate(invoice.dueDate)
+                if (!due) return false
+                const in7 = new Date(now)
+                in7.setDate(in7.getDate() + 7)
+                return due <= in7
+            })
+            .reduce((sum, invoice) => sum + (invoice.amount || 0), 0)
+
+        const issuedIn30 = issuedDetails
+            .filter((invoice) => {
+                const due = toValidDate(invoice.dueDate)
+                if (!due) return false
+                const in30 = new Date(now)
+                in30.setDate(in30.getDate() + 30)
+                return due <= in30
+            })
+            .reduce((sum, invoice) => sum + (invoice.amount || 0), 0)
+
+        const potentialIn7 = potentialSoon
+            .filter((milestone) => {
+                const due = toValidDate(milestone.dueDate)
+                if (!due) return false
+                const in7 = new Date(now)
+                in7.setDate(in7.getDate() + 7)
+                return due <= in7
+            })
+            .reduce((sum, milestone) => sum + milestone.estimatedAmount, 0)
+
+        const potentialIn30 = potentialSoon
+            .filter((milestone) => {
+                const due = toValidDate(milestone.dueDate)
+                if (!due) return false
+                const in30 = new Date(now)
+                in30.setDate(in30.getDate() + 30)
+                return due <= in30
+            })
+            .reduce((sum, milestone) => sum + milestone.estimatedAmount, 0)
+
+        const roundedIssuedTotal = Math.round(issuedTotal * 100) / 100
+        const roundedPotentialTotal = Math.round(potentialTotal * 100) / 100
+
+        return {
+            success: true as const,
+            horizonDays: days,
+            issuedReceivables: {
+                total: roundedIssuedTotal,
+                count: issuedDetails.length,
+                details: issuedDetails
+            },
+            potentialFromMilestones: {
+                total: roundedPotentialTotal,
+                count: potentialSoon.length,
+                details: potentialSoon
+            },
+            summary: {
+                issuedNow: roundedIssuedTotal,
+                potentialIfMilestonesCompleted: roundedPotentialTotal,
+                combinedPotential: Math.round((roundedIssuedTotal + roundedPotentialTotal) * 100) / 100,
+                issuedDueIn7Days: Math.round(issuedIn7 * 100) / 100,
+                issuedDueIn30Days: Math.round(issuedIn30 * 100) / 100,
+                potentialMilestonesIn7Days: Math.round(potentialIn7 * 100) / 100,
+                potentialMilestonesIn30Days: Math.round(potentialIn30 * 100) / 100
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching receivables summary:', error)
+        return {
+            success: false as const,
+            error: 'No se pudo obtener el resumen de cobranzas'
         }
     }
 }

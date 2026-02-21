@@ -145,6 +145,8 @@
 - [~] Pipeline comercial con forecast y meta vs real.
   Estado: Implementado forecast ponderado por estado y comparativo meta/forecast/real por canal fuente.
   - El bot debe poder agendar reuniones en google calendar con links en google meet
+  - Cuando se haga el pago de una factura de un cliente, debe cambiar de estado si el pago fue completado al 100%, debe haber un monto restante si pagó una parte y debe aún una parte de esa factura
+  - La lista de facturas por cobrar y deudas por pagar, debe tener un botón de registrar transacción, que permita registrar un pago relacionado a esa factura con los datos ya completados.
 
 ## Integraciones externas pendientes
 
@@ -211,8 +213,17 @@
 
 ## Finanzas
 
-- En deudas por pagar deben agregarse los sueldos cada inicio de nuevo mes
-- En los dashboards debe indicarse cuando dinero habrá a fin de mes, considerando todos los sueldos que hay que pagar, estén o no pagados, es para tener una proyección.
-- Debe haber una proyección semanal en base a los pagos que se deben hacer cada semana, para ver la liquidez actual y la proyectada por semana.
-- Debe haber una parte de impuestos, para saber cuanto de cada factura corresponde para pagar impuestos, y de las emitidas que incluan impuestos, debe llevarse un registro, y esos impuestos por pagar deben ir reduciendose con las transacciones que sean para pagar esos impuestos.
+- [x] En deudas por pagar deben agregarse los sueldos cada inicio de nuevo mes.
+      Estado: Implementado con generación automática de planilla mensual (`ensureMonthlyPayroll`) tomando salario base del último registro por usuario.
+- [x] En dashboards debe indicarse cuánto dinero habrá a fin de mes considerando sueldos pendientes.
+      Estado: Implementado KPI de proyección fin de mes en Finanzas (incluye cobros esperados y pagos comprometidos, incluyendo planilla pendiente).
+- [x] Debe haber proyección semanal en base a pagos/cobros para ver liquidez proyectada.
+      Estado: Implementado bloque de liquidez semanal (8 semanas) con saldo proyectado y alertas de déficit.
+- [~] Debe haber parte de impuestos para registrar devengado/pagado/pendiente y su reducción por pagos.
+  Estado: Implementado cálculo con `Invoice.taxRate/taxAmount` + pagos vía transacciones `EXPENSE` con subcategoría `TAX_PAYMENT`/`IMPUESTOS`/`TAX`. Pendiente flujo contable avanzado por periodo tributario y conciliación SUNAT.
 - Todos los totales y proyecciones deben ser en USD y se debe poner al tipo de cambio del día los movimientos que sean en soles, pero deben mostrarse ambos datos, en soles y dólares y solo hacer un total proyectado en USD.
+
+## Facturas
+
+- En la lista de facturas deben salir las facturas emitidas y las que ya se deben emitir porque el hito se ha cumplido o es el primer pago ya autorizado para cobrar. Debe tener un estado de Por Emitir (Draft) cuando ya se pueda emitir y aun no se haya hecho.
+- Poner los estados en español

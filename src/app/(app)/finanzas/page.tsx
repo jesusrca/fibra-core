@@ -3,8 +3,15 @@ import prisma from '@/lib/prisma'
 import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { unstable_cache } from 'next/cache'
+import { ensureMonthlyPayroll } from '@/lib/actions/finance'
 
 export const dynamic = 'force-dynamic'
+
+function asDate(value: Date | string | null | undefined): Date | null {
+    if (!value) return null
+    const parsed = value instanceof Date ? value : new Date(value)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+}
 
 const getFinanzasData = unstable_cache(
     async () =>
@@ -50,6 +57,8 @@ const getFinanzasData = unstable_cache(
                     select: {
                         id: true,
                         amount: true,
+                        taxRate: true,
+                        taxAmount: true,
                         dueDate: true,
                         status: true,
                         project: {
@@ -77,19 +86,23 @@ const getFinanzasData = unstable_cache(
                 })
             ])
         ),
-    ['finanzas-data-v3'],
+    ['finanzas-data-v4'],
     { revalidate: 15 }
 )
 
 export default async function FinanzasPage() {
     await requireModuleAccess('finanzas')
+    await ensureMonthlyPayroll()
 
     const [fixedCosts, payroll, users, banks, transactions, invoices, pendingSupplierPayments] = await getFinanzasData()
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
     const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1)
 
-    const monthTransactions = transactions.filter((tx) => tx.date >= monthStart && tx.date < nextMonthStart)
+    const monthTransactions = transactions.filter((tx) => {
+        const txDate = asDate(tx.date)
+        return !!txDate && txDate >= monthStart && txDate < nextMonthStart
+    })
     const totalRevenue = monthTransactions
         .filter((tx) => tx.category === 'INCOME')
         .reduce((sum, tx) => sum + tx.amount, 0)
@@ -126,7 +139,9 @@ export default async function FinanzasPage() {
     const monthlyFlowMap = new Map<string, { income: number; expense: number }>()
     for (const item of monthLabels) monthlyFlowMap.set(item.key, { income: 0, expense: 0 })
     for (const tx of transactions) {
-        const key = `${tx.date.getFullYear()}-${String(tx.date.getMonth() + 1).padStart(2, '0')}`
+        const txDate = asDate(tx.date)
+        if (!txDate) continue
+        const key = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`
         const bucket = monthlyFlowMap.get(key)
         if (!bucket) continue
         if (tx.category === 'INCOME') bucket.income += tx.amount
@@ -251,27 +266,51 @@ export default async function FinanzasPage() {
         .map((invoice) => ({ amount: invoice.amount, dueDate: invoice.dueDate }))
     const pendingPayroll = payroll.filter((row) => row.status === 'PENDING')
     const pendingFixedCosts = fixedCosts
+    const accruedTaxes = invoices
+        .filter((invoice) => ['SENT', 'PAID', 'OVERDUE'].includes(invoice.status))
+        .reduce((sum, invoice) => sum + (invoice.taxAmount || 0), 0)
+    const paidTaxes = transactions
+        .filter((tx) => tx.category === 'EXPENSE')
+        .filter((tx) => {
+            const sub = (tx.subcategory || '').trim().toUpperCase()
+            return sub === 'TAX_PAYMENT' || sub === 'IMPUESTOS' || sub === 'TAX'
+        })
+        .reduce((sum, tx) => sum + tx.amount, 0)
+    const pendingTaxes = Math.max(accruedTaxes - paidTaxes, 0)
 
     const projectedCashFlow = [30, 60, 90].map((days) => {
         const horizon = new Date()
         horizon.setDate(horizon.getDate() + days)
         const inflow = pendingReceivables
-            .filter((row) => !row.dueDate || row.dueDate <= horizon)
+            .filter((row) => {
+                const due = asDate(row.dueDate)
+                return !due || due <= horizon
+            })
             .reduce((sum, row) => sum + row.amount, 0)
         const fixedOutflow = pendingFixedCosts
-            .filter((row) => row.dueDate <= horizon)
+            .filter((row) => {
+                const due = asDate(row.dueDate)
+                return !!due && due <= horizon
+            })
             .reduce((sum, row) => sum + row.amount, 0)
         const payrollOutflow = pendingPayroll
-            .filter((row) => row.paymentDate <= horizon)
+            .filter((row) => {
+                const payDate = asDate(row.paymentDate)
+                return !!payDate && payDate <= horizon
+            })
             .reduce((sum, row) => sum + row.salary + row.bonus, 0)
         const supplierOutflow = pendingSupplierPayments
-            .filter((row) => (row.paymentDate || row.issueDate || new Date()) <= horizon)
+            .filter((row) => {
+                const d = asDate(row.paymentDate) || asDate(row.issueDate) || now
+                return d <= horizon
+            })
             .reduce((sum, row) => sum + row.amount, 0)
-        const net = currentBalance + inflow - fixedOutflow - payrollOutflow - supplierOutflow
+        const taxOutflow = pendingTaxes
+        const net = currentBalance + inflow - fixedOutflow - payrollOutflow - supplierOutflow - taxOutflow
         return {
             horizonDays: days,
             inflow: Math.round(inflow * 100) / 100,
-            outflow: Math.round((fixedOutflow + payrollOutflow + supplierOutflow) * 100) / 100,
+            outflow: Math.round((fixedOutflow + payrollOutflow + supplierOutflow + taxOutflow) * 100) / 100,
             net: Math.round(net * 100) / 100,
             alert: net < 0
         }
@@ -279,6 +318,98 @@ export default async function FinanzasPage() {
     const cashflowRecommendation = projectedCashFlow.some((row) => row.alert)
         ? 'Riesgo de déficit: priorizar cobranza de facturas vencidas y reprogramar pagos no críticos.'
         : 'Flujo saludable: mantener seguimiento semanal de vencimientos de cobro/pago.'
+
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+    const receivablesToEndMonth = pendingReceivables
+        .filter((row) => {
+            const due = asDate(row.dueDate)
+            return !due || due <= endOfMonth
+        })
+        .reduce((sum, row) => sum + row.amount, 0)
+    const fixedToEndMonth = pendingFixedCosts
+        .filter((row) => {
+            const due = asDate(row.dueDate)
+            return !!due && due <= endOfMonth
+        })
+        .reduce((sum, row) => sum + row.amount, 0)
+    const payrollToEndMonth = pendingPayroll
+        .filter((row) => {
+            const payDate = asDate(row.paymentDate)
+            return !!payDate && payDate <= endOfMonth
+        })
+        .reduce((sum, row) => sum + row.salary + row.bonus, 0)
+    const supplierToEndMonth = pendingSupplierPayments
+        .filter((row) => {
+            const d = asDate(row.paymentDate) || asDate(row.issueDate) || now
+            return d <= endOfMonth
+        })
+        .reduce((sum, row) => sum + row.amount, 0)
+
+    const endMonthProjectedCash = Math.round(
+        (currentBalance + receivablesToEndMonth - fixedToEndMonth - payrollToEndMonth - supplierToEndMonth - pendingTaxes) * 100
+    ) / 100
+
+    const weeklyProjection: Array<{
+        label: string
+        start: string
+        end: string
+        inflow: number
+        outflow: number
+        net: number
+        projectedBalance: number
+        alert: boolean
+    }> = []
+    let rollingBalance = currentBalance
+    const weekStart = new Date(now)
+    weekStart.setHours(0, 0, 0, 0)
+
+    for (let i = 0; i < 8; i += 1) {
+        const start = new Date(weekStart)
+        start.setDate(start.getDate() + i * 7)
+        const end = new Date(start)
+        end.setDate(end.getDate() + 6)
+        end.setHours(23, 59, 59, 999)
+
+        const inflow = pendingReceivables
+            .filter((row) => {
+                const due = asDate(row.dueDate)
+                return !!due && due >= start && due <= end
+            })
+            .reduce((sum, row) => sum + row.amount, 0)
+        const fixedOut = pendingFixedCosts
+            .filter((row) => {
+                const due = asDate(row.dueDate)
+                return !!due && due >= start && due <= end
+            })
+            .reduce((sum, row) => sum + row.amount, 0)
+        const payrollOut = pendingPayroll
+            .filter((row) => {
+                const payDate = asDate(row.paymentDate)
+                return !!payDate && payDate >= start && payDate <= end
+            })
+            .reduce((sum, row) => sum + row.salary + row.bonus, 0)
+        const supplierOut = pendingSupplierPayments
+            .filter((row) => {
+                const d = asDate(row.paymentDate) || asDate(row.issueDate) || now
+                return d >= start && d <= end
+            })
+            .reduce((sum, row) => sum + row.amount, 0)
+        const taxOut = i === 0 ? pendingTaxes : 0
+        const outflow = fixedOut + payrollOut + supplierOut + taxOut
+        const net = inflow - outflow
+        rollingBalance += net
+
+        weeklyProjection.push({
+            label: `Sem ${i + 1}`,
+            start: start.toISOString(),
+            end: end.toISOString(),
+            inflow: Math.round(inflow * 100) / 100,
+            outflow: Math.round(outflow * 100) / 100,
+            net: Math.round(net * 100) / 100,
+            projectedBalance: Math.round(rollingBalance * 100) / 100,
+            alert: rollingBalance < 0
+        })
+    }
 
     return (
         <FinanzasClient
@@ -297,6 +428,13 @@ export default async function FinanzasPage() {
             serviceProfitability={serviceProfitability}
             projectedCashFlow={projectedCashFlow}
             cashflowRecommendation={cashflowRecommendation}
+            endMonthProjectedCash={endMonthProjectedCash}
+            weeklyProjection={weeklyProjection}
+            taxSummary={{
+                accrued: Math.round(accruedTaxes * 100) / 100,
+                paid: Math.round(paidTaxes * 100) / 100,
+                pending: Math.round(pendingTaxes * 100) / 100
+            }}
         />
     )
 }

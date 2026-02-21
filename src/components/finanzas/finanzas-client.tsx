@@ -37,6 +37,22 @@ interface FinanzasClientProps {
     serviceProfitability: Array<{ service: string; net: number }>
     projectedCashFlow: Array<{ horizonDays: number; inflow: number; outflow: number; net: number; alert: boolean }>
     cashflowRecommendation: string
+    endMonthProjectedCash: number
+    weeklyProjection: Array<{
+        label: string
+        start: string
+        end: string
+        inflow: number
+        outflow: number
+        net: number
+        projectedBalance: number
+        alert: boolean
+    }>
+    taxSummary: {
+        accrued: number
+        paid: number
+        pending: number
+    }
 }
 
 export function FinanzasClient({
@@ -54,7 +70,10 @@ export function FinanzasClient({
     clientProfitability,
     serviceProfitability,
     projectedCashFlow,
-    cashflowRecommendation
+    cashflowRecommendation,
+    endMonthProjectedCash,
+    weeklyProjection,
+    taxSummary
 }: FinanzasClientProps) {
     const [activeSection, setActiveSection] = useState<'resumen' | 'costos' | 'planilla'>('resumen')
     const [showCostForm, setShowCostForm] = useState(false)
@@ -278,6 +297,66 @@ export function FinanzasClient({
                                     </p>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="glass-card p-5">
+                            <h2 className="section-title mb-2">Proyección al cierre de mes</h2>
+                            <p className={cn('text-3xl font-bold mt-1', endMonthProjectedCash < 0 ? 'text-[hsl(var(--danger-text))]' : 'text-[hsl(var(--success-text))]')}>
+                                {formatCurrency(endMonthProjectedCash)}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-2">
+                                Considera cobros esperados, costos fijos, sueldos pendientes, pagos a proveedores e impuestos por pagar.
+                            </p>
+                        </div>
+                        <div className="glass-card p-5">
+                            <h2 className="section-title mb-2">Impuestos</h2>
+                            <div className="space-y-1.5 text-sm">
+                                <p className="flex justify-between"><span className="text-muted-foreground">Devengado</span><span className="font-medium">{formatCurrency(taxSummary.accrued)}</span></p>
+                                <p className="flex justify-between"><span className="text-muted-foreground">Pagado</span><span className="font-medium">{formatCurrency(taxSummary.paid)}</span></p>
+                                <p className="flex justify-between"><span className="text-muted-foreground">Por pagar</span><span className={cn('font-semibold', taxSummary.pending > 0 ? 'text-[hsl(var(--warning-text))]' : 'text-[hsl(var(--success-text))]')}>{formatCurrency(taxSummary.pending)}</span></p>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-3">
+                                Para registrar pago de impuestos usa transacciones `EXPENSE` con subcategoría `TAX_PAYMENT`.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="glass-card p-5">
+                        <h2 className="section-title mb-2">Liquidez proyectada semanal (8 semanas)</h2>
+                        <div className="table-container">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Semana</th>
+                                        <th>Rango</th>
+                                        <th>Cobros</th>
+                                        <th>Pagos</th>
+                                        <th>Neto</th>
+                                        <th>Saldo proyectado</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {weeklyProjection.map((week) => (
+                                        <tr key={week.label}>
+                                            <td className="font-medium">{week.label}</td>
+                                            <td className="text-xs text-muted-foreground">{formatDate(week.start)} - {formatDate(week.end)}</td>
+                                            <td>{formatCurrency(week.inflow)}</td>
+                                            <td>{formatCurrency(week.outflow)}</td>
+                                            <td className={cn(week.net >= 0 ? 'text-[hsl(var(--success-text))]' : 'text-[hsl(var(--danger-text))]')}>
+                                                {formatCurrency(week.net)}
+                                            </td>
+                                            <td className={cn('font-semibold', week.alert ? 'text-[hsl(var(--danger-text))]' : 'text-[hsl(var(--success-text))]')}>
+                                                {formatCurrency(week.projectedBalance)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {weeklyProjection.length === 0 && (
+                                        <tr><td colSpan={6} className="text-center py-6 text-sm text-muted-foreground">Sin proyección semanal.</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 

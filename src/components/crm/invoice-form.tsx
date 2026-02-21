@@ -35,6 +35,8 @@ interface InvoiceInitialData {
     issueDate: Date
     dueDate: Date | null
     amount: number
+    taxRate?: number | null
+    taxAmount?: number | null
     status: InvoiceStatus
     paymentMethod: string | null
     paymentBank?: string | null
@@ -90,6 +92,7 @@ export function InvoiceForm({ onClose, clients, projects, quotes, banks, initial
             issueDate: formData.get('issueDate') ? new Date(formData.get('issueDate') as string) : undefined,
             dueDate: formData.get('dueDate') ? new Date(formData.get('dueDate') as string) : undefined,
             amount: parseFloat(formData.get('amount') as string || '0'),
+            taxRate: parseFloat(formData.get('taxRate') as string || '0'),
             status: formData.get('status') as InvoiceStatus,
             paymentMethod: (formData.get('paymentMethod') as string || '').trim() || undefined,
             paymentBank: (formData.get('paymentBank') as string || '').trim() || undefined
@@ -247,10 +250,14 @@ export function InvoiceForm({ onClose, clients, projects, quotes, banks, initial
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         <div>
                             <label className="form-label">Monto</label>
                             <input name="amount" type="number" step="0.01" className="form-input" required defaultValue={initialData?.amount || ''} />
+                        </div>
+                        <div>
+                            <label className="form-label">Impuesto (%)</label>
+                            <input name="taxRate" type="number" step="0.01" min="0" className="form-input" defaultValue={initialData?.taxRate || 0} />
                         </div>
                         <div>
                             <label className="form-label">Fecha emisión</label>

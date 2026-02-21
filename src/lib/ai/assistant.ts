@@ -15,6 +15,7 @@ import {
     getLeads,
     getProjects,
     getSuppliers,
+    getReceivablesSummary,
     getUsers
 } from '@/lib/ai/tools'
 
@@ -39,6 +40,10 @@ Guidelines:
 - Use tools for real data queries and write operations.
 - For company queries, use getClients and confirm existence even if it has zero active projects.
 - For contact queries, use getContacts to return real email/phone data.
+- For "por cobrar/cobranzas", always use getReceivablesSummary and separate:
+  (1) facturas emitidas por cobrar vs (2) potencial por hitos aún no completados.
+- For cobranzas responses, always include "Resumen" with:
+  emitido actual, potencial por hitos, total combinado, ventana 7 días y 30 días.
 - Client creation requires only name. Email can be completed later.
 - For write operations, do not claim success unless tool returns success:true.
 - Convert relative dates like "hoy" or "mañana" using the date reference above.
@@ -112,6 +117,13 @@ export async function generateFibraAssistantReply(user: AssistantUserContext, pr
                     city: z.string().optional()
                 }),
                 execute: async ({ query, category, city }) => getSuppliers({ userId: user.id, role: user.role }, { query, category, city })
+            }),
+            getReceivablesSummary: tool({
+                description: 'Get receivables split in issued invoices vs potential from upcoming milestones',
+                inputSchema: z.object({
+                    horizonDays: z.number().int().min(1).max(120).optional()
+                }),
+                execute: async ({ horizonDays }) => getReceivablesSummary({ userId: user.id, role: user.role }, { horizonDays })
             }),
             createClient: tool({
                 description: 'Create client',

@@ -865,6 +865,7 @@ export async function createInvoice(data: {
     issueDate?: Date
     dueDate?: Date
     amount: number
+    taxRate?: number
     status?: InvoiceStatus
     paymentMethod?: string
     paymentBank?: string
@@ -907,6 +908,9 @@ export async function createInvoice(data: {
         }))
         if (duplicate) return { success: false, error: 'El número de factura ya existe' }
 
+        const safeTaxRate = Math.max(0, data.taxRate || 0)
+        const taxAmount = Math.round((data.amount * safeTaxRate / 100) * 100) / 100
+
         const invoice = await withPrismaRetry(() => prisma.invoice.create({
             data: {
                 invoiceNumber,
@@ -917,6 +921,8 @@ export async function createInvoice(data: {
                 issueDate: data.issueDate || new Date(),
                 dueDate: data.dueDate || null,
                 amount: data.amount,
+                taxRate: safeTaxRate,
+                taxAmount,
                 status: data.status || InvoiceStatus.DRAFT,
                 paymentMethod: data.paymentMethod || null,
                 paymentBank: data.paymentBank || null,
@@ -1061,6 +1067,7 @@ export async function updateInvoice(invoiceId: string, data: {
     issueDate?: Date
     dueDate?: Date
     amount: number
+    taxRate?: number
     status?: InvoiceStatus
     paymentMethod?: string
     paymentBank?: string
@@ -1102,6 +1109,9 @@ export async function updateInvoice(invoiceId: string, data: {
         }))
         if (duplicate) return { success: false, error: 'El número de factura ya existe' }
 
+        const safeTaxRate = Math.max(0, data.taxRate || 0)
+        const taxAmount = Math.round((data.amount * safeTaxRate / 100) * 100) / 100
+
         const invoice = await withPrismaRetry(() => prisma.invoice.update({
             where: { id: invoiceId },
             data: {
@@ -1113,6 +1123,8 @@ export async function updateInvoice(invoiceId: string, data: {
                 issueDate: data.issueDate || new Date(),
                 dueDate: data.dueDate || null,
                 amount: data.amount,
+                taxRate: safeTaxRate,
+                taxAmount,
                 status: data.status || InvoiceStatus.DRAFT,
                 paymentMethod: data.paymentMethod || null,
                 paymentBank: data.paymentBank || null,

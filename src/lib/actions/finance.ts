@@ -5,6 +5,77 @@ import { revalidatePath } from 'next/cache'
 import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 
+function monthBounds(referenceDate: Date) {
+    const start = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1)
+    const end = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 1)
+    return { start, end }
+}
+
+export async function ensureMonthlyPayroll(referenceDate = new Date()) {
+    try {
+        await requireModuleAccess('finanzas')
+        const { start, end } = monthBounds(referenceDate)
+
+        const users = await withPrismaRetry(() =>
+            prisma.user.findMany({
+                select: { id: true },
+                orderBy: { createdAt: 'asc' },
+                take: 200
+            })
+        )
+
+        let created = 0
+        for (const user of users) {
+            const existsThisMonth = await withPrismaRetry(() =>
+                prisma.payroll.findFirst({
+                    where: {
+                        userId: user.id,
+                        paymentDate: {
+                            gte: start,
+                            lt: end
+                        }
+                    },
+                    select: { id: true }
+                })
+            )
+            if (existsThisMonth) continue
+
+            const latest = await withPrismaRetry(() =>
+                prisma.payroll.findFirst({
+                    where: { userId: user.id },
+                    orderBy: { paymentDate: 'desc' },
+                    select: { salary: true }
+                })
+            )
+
+            if (!latest || latest.salary <= 0) continue
+
+            await withPrismaRetry(() =>
+                prisma.payroll.create({
+                    data: {
+                        userId: user.id,
+                        salary: latest.salary,
+                        bonus: 0,
+                        status: 'PENDING',
+                        paymentDate: start
+                    }
+                })
+            )
+            created += 1
+        }
+
+        if (created > 0) {
+            revalidatePath('/finanzas')
+            revalidatePath('/dashboard')
+        }
+
+        return { success: true as const, created }
+    } catch (error) {
+        console.error('Error ensuring monthly payroll:', error)
+        return { success: false as const, created: 0 }
+    }
+}
+
 // Fixed Costs Actions
 export async function getFixedCosts() {
     try {
