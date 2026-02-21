@@ -36,12 +36,13 @@ function formatNotificationDate(value: Date) {
     return `${date} ${time}`
 }
 
-export default async function NotificationDetailPage({ params }: { params: { id: string } }) {
+export default async function NotificationDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const user = await requireAuthUser()
+    const { id } = await params
 
     const notification = await withPrismaRetry(() =>
         prisma.notification.findFirst({
-            where: { id: params.id, userId: user.id },
+            where: { id, userId: user.id },
             select: {
                 id: true,
                 type: true,

@@ -4,16 +4,17 @@ import prisma from '@/lib/prisma'
 export const dynamic = 'force-dynamic'
 
 interface Context {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }
 
 export async function PATCH(_: Request, { params }: Context) {
     try {
         const user = await requireAuthUser()
+        const { id } = await params
 
         await prisma.notification.updateMany({
             where: {
-                id: params.id,
+                id,
                 userId: user.id
             },
             data: { read: true }

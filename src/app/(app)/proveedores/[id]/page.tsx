@@ -7,17 +7,18 @@ import { ProveedorDetalleClient } from '@/components/proveedores/proveedor-detal
 export const dynamic = 'force-dynamic'
 
 interface ProveedorDetallePageProps {
-    params: {
+    params: Promise<{
         id: string
-    }
+    }>
 }
 
 export default async function ProveedorDetallePage({ params }: ProveedorDetallePageProps) {
     await requireModuleAccess('proveedores')
+    const { id } = await params
 
     const supplier = await withPrismaRetry(() =>
         prisma.supplier.findUnique({
-            where: { id: params.id },
+            where: { id },
             select: {
                 id: true,
                 name: true,

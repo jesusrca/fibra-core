@@ -33,25 +33,16 @@ export async function POST(req: Request) {
             return Response.json({ error: 'El audio excede el límite de 12MB.' }, { status: 400 })
         }
 
-        const arrayBuffer = await audio.arrayBuffer()
-        const bytes = new Uint8Array(arrayBuffer)
-        const filename = sanitizeFileName(audio.name)
-
-        const client = new OpenAI({ apiKey })
-        const openaiFile = await OpenAI.toFile(bytes, filename, { type: audio.type || 'audio/webm' })
-        const transcript = await client.audio.transcriptions.create({
+        const openaiClient = new OpenAI({ apiKey })
+        const result = await openaiClient.audio.transcriptions.create({
+            file: audio,
             model: 'whisper-1',
-            file: openaiFile
+            response_format: 'json'
         })
-
-        const text = (transcript.text || '').trim()
-        if (!text) {
-            return Response.json({ error: 'Whisper no devolvió texto para este audio.' }, { status: 422 })
-        }
 
         return Response.json({
             success: true,
-            text
+            text: result.text
         })
     } catch (error) {
         const message = error instanceof Error ? error.message : 'No se pudo transcribir el audio'

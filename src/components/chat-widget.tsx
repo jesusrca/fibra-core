@@ -157,7 +157,14 @@ export function ChatWidget() {
             setRecordError(null)
             setIsRecording(true)
         } catch (error) {
-            setRecordError(error instanceof Error ? error.message : 'No se pudo iniciar la grabación')
+            let message = error instanceof Error ? error.message : 'No se pudo iniciar la grabación'
+
+            // Handle context errors (HTTP instead of HTTPS) or explicit permission denial
+            if (message.includes('not allowed by the user agent') || message.includes('Permission denied')) {
+                message = 'Permiso denegado o entorno no seguro. El micrófono requiere HTTPS (o localhost) y permisos habilitados en tu navegador.'
+            }
+
+            setRecordError(message)
             setIsRecording(false)
             setIsRecordingPaused(false)
         }

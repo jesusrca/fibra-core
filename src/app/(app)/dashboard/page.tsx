@@ -82,132 +82,132 @@ const getDashboardData = unstable_cache(
         const transactionDateRange = { date: { gte: fromDate, lte: toDate } }
         const taskDateRange = { createdAt: { gte: fromDate, lte: toDate } }
 
-        return withPrismaRetry(() =>
-            prisma.$transaction([
-                prisma.lead.aggregate({
-                    where: {
-                        status: { notIn: [LeadStatus.WON, LeadStatus.LOST] },
-                        ...leadDateRange
-                    },
-                    _sum: { estimatedValue: true }
-                }),
-                prisma.lead.count({
-                    where: {
-                        status: { notIn: [LeadStatus.WON, LeadStatus.LOST] },
-                        ...leadDateRange
+        // Ejecutar consultas en paralelo sin transacción para mejorar el tiempo de respuesta
+        return Promise.all([
+            prisma.lead.aggregate({
+                where: {
+                    status: { notIn: [LeadStatus.WON, LeadStatus.LOST] },
+                    ...leadDateRange
+                },
+                _sum: { estimatedValue: true }
+            }),
+            prisma.lead.count({
+                where: {
+                    status: { notIn: [LeadStatus.WON, LeadStatus.LOST] },
+                    ...leadDateRange
+                }
+            }),
+            prisma.lead.aggregate({
+                where: { status: LeadStatus.WON, ...leadDateRange },
+                _sum: { estimatedValue: true }
+            }),
+            prisma.project.groupBy({
+                by: ['status'],
+                where: projectDateRange,
+                orderBy: {
+                    status: 'asc'
+                },
+                _count: { _all: true }
+            }),
+            prisma.project.findMany({
+                where: {
+                    status: { in: [ProjectStatus.ACTIVE, ProjectStatus.REVIEW] },
+                    ...projectDateRange
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    status: true,
+                    budget: true,
+                    startDate: true,
+                    endDate: true,
+                    client: { select: { name: true } },
+                    director: { select: { name: true } },
+                    milestones: {
+                        select: { id: true },
+                        take: 1
                     }
-                }),
-                prisma.lead.aggregate({
-                    where: { status: LeadStatus.WON, ...leadDateRange },
-                    _sum: { estimatedValue: true }
-                }),
-                prisma.project.groupBy({
-                    by: ['status'],
-                    where: projectDateRange,
-                    orderBy: {
-                        status: 'asc'
-                    },
-                    _count: { _all: true }
-                }),
-                prisma.project.findMany({
-                    where: {
-                        status: { in: [ProjectStatus.ACTIVE, ProjectStatus.REVIEW] },
-                        ...projectDateRange
-                    },
-                    select: {
-                        id: true,
-                        name: true,
-                        status: true,
-                        budget: true,
-                        startDate: true,
-                        endDate: true,
-                        client: { select: { name: true } },
-                        director: { select: { name: true } },
-                        milestones: {
-                            select: { id: true },
-                            take: 3
-                        }
-                    },
-                    take: 5,
-                    orderBy: { updatedAt: 'desc' }
-                }),
-                prisma.transaction.findMany({
-                    where: transactionDateRange,
-                    select: {
-                        id: true,
-                        category: true,
-                        subcategory: true,
-                        amount: true,
-                        description: true,
-                        date: true
-                    },
-                    orderBy: { date: 'desc' },
-                    take: 120
-                }),
-                prisma.lead.findMany({
-                    where: leadDateRange,
-                    select: {
-                        id: true,
-                        companyName: true,
-                        serviceRequested: true,
-                        createdAt: true
-                    },
-                    orderBy: { createdAt: 'desc' },
-                    take: 3
-                }),
-                prisma.task.findMany({
-                    select: {
-                        id: true,
-                        title: true,
-                        dueDate: true,
-                        createdAt: true
-                    },
-                    where: {
-                        status: { not: 'DONE' },
-                        ...taskDateRange
-                    },
-                    orderBy: { createdAt: 'desc' },
-                    take: 3
-                }),
-                prisma.invoice.aggregate({
-                    where: {
-                        status: { in: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE] }
-                    },
-                    _sum: { amount: true }
-                }),
-                prisma.invoice.findMany({
-                    where: {
-                        status: { in: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE] },
-                        dueDate: { not: null, lte: next7Days }
-                    },
-                    select: {
-                        id: true,
-                        invoiceNumber: true,
-                        amount: true,
-                        dueDate: true,
-                        status: true,
-                        client: { select: { name: true } }
-                    },
-                    orderBy: { dueDate: 'asc' },
-                    take: 12
-                }),
-                prisma.user.findMany({
-                    select: {
-                        id: true,
-                        name: true,
-                        role: true,
-                        timezone: true,
-                        schedule: true,
-                        birthday: true
-                    },
-                    orderBy: { name: 'asc' },
-                    take: 80
-                })
-            ])
-        )
+                },
+                take: 5,
+                orderBy: { updatedAt: 'desc' }
+            }),
+            prisma.transaction.findMany({
+                where: transactionDateRange,
+                select: {
+                    id: true,
+                    category: true,
+                    subcategory: true,
+                    amount: true,
+                    description: true,
+                    date: true
+                },
+                orderBy: { date: 'desc' },
+                take: 50 // Reducido de 120 para optimizar carga inicial
+            }),
+            prisma.lead.findMany({
+                where: leadDateRange,
+                select: {
+                    id: true,
+                    companyName: true,
+                    serviceRequested: true,
+                    createdAt: true
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 3
+            }),
+            prisma.task.findMany({
+                select: {
+                    id: true,
+                    title: true,
+                    dueDate: true,
+                    createdAt: true
+                },
+                where: {
+                    status: { not: 'DONE' },
+                    ...taskDateRange
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 3
+            }),
+            prisma.invoice.aggregate({
+                where: {
+                    status: { in: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE] }
+                },
+                _sum: { amount: true }
+            }),
+            prisma.invoice.findMany({
+                where: {
+                    status: { in: [InvoiceStatus.SENT, InvoiceStatus.OVERDUE] },
+                    dueDate: { not: null, lte: next7Days }
+                },
+                select: {
+                    id: true,
+                    invoiceNumber: true,
+                    amount: true,
+                    dueDate: true,
+                    status: true,
+                    client: { select: { name: true } }
+                },
+                orderBy: { dueDate: 'asc' },
+                take: 5 // Reducido de 12 para alertas rápidas
+            }),
+            prisma.user.findMany({
+                select: {
+                    id: true,
+                    name: true,
+                    role: true,
+                    timezone: true,
+                    schedule: true,
+                    birthday: true
+                },
+                where: { birthday: { not: null } }, // Solo traer usuarios con cumple para el widget
+                orderBy: { name: 'asc' },
+                take: 20 // Reducido de 80. Suficiente para el widget de equipo
+            })
+        ])
     },
-    ['dashboard-data-v4'],
-    { revalidate: 20 }
+    ['dashboard-data-v5'],
+    { revalidate: 60 } // Aumentado a 60s para mejor persistencia del cache
 )
 
 export default async function DashboardPage({ searchParams }: { searchParams?: PageSearchParams }) {
@@ -236,19 +236,19 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
     try {
         const data = await getDashboardData(resolvedRange.from.toISOString(), resolvedRange.to.toISOString())
 
-        ;[
-            pipelineAgg,
-            opportunitiesCount,
-            wonRevenueAgg,
-            groupedProjects,
-            activeProjects,
-            transactionsInRange,
-            recentLeads,
-            recentTasks,
-            receivablesAgg,
-            receivableAlerts,
-            teamUsers
-        ] = data as typeof data
+            ;[
+                pipelineAgg,
+                opportunitiesCount,
+                wonRevenueAgg,
+                groupedProjects,
+                activeProjects,
+                transactionsInRange,
+                recentLeads,
+                recentTasks,
+                receivablesAgg,
+                receivableAlerts,
+                teamUsers
+            ] = data as typeof data
     } catch (error) {
         console.error('Dashboard data fetch failed:', error)
     }

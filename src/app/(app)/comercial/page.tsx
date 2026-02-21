@@ -18,7 +18,7 @@ function firstParam(value: string | string[] | undefined) {
 
 const getComercialData = unstable_cache(
     async (page: number, pageSize: number, q: string, status: string) =>
-        withPrismaRetry(() => prisma.$transaction([
+        Promise.all([
             prisma.lead.findMany({
                 where: {
                     ...(status !== 'ALL' ? { status: status as LeadStatus } : {}),
@@ -38,7 +38,7 @@ const getComercialData = unstable_cache(
                     contact: { select: { id: true, firstName: true, lastName: true, email: true } },
                     activities: {
                         orderBy: { date: 'desc' },
-                        take: 20,
+                        take: 5, // Reducido de 20
                         select: {
                             id: true,
                             type: true,
@@ -67,12 +67,13 @@ const getComercialData = unstable_cache(
             }),
             prisma.user.findMany({
                 orderBy: { name: 'asc' },
-                select: { id: true, name: true, email: true, role: true, phone: true, createdAt: true, updatedAt: true }
+                select: { id: true, name: true, role: true, email: true, phone: true },
+                take: 50
             }),
             prisma.client.findMany({
                 orderBy: { name: 'asc' },
-                select: { id: true, name: true, country: true, industry: true, mainEmail: true, createdAt: true, updatedAt: true, taxId: true, address: true, referredBy: true },
-                take: 80
+                select: { id: true, name: true, country: true, industry: true, mainEmail: true, taxId: true, address: true, referredBy: true, createdAt: true, updatedAt: true },
+                take: 40
             }),
             prisma.contact.findMany({
                 include: {
@@ -91,34 +92,17 @@ const getComercialData = unstable_cache(
                     }
                 },
                 orderBy: { firstName: 'asc' },
-                take: 80
+                take: 40
             }),
             prisma.quote.findMany({
-                include: {
-                    lead: {
-                        select: {
-                            id: true,
-                            companyName: true,
-                            serviceRequested: true
-                        }
-                    }
-                },
                 orderBy: { createdAt: 'desc' },
-                take: 80
+                take: 30,
+                include: { lead: { select: { id: true, companyName: true, serviceRequested: true } } }
             }),
             prisma.invoice.findMany({
-                include: {
-                    client: { select: { id: true, name: true } },
-                    project: { select: { id: true, name: true } },
-                    quote: {
-                        select: {
-                            id: true,
-                            lead: { select: { companyName: true } }
-                        }
-                    }
-                },
                 orderBy: { createdAt: 'desc' },
-                take: 80
+                take: 30,
+                include: { client: { select: { id: true, name: true } }, project: { select: { id: true, name: true } }, quote: { select: { id: true, lead: { select: { companyName: true } } } } }
             }),
             prisma.project.findMany({
                 select: {
@@ -131,17 +115,17 @@ const getComercialData = unstable_cache(
                     startDate: true,
                     status: true,
                     quote: { select: { installmentsCount: true } },
-                        milestones: { select: { id: true, status: true, billable: true } },
-                        invoices: { select: { id: true, status: true } }
+                    milestones: { select: { id: true, status: true, billable: true } },
+                    invoices: { select: { id: true, status: true } }
                 },
                 orderBy: { updatedAt: 'desc' },
-                take: 80
+                take: 40
             }),
             prisma.accountingBank.findMany({
                 where: { isActive: true },
                 select: { id: true, name: true },
                 orderBy: { name: 'asc' },
-                take: 120
+                take: 30
             }),
             prisma.lead.findMany({
                 select: {
@@ -152,11 +136,11 @@ const getComercialData = unstable_cache(
                     createdAt: true
                 },
                 orderBy: { createdAt: 'desc' },
-                take: 240
+                take: 100 // Reducido de 240. Suficiente para métricas recientes.
             })
-        ])),
-    ['comercial-data-v6'],
-    { revalidate: 15 }
+        ]),
+    ['comercial-data-v7'],
+    { revalidate: 60 } // Aumentado a 60s
 )
 
 export default async function ComercialPage({ searchParams }: { searchParams?: PageSearchParams }) {

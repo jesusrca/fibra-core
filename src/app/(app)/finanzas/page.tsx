@@ -18,20 +18,24 @@ const getFinanzasData = unstable_cache(
         withPrismaRetry(() =>
             Promise.all([
                 prisma.fixedCost.findMany({
-                    orderBy: { dueDate: 'asc' }
+                    orderBy: { dueDate: 'asc' },
+                    take: 100
                 }),
                 prisma.payroll.findMany({
-                    include: { user: true },
-                    orderBy: { paymentDate: 'desc' }
+                    include: { user: { select: { id: true, name: true, role: true } } },
+                    orderBy: { paymentDate: 'desc' },
+                    take: 50
                 }),
                 prisma.user.findMany({
-                    select: { id: true, name: true, email: true, role: true },
-                    orderBy: { name: 'asc' }
+                    select: { id: true, name: true, role: true },
+                    orderBy: { name: 'asc' },
+                    take: 50
                 }),
                 prisma.accountingBank.findMany({
                     where: { isActive: true },
                     select: { id: true, name: true },
-                    orderBy: { name: 'asc' }
+                    orderBy: { name: 'asc' },
+                    take: 20
                 }),
                 prisma.transaction.findMany({
                     where: { date: { lte: new Date() } },
@@ -51,7 +55,8 @@ const getFinanzasData = unstable_cache(
                             }
                         }
                     },
-                    orderBy: { date: 'asc' }
+                    orderBy: { date: 'desc' },
+                    take: 300 // Suficiente para los gráficos de los últimos 6 meses
                 }),
                 prisma.invoice.findMany({
                     select: {
@@ -72,7 +77,7 @@ const getFinanzasData = unstable_cache(
                         client: { select: { id: true, name: true } }
                     },
                     orderBy: { createdAt: 'desc' },
-                    take: 600
+                    take: 200 // Reducido de 600
                 }),
                 prisma.supplierPayment.findMany({
                     where: { status: 'PENDING' },
@@ -82,12 +87,12 @@ const getFinanzasData = unstable_cache(
                         issueDate: true
                     },
                     orderBy: { paymentDate: 'asc' },
-                    take: 400
+                    take: 100 // Reducido de 400
                 })
             ])
         ),
-    ['finanzas-data-v4'],
-    { revalidate: 15 }
+    ['finanzas-data-v5'],
+    { revalidate: 60 }
 )
 
 export default async function FinanzasPage() {

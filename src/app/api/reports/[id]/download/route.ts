@@ -4,16 +4,17 @@ import { requireAuthUser, requireModuleAccess } from '@/lib/server-auth'
 export const dynamic = 'force-dynamic'
 
 interface Ctx {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }
 
 export async function GET(_: Request, { params }: Ctx) {
     await requireModuleAccess('reportes')
     const user = await requireAuthUser()
+    const { id } = await params
 
     const report = await prisma.report.findFirst({
         where: {
-            id: params.id,
+            id,
             generatedById: user.id
         },
         select: {

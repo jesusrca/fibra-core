@@ -17,7 +17,11 @@ function isValidMessage(message: any): message is UIMessage {
 
 export function useSharedChat() {
     const transport = useMemo(() => new DefaultChatTransport({ api: '/api/chat' }), [])
-    const chat = useChat({ id: SHARED_CHAT_ID, transport })
+    const chat = useChat({
+        id: SHARED_CHAT_ID,
+        transport,
+        experimental_throttle: 50,
+    })
     const hydratedRef = useRef(false)
 
     useEffect(() => {
@@ -38,21 +42,34 @@ export function useSharedChat() {
         }
     }, [chat])
 
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
     useEffect(() => {
         if (!hydratedRef.current) return
-        try {
-            const safeMessages = chat.messages.map((message) => {
-                const nonFileParts = message.parts.filter((part) => part.type !== 'file')
-                return {
-                    ...message,
-                    parts: nonFileParts.length > 0
-                        ? nonFileParts
-                        : [{ type: 'text' as const, text: '[Adjunto enviado]' }]
-                }
-            })
-            localStorage.setItem(SHARED_CHAT_STORAGE_KEY, JSON.stringify(safeMessages))
-        } catch {
-            // Ignore storage quota / serialization errors
+
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current)
+        }
+
+        saveTimeoutRef.current = setTimeout(() => {
+            try {
+                const safeMessages = chat.messages.map((message) => {
+                    const nonFileParts = message.parts.filter((part) => part.type !== 'file')
+                    return {
+                        ...message,
+                        parts: nonFileParts.length > 0
+                            ? nonFileParts
+                            : [{ type: 'text' as const, text: '[Adjunto enviado]' }]
+                    }
+                })
+                localStorage.setItem(SHARED_CHAT_STORAGE_KEY, JSON.stringify(safeMessages))
+            } catch {
+                // Ignore storage quota / serialization errors
+            }
+        }, 1000) // Debounce by 1 second
+
+        return () => {
+            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
         }
     }, [chat.messages])
 

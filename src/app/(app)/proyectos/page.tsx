@@ -17,64 +17,62 @@ function firstParam(value: string | string[] | undefined) {
 
 const getProyectosData = unstable_cache(
     async (page: number, pageSize: number, q: string, status: string) =>
-        withPrismaRetry(() =>
-            prisma.$transaction([
-                prisma.project.findMany({
-                    where: {
-                        ...(status !== 'ALL' ? { status: status as ProjectStatus } : {}),
-                        ...(q
-                            ? {
-                                OR: [
-                                    { name: { contains: q, mode: 'insensitive' } },
-                                    { serviceType: { contains: q, mode: 'insensitive' } },
-                                    { client: { name: { contains: q, mode: 'insensitive' } } },
-                                ]
-                            }
-                            : {}),
-                    },
-                    include: {
-                        client: { select: { id: true, name: true } },
-                        director: { select: { id: true, name: true } },
-                        milestones: { select: { id: true, status: true } }
-                    },
-                    orderBy: { updatedAt: 'desc' },
-                    skip: (page - 1) * pageSize,
-                    take: pageSize
-                }),
-                prisma.project.count({
-                    where: {
-                        ...(status !== 'ALL' ? { status: status as ProjectStatus } : {}),
-                        ...(q
-                            ? {
-                                OR: [
-                                    { name: { contains: q, mode: 'insensitive' } },
-                                    { serviceType: { contains: q, mode: 'insensitive' } },
-                                    { client: { name: { contains: q, mode: 'insensitive' } } },
-                                ]
-                            }
-                            : {}),
-                    },
-                }),
-                prisma.client.findMany({
-                    select: { id: true, name: true },
-                    orderBy: { name: 'asc' },
-                    take: 120
-                }),
-                prisma.user.findMany({
-                    orderBy: { name: 'asc' },
-                    select: { id: true, name: true, email: true, role: true },
-                    take: 120
-                }),
-                prisma.serviceCatalog.findMany({
-                    where: { isActive: true },
-                    orderBy: { name: 'asc' },
-                    select: { id: true, name: true },
-                    take: 120
-                })
-            ])
-        ),
-    ['proyectos-data-v4'],
-    { revalidate: 15 }
+        Promise.all([
+            prisma.project.findMany({
+                where: {
+                    ...(status !== 'ALL' ? { status: status as ProjectStatus } : {}),
+                    ...(q
+                        ? {
+                            OR: [
+                                { name: { contains: q, mode: 'insensitive' } },
+                                { serviceType: { contains: q, mode: 'insensitive' } },
+                                { client: { name: { contains: q, mode: 'insensitive' } } },
+                            ]
+                        }
+                        : {}),
+                },
+                include: {
+                    client: { select: { id: true, name: true } },
+                    director: { select: { id: true, name: true } },
+                    milestones: { select: { id: true, status: true } }
+                },
+                orderBy: { updatedAt: 'desc' },
+                skip: (page - 1) * pageSize,
+                take: pageSize
+            }),
+            prisma.project.count({
+                where: {
+                    ...(status !== 'ALL' ? { status: status as ProjectStatus } : {}),
+                    ...(q
+                        ? {
+                            OR: [
+                                { name: { contains: q, mode: 'insensitive' } },
+                                { serviceType: { contains: q, mode: 'insensitive' } },
+                                { client: { name: { contains: q, mode: 'insensitive' } } },
+                            ]
+                        }
+                        : {}),
+                },
+            }),
+            prisma.client.findMany({
+                select: { id: true, name: true },
+                orderBy: { name: 'asc' },
+                take: 50
+            }),
+            prisma.user.findMany({
+                orderBy: { name: 'asc' },
+                select: { id: true, name: true, role: true, email: true },
+                take: 50
+            }),
+            prisma.serviceCatalog.findMany({
+                where: { isActive: true },
+                orderBy: { name: 'asc' },
+                select: { id: true, name: true },
+                take: 50
+            })
+        ]),
+    ['proyectos-data-v5'],
+    { revalidate: 60 }
 )
 
 export default async function ProyectosPage({ searchParams }: { searchParams?: PageSearchParams }) {

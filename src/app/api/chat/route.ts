@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai';
-import { convertToModelMessages, stepCountIs, streamText, tool, UIMessage } from 'ai';
+import { convertToModelMessages, smoothStream, stepCountIs, streamText, tool, UIMessage } from 'ai';
 import OpenAI from 'openai';
 import { z } from 'zod';
 import {
@@ -25,6 +25,8 @@ import { withPrismaRetry } from '@/lib/prisma-retry';
 import { aiRateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
@@ -76,22 +78,22 @@ async function transcribeAudioWithOpenAI(params: {
     mediaType: string
     data: Uint8Array
 }) {
-    const model = 'whisper-1'
     const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) throw new Error('OPENAI_API_KEY no configurada')
 
-    if (!apiKey) {
-        throw new Error('OPENAI_API_KEY no configurada para transcripción de audio')
-    }
-
-    const client = new OpenAI({ apiKey })
+    const openaiClient = new OpenAI({ apiKey })
     const safeMediaType = params.mediaType || 'audio/webm'
-    const file = await OpenAI.toFile(params.data, params.filename, { type: safeMediaType })
-    const transcript = await client.audio.transcriptions.create({
-        model,
-        file
+
+    const file = new File([Buffer.from(params.data)], params.filename, { type: safeMediaType })
+
+    const result = await openaiClient.audio.transcriptions.create({
+        file,
+        model: 'whisper-1',
+        response_format: 'json'
     })
 
-    const text = (transcript.text || '').trim()
+    const text = (result.text || '').trim()
+
     if (!text) {
         throw new Error('Whisper no devolvió texto para el audio enviado')
     }
@@ -316,7 +318,14 @@ export async function POST(req: Request) {
         }
 
         const uiMessages = messages as UIMessage[]
-        const enrichedMessages = await enrichMessagesWithAttachmentContext(uiMessages, { id: user.id })
+
+        // Truncar historial para evitar exceder TPM. Mantener últimos 10 mensajes es suficiente contexto.
+        const historyLimit = 10;
+        const recentMessages = uiMessages.length > historyLimit
+            ? [uiMessages[0], ...uiMessages.slice(-(historyLimit - 1))]
+            : uiMessages;
+
+        const enrichedMessages = await enrichMessagesWithAttachmentContext(recentMessages, { id: user.id })
         const modelMessages = await convertToModelMessages(
             enrichedMessages.map(({ id: _id, ...rest }) => rest)
         )
@@ -329,49 +338,17 @@ export async function POST(req: Request) {
         const result = streamText({
             model: openai('gpt-4o'),
             messages: modelMessages,
-            system: `You are Fibra Bot, an AI assistant for the Fibra branding studio management platform.
-      You have access to the company database through tools.
-      Your goal is to help users find information about projects, leads, finances, team members, and suppliers quickly.
-      Current date reference: today is ${todayIso}. Tomorrow is ${tomorrowIso}.
-      
-      Guidelines:
-      - Always check the database before answering questions about specific data.
-      - Be concise, professional, and keep the response clean and well ordered.
-      - If the user asks about a specific project or client, try to search for it.
-      - When mentioning a specific project returned by tools, ALWAYS include a direct markdown link to its detail page using its id:
-        [Project Name](/proyectos/{projectId})
-      - Prefer short sections with clear bullets and avoid noisy formatting.
-      - Format monetary values with the exact currency from data: PEN => S/ and USD => $.
-      - Never convert or assume currency; if a lead has currency USD, keep USD in the response.
-      - For dates, ALWAYS use DD/MM/YYYY format in responses.
-      - If you can't find information, state that clearly.
-      - If a company exists but has zero active projects, explicitly say the company exists and indicate its project status/count.
-      - For questions about companies/contacts, use getClients/getContacts instead of assuming from active projects only.
-      - For "por cobrar / cobranzas" questions, ALWAYS use getReceivablesSummary and clearly separate:
-        1) Por cobrar emitido (facturas ya emitidas: SENT/OVERDUE)
-        2) Potencial por hitos (aún NO facturable hasta completar hitos)
-      - For cobranzas responses, always include a short "Resumen" with:
-        - Emitido por cobrar ahora
-        - Potencial por hitos
-        - Total combinado (emitido + potencial)
-        - Ventana 7 días y 30 días
-      - When listing multiple items, use bullet points for readability.
-      - For write operations (create lead/client/contact/project/task), indica los datos recomendados, pero permite guardado mínimo cuando solo hay nombre cuando aplique.
-      - Para crear clientes NO es obligatorio email; puede completarse después.
-      - For write operations, NEVER claim "created/registered successfully" unless the corresponding tool was executed and returned success: true.
-      - For relative dates in Spanish (hoy, mañana, pasado mañana), always convert using the current date reference above.
-      - Do not infer old years (e.g., 2023) for new tasks unless the user explicitly asks for that year.
-      - Si faltan datos no críticos (email, empresa, director, presupuesto), crea el registro base y sugiere completarlo luego.
-      - If a write tool returns "success: false", explain the reason to the user clearly.
-      - For project creation, minimum operativo: nombre del proyecto. Si falta cliente, usar cliente placeholder y luego completar.
-      - If user sends attachments (images, audio, documents), process them and answer using that content.
-      - Si el usuario envía varios clientes en un solo mensaje, usa createClientsBulk para registrar todos.
-      - Al crear uno o varios clientes, devuelve links directos para editar cada uno con este formato:
-        [Nombre Cliente](/comercial?tab=companies&editClientId={clientId})
-      - Después de crear clientes, sugiere datos útiles para completar: email principal, país, industria, RUC/ID fiscal y dirección.
-      - Always keep the final response clean, structured, and in Spanish.
-      - If extracted/transcribed content is in another language, translate it to Spanish before final response.
-    `,
+            experimental_transform: smoothStream(),
+            system: `Eres Fibra Bot, asistente del estudio Fibra. Hoy: ${todayIso}.
+      Reglas:
+      - Responde en ESPAÑOL, conciso y profesional.
+      - Consulta db antes de afirmar. Usa herramientas para proyectos, leads, finanzas, equipo y proveedores.
+      - Para cobranzas (getReceivablesSummary): separa EMITIDO de POTENCIAL. Incluye siempre "Resumen" (Emitido, Potencial, Total, Ventana 7 y 30 días).
+      - Links proyectos: [Nombre](/proyectos/{id}). Fechas: DD/MM/YYYY. Moneda: original (S/ o $).
+      - Clientes: createClient solo requiere nombre. Sugiere completar datos luego. 
+      - Bulk: Usa createClientsBulk y da links [/comercial?tab=companies&editClientId={id}].
+      - No confirmes éxito si la herramienta falla.
+      - Si hay adjuntos, procesa y responde según su contenido.`,
             tools: {
                 getProjects: tool({
                     description: 'Get a list of projects. Filter by status (ACTIVE, PLANNING, COMPLETED, etc.) or search by name/client.',
@@ -574,6 +551,9 @@ export async function POST(req: Request) {
         });
 
         return result.toUIMessageStreamResponse({
+            headers: {
+                'X-Accel-Buffering': 'no'
+            },
             onError: (error) => {
                 console.error('Chat stream error:', error);
                 return 'Ocurrió un error procesando la respuesta del bot.';

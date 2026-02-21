@@ -274,7 +274,7 @@ async function getProjectsForReceivables() {
                 }
             },
             orderBy: { updatedAt: 'desc' },
-            take: 200
+            take: 20
         })
     } catch (error) {
         const message = error instanceof Error ? error.message : ''
@@ -295,7 +295,7 @@ async function getProjectsForReceivables() {
                 }
             },
             orderBy: { updatedAt: 'desc' },
-            take: 200
+            take: 20
         })
 
         return legacyProjects.map((project) => ({
@@ -335,7 +335,7 @@ export async function getReceivablesSummary(ctx: AIToolContext, { horizonDays }:
                     project: { select: { id: true, name: true } }
                 },
                 orderBy: [{ dueDate: 'asc' }, { issueDate: 'asc' }],
-                take: 300
+                take: 50 // Reducido de 300 para ahorrar tokens
             }),
             getProjectsForReceivables()
         ])
@@ -440,12 +440,12 @@ export async function getReceivablesSummary(ctx: AIToolContext, { horizonDays }:
             issuedReceivables: {
                 total: roundedIssuedTotal,
                 count: issuedDetails.length,
-                details: issuedDetails
+                details: issuedDetails.slice(0, 10) // Top 10 para ahorrar tokens
             },
             potentialFromMilestones: {
                 total: roundedPotentialTotal,
                 count: potentialSoon.length,
-                details: potentialSoon
+                details: potentialSoon.slice(0, 10) // Top 10
             },
             summary: {
                 issuedNow: roundedIssuedTotal,
@@ -521,7 +521,7 @@ export async function getClients(ctx: AIToolContext, { query, hasActiveProjects,
                         status: true
                     },
                     orderBy: { updatedAt: 'desc' },
-                    take: 20
+                    take: 5 // Reducido de 20 para ahorrar tokens
                 }
             },
             orderBy: { name: 'asc' },
