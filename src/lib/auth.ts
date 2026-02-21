@@ -45,6 +45,39 @@ export const authOptions: NextAuthOptions = {
                     role: user.role
                 }
             }
+        }),
+        CredentialsProvider({
+            id: 'passkey',
+            name: 'Passkey',
+            credentials: {
+                email: { label: 'Email', type: 'email' },
+                passkeyVerified: { label: 'Verified', type: 'text' }
+            },
+            async authorize(credentials) {
+                const email = credentials?.email?.trim().toLowerCase()
+                const passkeyVerified = credentials?.passkeyVerified
+
+                if (!email || passkeyVerified !== 'true') return null
+
+                const user = await prisma.user.findUnique({
+                    where: { email },
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        role: true,
+                    }
+                })
+
+                if (!user) return null
+
+                return {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role
+                }
+            }
         })
     ],
     callbacks: {

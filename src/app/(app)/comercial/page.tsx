@@ -3,8 +3,6 @@ import prisma from '@/lib/prisma'
 import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { unstable_cache } from 'next/cache'
-import { ensureComercialDataQualityNotifications } from '@/lib/data-quality-notifications'
-import { syncInvoicesFromMilestones } from '@/lib/actions/crm'
 import { LeadStatus } from '@prisma/client'
 import { paginationQuerySchema } from '@/lib/validation/schemas'
 import { toSignedStorageUrl } from '@/lib/storage'
@@ -20,7 +18,7 @@ function firstParam(value: string | string[] | undefined) {
 
 const getComercialData = unstable_cache(
     async (page: number, pageSize: number, q: string, status: string) =>
-        withPrismaRetry(() => Promise.all([
+        withPrismaRetry(() => prisma.$transaction([
             prisma.lead.findMany({
                 where: {
                     ...(status !== 'ALL' ? { status: status as LeadStatus } : {}),
@@ -74,14 +72,14 @@ const getComercialData = unstable_cache(
             prisma.client.findMany({
                 orderBy: { name: 'asc' },
                 select: { id: true, name: true, country: true, industry: true, mainEmail: true, createdAt: true, updatedAt: true, taxId: true, address: true, referredBy: true },
-                take: 120
+                take: 80
             }),
             prisma.contact.findMany({
                 include: {
                     client: { select: { id: true, name: true } },
                     emailMessages: {
                         orderBy: { receivedAt: 'desc' },
-                        take: 3,
+                        take: 1,
                         select: {
                             id: true,
                             subject: true,
@@ -93,7 +91,7 @@ const getComercialData = unstable_cache(
                     }
                 },
                 orderBy: { firstName: 'asc' },
-                take: 120
+                take: 80
             }),
             prisma.quote.findMany({
                 include: {
@@ -106,7 +104,7 @@ const getComercialData = unstable_cache(
                     }
                 },
                 orderBy: { createdAt: 'desc' },
-                take: 120
+                take: 80
             }),
             prisma.invoice.findMany({
                 include: {
@@ -120,7 +118,7 @@ const getComercialData = unstable_cache(
                     }
                 },
                 orderBy: { createdAt: 'desc' },
-                take: 120
+                take: 80
             }),
             prisma.project.findMany({
                 select: {
@@ -135,9 +133,9 @@ const getComercialData = unstable_cache(
                     quote: { select: { installmentsCount: true } },
                         milestones: { select: { id: true, status: true, billable: true } },
                         invoices: { select: { id: true, status: true } }
-                    },
+                },
                 orderBy: { updatedAt: 'desc' },
-                take: 120
+                take: 80
             }),
             prisma.accountingBank.findMany({
                 where: { isActive: true },
@@ -154,17 +152,15 @@ const getComercialData = unstable_cache(
                     createdAt: true
                 },
                 orderBy: { createdAt: 'desc' },
-                take: 400
+                take: 240
             })
         ])),
-    ['comercial-data-v5'],
+    ['comercial-data-v6'],
     { revalidate: 15 }
 )
 
 export default async function ComercialPage({ searchParams }: { searchParams?: PageSearchParams }) {
-    const user = await requireModuleAccess('comercial')
-    await syncInvoicesFromMilestones()
-    await ensureComercialDataQualityNotifications(user.id)
+    await requireModuleAccess('comercial')
 
     const query = paginationQuerySchema.parse({
         page: firstParam(searchParams?.page),
@@ -189,14 +185,18 @@ export default async function ComercialPage({ searchParams }: { searchParams?: P
         query.q,
         safeStatus
     )
+    const invoicesWithFiles = invoices.filter((invoice) => Boolean(invoice.fileUrl)).slice(0, 24)
+    const invoicesToSignIds = new Set(invoicesWithFiles.map((invoice) => invoice.id))
     const invoicesForUi = await Promise.all(
         invoices.map(async (invoice) => ({
             ...invoice,
             fileRef: invoice.fileUrl,
-            fileUrl: await toSignedStorageUrl(invoice.fileUrl, {
-                defaultBucket: process.env.SUPABASE_INVOICE_BUCKET || 'invoice-files',
-                expiresIn: 60 * 60 * 24 * 7
-            })
+            fileUrl: invoicesToSignIds.has(invoice.id)
+                ? await toSignedStorageUrl(invoice.fileUrl, {
+                    defaultBucket: process.env.SUPABASE_INVOICE_BUCKET || 'invoice-files',
+                    expiresIn: 60 * 60 * 24 * 7
+                })
+                : null
         }))
     )
     const invoicesToIssueProjection = projects

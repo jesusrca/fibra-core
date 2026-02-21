@@ -22,6 +22,7 @@ import { AuthError, requireModuleAccess } from '@/lib/server-auth';
 import { LeadStatus } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { withPrismaRetry } from '@/lib/prisma-retry';
+import { aiRateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 // Allow streaming responses up to 30 seconds
@@ -277,6 +278,24 @@ async function enrichMessagesWithAttachmentContext(
 
 export async function POST(req: Request) {
     try {
+        if (aiRateLimit) {
+            const ip = req.headers.get('x-forwarded-for') ?? '127.0.0.1';
+            const { success, limit, reset, remaining } = await aiRateLimit.limit(ip);
+            if (!success) {
+                return Response.json(
+                    { error: 'Demasiadas solicitudes. Por favor, intenta de nuevo más tarde.' },
+                    {
+                        status: 429,
+                        headers: {
+                            'X-RateLimit-Limit': limit.toString(),
+                            'X-RateLimit-Remaining': remaining.toString(),
+                            'X-RateLimit-Reset': reset.toString(),
+                        }
+                    }
+                );
+            }
+        }
+
         const user = await requireModuleAccess('chatbot');
 
         if (!process.env.OPENAI_API_KEY) {

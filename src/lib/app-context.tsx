@@ -30,7 +30,7 @@ export function AppProvider({
 }) {
     const { data: session, status } = useSession()
     const [sidebarOpen, setSidebarOpen] = useState(false)
-    const sessionLoading = status === 'loading'
+    const sessionLoading = status === 'loading' && !initialUser
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen)
 
     const sessionUser = useMemo<AppUser | null>(() => {

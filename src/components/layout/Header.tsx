@@ -50,6 +50,15 @@ export function Header({ user }: HeaderProps) {
     }, [])
 
     useEffect(() => {
+        fetch('/api/maintenance/kickoff', {
+            method: 'POST',
+            keepalive: true
+        }).catch(() => {
+            // background maintenance should never block UX
+        })
+    }, [])
+
+    useEffect(() => {
         const loadProfileSummary = async () => {
             try {
                 const res = await fetch('/api/me/profile-summary', { cache: 'no-store' })

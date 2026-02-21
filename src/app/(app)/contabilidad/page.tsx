@@ -4,7 +4,6 @@ import { requireModuleAccess } from '@/lib/server-auth'
 import { unstable_cache } from 'next/cache'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { InvoiceStatus } from '@prisma/client'
-import { ensureDefaultAccountingBanks } from '@/lib/actions/accounting-settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,9 +37,10 @@ async function getActiveBanksCompatible() {
 }
 
 const getContabilidadData = unstable_cache(
-    async () =>
-        withPrismaRetry(() =>
-            Promise.all([
+    async () => {
+        const [transactions, pendingInvoices, invoices, fixedCosts, pendingPayroll, pendingSupplierPayments] =
+            await withPrismaRetry(() =>
+                prisma.$transaction([
                 prisma.transaction.findMany({
                     include: {
                         invoice: {
@@ -124,17 +124,19 @@ const getContabilidadData = unstable_cache(
                     },
                     orderBy: [{ paymentDate: 'asc' }, { issueDate: 'asc' }],
                     take: 180
-                }),
-                getActiveBanksCompatible()
+                })
             ])
-        ),
-    ['contabilidad-data-v4'],
+        )
+
+        const banks = await getActiveBanksCompatible()
+        return [transactions, pendingInvoices, invoices, fixedCosts, pendingPayroll, pendingSupplierPayments, banks] as const
+    },
+    ['contabilidad-data-v5'],
     { revalidate: 15 }
 )
 
 export default async function ContabilidadPage() {
     await requireModuleAccess('contabilidad')
-    await ensureDefaultAccountingBanks()
 
     const [transactions, pendingInvoices, invoices, fixedCosts, pendingPayroll, pendingSupplierPayments, banks] = await getContabilidadData()
 

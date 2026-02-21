@@ -70,6 +70,35 @@ export function FacturasClient({
     const [showInvoiceForm, setShowInvoiceForm] = useState(false)
     const [syncingInvoices, setSyncingInvoices] = useState(false)
 
+    const openSignedFile = async (fileRef?: string | null, fallbackUrl?: string | null) => {
+        const direct = (fallbackUrl || '').trim()
+        if (direct) {
+            window.open(direct, '_blank', 'noopener,noreferrer')
+            return
+        }
+        const ref = (fileRef || '').trim()
+        if (!ref) return
+        try {
+            const response = await fetch('/api/storage/sign', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                    ref,
+                    defaultBucket: 'invoice-files',
+                    expiresIn: 60 * 30
+                })
+            })
+            const result = await response.json().catch(() => null)
+            if (!response.ok || !result?.url) {
+                alert(result?.error || 'No se pudo abrir el archivo')
+                return
+            }
+            window.open(result.url, '_blank', 'noopener,noreferrer')
+        } catch {
+            alert('No se pudo abrir el archivo')
+        }
+    }
+
     const filteredRows = useMemo(() => {
         const term = search.trim().toLowerCase()
         return rows.filter((row) => {
@@ -211,10 +240,14 @@ export function FacturasClient({
                             <tr key={invoice.id}>
                                 <td className="font-medium whitespace-nowrap">{invoice.invoiceNumber}</td>
                                 <td className="text-xs whitespace-nowrap">
-                                    {invoice.fileUrl ? (
-                                        <a href={invoice.fileUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                                    {(invoice.fileUrl || invoice.fileRef) ? (
+                                        <button
+                                            type="button"
+                                            className="text-primary hover:underline"
+                                            onClick={() => openSignedFile(invoice.fileRef, invoice.fileUrl)}
+                                        >
                                             Ver PDF
-                                        </a>
+                                        </button>
                                     ) : '-'}
                                 </td>
                                 <td className="text-sm text-muted-foreground">{invoice.client?.name || '-'}</td>
@@ -269,6 +302,7 @@ export function FacturasClient({
                     clients={clients}
                     projects={projects}
                     quotes={quotes}
+                    banks={[]}
                     initialData={selectedInvoice}
                 />
             )}

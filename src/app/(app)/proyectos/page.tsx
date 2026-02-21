@@ -3,8 +3,6 @@ import prisma from '@/lib/prisma'
 import { requireModuleAccess } from '@/lib/server-auth'
 import { withPrismaRetry } from '@/lib/prisma-retry'
 import { unstable_cache } from 'next/cache'
-import { ensureDefaultServices } from '@/lib/actions/services'
-import { ensureProjectDataQualityNotifications } from '@/lib/data-quality-notifications'
 import { ProjectStatus } from '@prisma/client'
 import { paginationQuerySchema } from '@/lib/validation/schemas'
 
@@ -20,7 +18,7 @@ function firstParam(value: string | string[] | undefined) {
 const getProyectosData = unstable_cache(
     async (page: number, pageSize: number, q: string, status: string) =>
         withPrismaRetry(() =>
-            Promise.all([
+            prisma.$transaction([
                 prisma.project.findMany({
                     where: {
                         ...(status !== 'ALL' ? { status: status as ProjectStatus } : {}),
@@ -35,9 +33,9 @@ const getProyectosData = unstable_cache(
                             : {}),
                     },
                     include: {
-                        client: true,
-                        director: true,
-                        milestones: true
+                        client: { select: { id: true, name: true } },
+                        director: { select: { id: true, name: true } },
+                        milestones: { select: { id: true, status: true } }
                     },
                     orderBy: { updatedAt: 'desc' },
                     skip: (page - 1) * pageSize,
@@ -58,27 +56,29 @@ const getProyectosData = unstable_cache(
                     },
                 }),
                 prisma.client.findMany({
-                    orderBy: { name: 'asc' }
+                    select: { id: true, name: true },
+                    orderBy: { name: 'asc' },
+                    take: 120
                 }),
                 prisma.user.findMany({
                     orderBy: { name: 'asc' },
-                    select: { id: true, name: true, email: true, role: true }
+                    select: { id: true, name: true, email: true, role: true },
+                    take: 120
                 }),
                 prisma.serviceCatalog.findMany({
                     where: { isActive: true },
                     orderBy: { name: 'asc' },
-                    select: { id: true, name: true }
+                    select: { id: true, name: true },
+                    take: 120
                 })
             ])
         ),
-    ['proyectos-data-v3'],
+    ['proyectos-data-v4'],
     { revalidate: 15 }
 )
 
 export default async function ProyectosPage({ searchParams }: { searchParams?: PageSearchParams }) {
-    const user = await requireModuleAccess('proyectos')
-    await ensureDefaultServices()
-    await ensureProjectDataQualityNotifications(user.id)
+    await requireModuleAccess('proyectos')
 
     const query = paginationQuerySchema.parse({
         page: firstParam(searchParams?.page),

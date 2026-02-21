@@ -79,6 +79,8 @@ model User {
   toolAuditLogs    ToolAuditLog[]
   emailIntegrations EmailIntegration[]
   passwordResetTokens PasswordResetToken[]
+  authenticators   Authenticator[]
+  webAuthnChallenges WebAuthnChallenge[]
 }
 
 model Notification {
@@ -483,6 +485,33 @@ model PasswordResetToken {
   tokenHash String   @unique
   expiresAt DateTime
   usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+model Authenticator {
+  id                   String  @id @default(cuid())
+  credentialID         String  @unique // Base64URL encoded credential ID
+  userId               String
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerAccountId    String
+  credentialPublicKey  String  // Base64URL encoded public key
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String? // Comma-separated or JSON list of transports
+  createdAt            DateTime @default(now())
+
+  @@index([userId])
+}
+
+model WebAuthnChallenge {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge String   @unique
+  expiresAt DateTime
   createdAt DateTime @default(now())
 
   @@index([userId, expiresAt])

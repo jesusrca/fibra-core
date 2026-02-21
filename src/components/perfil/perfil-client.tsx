@@ -2,12 +2,13 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { User, Mail, MapPin, Calendar, Camera, Shield, Zap, Target } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
+import { formatDate, cn } from '@/lib/utils'
 import { roleLabels } from '@/lib/rbac'
 import { updateMyPassword, updateMyProfile } from '@/lib/actions/users'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { formatTimezoneLabel, getTimezoneOptions } from '@/lib/timezones'
+import { startRegistration } from '@simplewebauthn/browser'
 
 interface PerfilClientProps {
     profile: {
@@ -49,6 +50,9 @@ export function PerfilClient({ profile }: PerfilClientProps) {
     })
     const [passwordSaving, setPasswordSaving] = useState(false)
     const [passwordMessage, setPasswordMessage] = useState<string | null>(null)
+    const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false)
+    const [passkeyMessage, setPasskeyMessage] = useState<string | null>(null)
+
     const initials = (form.name || profile.email).split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
     const timezoneOptions = useMemo(
         () => getTimezoneOptions(form.timezone || profile.timezone || null),
@@ -144,6 +148,46 @@ export function PerfilClient({ profile }: PerfilClientProps) {
             setMessage(error instanceof Error ? error.message : 'No se pudo subir la foto de perfil')
         } finally {
             setUploadingAvatar(false)
+        }
+    }
+
+    const handleRegisterPasskey = async () => {
+        setIsRegisteringPasskey(true)
+        setPasskeyMessage(null)
+        try {
+            // 1. Obtener challenge
+            const res = await fetch('/api/auth/webauthn/register/options')
+            if (!res.ok) throw new Error('No se pudo iniciar la configuración de Passkey')
+            const options = await res.json()
+
+            // 2. Interactuar con Touch ID/Face ID/Windows Hello via WebAuthn API
+            let attResp;
+            try {
+                attResp = await startRegistration(options)
+            } catch (err: any) {
+                if (err.name === 'InvalidStateError') throw new Error('Ya tienes un Passkey registrado en este dispositivo.')
+                if (err.name === 'NotAllowedError') throw new Error('Registro cancelado.')
+                throw err
+            }
+
+            // 3. Enviar validación al server
+            const verifyRes = await fetch('/api/auth/webauthn/register/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(attResp)
+            })
+
+            const verifyData = await verifyRes.json()
+            if (verifyData.success) {
+                setPasskeyMessage('¡Passkey registrado exitosamente! Ya puedes usarlo para iniciar sesión.')
+            } else {
+                throw new Error(verifyData.error || 'Falló la verificación del Passkey')
+            }
+        } catch (error: any) {
+            console.error('Passkey Registration Error', error)
+            setPasskeyMessage(error.message || 'Error al configurar Passkey')
+        } finally {
+            setIsRegisteringPasskey(false)
         }
     }
 
@@ -284,8 +328,22 @@ export function PerfilClient({ profile }: PerfilClientProps) {
                                         <p className="text-xs text-muted-foreground">Añade una capa extra de seguridad a tu cuenta.</p>
                                     </div>
                                 </div>
-                                <button className="btn-secondary text-xs">Configurar</button>
+                                <div className="flex flex-col items-end gap-2">
+                                    <button
+                                        onClick={handleRegisterPasskey}
+                                        disabled={isRegisteringPasskey}
+                                        className="btn-primary text-xs"
+                                    >
+                                        {isRegisteringPasskey ? 'Configurando...' : 'Crear Passkey'}
+                                    </button>
+                                </div>
                             </div>
+
+                            {passkeyMessage && (
+                                <p className={cn("text-xs", passkeyMessage.includes('exitosamente') ? "text-success" : "text-destructive")}>
+                                    {passkeyMessage}
+                                </p>
+                            )}
 
                             <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-xl border border-border/40">
                                 <div className="flex items-center gap-4">

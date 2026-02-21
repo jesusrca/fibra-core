@@ -83,7 +83,7 @@ const getDashboardData = unstable_cache(
         const taskDateRange = { createdAt: { gte: fromDate, lte: toDate } }
 
         return withPrismaRetry(() =>
-            Promise.all([
+            prisma.$transaction([
                 prisma.lead.aggregate({
                     where: {
                         status: { notIn: [LeadStatus.WON, LeadStatus.LOST] },
@@ -206,7 +206,7 @@ const getDashboardData = unstable_cache(
             ])
         )
     },
-    ['dashboard-data-v3'],
+    ['dashboard-data-v4'],
     { revalidate: 20 }
 )
 

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 const getFacturasData = unstable_cache(
     async () =>
         withPrismaRetry(() =>
-            Promise.all([
+            prisma.$transaction([
                 prisma.invoice.findMany({
                     include: {
                         client: { select: { id: true, name: true } },
@@ -23,17 +23,17 @@ const getFacturasData = unstable_cache(
                         }
                     },
                     orderBy: { createdAt: 'desc' },
-                    take: 300
+                    take: 180
                 }),
                 prisma.client.findMany({
                     select: { id: true, name: true },
                     orderBy: { name: 'asc' },
-                    take: 150
+                    take: 120
                 }),
                 prisma.project.findMany({
                     select: { id: true, name: true },
                     orderBy: { updatedAt: 'desc' },
-                    take: 200
+                    take: 150
                 }),
                 prisma.quote.findMany({
                     select: {
@@ -42,7 +42,7 @@ const getFacturasData = unstable_cache(
                         lead: { select: { companyName: true } }
                     },
                     orderBy: { createdAt: 'desc' },
-                    take: 200
+                    take: 150
                 }),
                 prisma.project.findMany({
                     select: {
@@ -56,25 +56,29 @@ const getFacturasData = unstable_cache(
                         invoices: { select: { id: true, status: true } }
                     },
                     orderBy: { updatedAt: 'desc' },
-                    take: 200
+                    take: 150
                 })
             ])
         ),
-    ['facturas-data-v1'],
+    ['facturas-data-v2'],
     { revalidate: 15 }
 )
 
 export default async function FacturasPage() {
     await requireModuleAccess('facturas')
     const [invoices, clients, projects, quotes, projectMilestones] = await getFacturasData()
+    const invoicesWithFiles = invoices.filter((invoice) => Boolean(invoice.fileUrl)).slice(0, 36)
+    const invoicesToSignIds = new Set(invoicesWithFiles.map((invoice) => invoice.id))
     const invoicesForUi = await Promise.all(
         invoices.map(async (invoice) => ({
             ...invoice,
             fileRef: invoice.fileUrl,
-            fileUrl: await toSignedStorageUrl(invoice.fileUrl, {
-                defaultBucket: process.env.SUPABASE_INVOICE_BUCKET || 'invoice-files',
-                expiresIn: 60 * 60 * 24 * 7
-            })
+            fileUrl: invoicesToSignIds.has(invoice.id)
+                ? await toSignedStorageUrl(invoice.fileUrl, {
+                    defaultBucket: process.env.SUPABASE_INVOICE_BUCKET || 'invoice-files',
+                    expiresIn: 60 * 60 * 24 * 7
+                })
+                : null
         }))
     )
 

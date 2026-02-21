@@ -3,7 +3,6 @@ import { requireModuleAccess } from '@/lib/server-auth'
 import { MarketingClient } from '@/components/marketing/marketing-client'
 import { unstable_cache } from 'next/cache'
 import { withPrismaRetry } from '@/lib/prisma-retry'
-import { ensureDefaultServices } from '@/lib/actions/services'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,14 +21,14 @@ const SOURCE_LABELS: Record<string, string> = {
 const getMarketingData = unstable_cache(
     async () =>
         withPrismaRetry(() =>
-            Promise.all([
+            prisma.$transaction([
                 prisma.lead.findMany({
                     select: {
                         id: true,
                         source: true,
                         status: true
                     },
-                    take: 500
+                    take: 300
                 }),
                 prisma.transaction.findMany({
                     where: {
@@ -42,25 +41,24 @@ const getMarketingData = unstable_cache(
                     select: {
                         amount: true
                     },
-                    take: 500
+                    take: 300
                 }),
                 prisma.serviceCatalog.findMany({
                     orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
-                    take: 300
+                    take: 180
                 }),
                 prisma.socialMetric.findMany({
                     orderBy: [{ recordedAt: 'desc' }, { createdAt: 'desc' }],
-                    take: 500
+                    take: 300
                 })
             ])
         ),
-    ['marketing-data-v3'],
+    ['marketing-data-v4'],
     { revalidate: 20 }
 )
 
 export default async function MarketingPage() {
     await requireModuleAccess('marketing')
-    await ensureDefaultServices()
 
     const [leads, transactions, services, socialMetrics] = await getMarketingData()
 
